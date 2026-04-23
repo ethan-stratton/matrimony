@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE+ElEQVR4nO2X+09WdRzH/ROqdVkXrUm1ptW62GUZtVZrmiaZF7BBXvOOORGh1CmXRxF4gAdB4QEE5D4gAYWQuAgpMCEnlxGiYkk2uil5mVo/vPu+TmMxJzPrQL/03c6+OwfO5/K+fL7nGTPm//Uv1zt3bNWoJptxd5hm3ufQrPu3a/YDEZrz4A5r557n/N32oqbfFWISRMhnXLR8x8fKzyNWHz4apwWPu8wVb+3c+46P0byHo62i3rvXoWl32lAIif08XFr2lFv+z6dr7UuZWvtihla8sEern0vRKq5n3VrxTLL5n91aPCFB8x9z6YNHnBYyIPKPk899KFIfTUxS4OQ8hU7Zr8iZVYp+/wvt8PpcoVNLtOnNAgW/lqMNnllaP3mv1r1sCpuUZhWzZEKihYr32EiDRvjtFwGMS59M1sY3iuTyrlfWynYVrz+pzwJPKde/Xe6FjYqdW6XtM8oUMqVIW94uNAXlK/j1HAW8kin/SakWItDjMy7q9orwuifcvLhTQZ75ivdp0L7A0zoad1Xd6VJXqtToHNCBjb3KXtmqXX51ipldYdA5YIopVdjUYm1+q8C8m22o2qPlTydZRYDE36ID4XiPjTK8pskxrVy5qzvV4rqmXysltZnriHSuUGqJv6iKzacMGq1KWVSvRN9qU+xBOWeVa9u7JRYi0EMRIAEdaOKWwkS9fh5xhs8sxcypUWlQr3oyTeIO/bm+la7Wynp2OKpfZZ90mSKOKmPZEaUubjCI1BhqKhXhVWYVARLQgSYQJvGHTY5/4X7REwlGWLly+dRp/6dndCLDJG42V5+5uqXrh0wd+VLrzvOqDutVaXCHCtcdswpJX3pYSfNrrSJAAjrQBMLEHcQfdk7AET5eMjHRVJ5rglSrOOBrtcZf1g8l0m/10u8N0vly6UyudHz3gL6M6lNVSI/KN3Vp34Y25X/cYhUBEtCBJhAm7sCixB9WC0wyhgmcBXnmGGFVaO+KVlWH9qk9+Zq+yTP8F8lnC6Dgunk2YLTQb6g4q7ptvarc0m0VARLQgSYQJu7AosQlPnluWgDjFLEAV+CrWXJMLzVwNqgooEO1jj4D+QV1uC+rK+2KuS6pM3VA7e5fdGzXj2qOPWcVARLQgSYQJu5AC8wJ4hKfPDctAJViGSYbwyXUwBfvU6XM5U0qCeq0+G50fq+vEn5SR8oFo41LOpV9xdjzolUESBzcesLMiuNmbjRZWoAG5gTxiEt88gwrQGY74xX1UoDTeNy98JDy1rQYxXeqxnFaTTHfqS35Zyt5v9EGO/eNTqOH0B6LhuxVzUpeUGe9TxziEZf4wwrxRgSonA7ohI7ojA7plI7p3DYEbtQAnMEdHMIlnMItHMM1nJOUzm3TwFAXoFrUi4pRM6pG3cCL2klGx8BumwsG5wB+xbf4Fx8DI77G3/icJHQK3HDObsscGBQiEwu4mGBMMiYakw1OCU6HwAzXJGW3ZRKymNXMbGY3Mxz1wiGznaB0BrxwjNBQO7stZwGL0wqVIhY44zTjVCMYHQEr3CIwOsVq7LadhoNa4PzGMpznBKET4IRThIW6SYbP2W37HviLinDrS4aX6QAY4RJBoWo6xN8MGdu/iIYWQeXAB4cICTVjKXzNcKHTEfkmHFzABncICBVjJTojCZNtRL+KBxfCQb1YCB8zTEbtd8HQ9Z/9MrpVUaOWbCTWH7Tp/7Y27TfjAAAAAElFTkSuQmCC">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrimony Beyond Space and Time</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=JetBrains+Mono:wght@300;400&family=Pixelify+Sans:wght@400;700&display=swap');
+  @font-face { font-family: 'RM2000'; src: url('rpg_maker_2000_font_pack_by_tabmok99_dewba2d/RM2000.ttf'); }
+  @font-face { font-family: 'RM2000Alt'; src: url('rpg_maker_2000_font_pack_by_tabmok99_dewba2d/RM2000Alt.ttf'); }
+  @font-face { font-family: 'RMG2000'; src: url('rpg_maker_2000_font_pack_by_tabmok99_dewba2d/RMG2000.ttf'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f; color: #c8c0b8;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden;
+  }
+  h1 {
+    font-family: 'Cinzel', serif; font-weight: 400;
+    font-size: 1.2rem; color: #e8e0d8;
+    letter-spacing: 0.06em; margin-bottom: 12px;
+    text-shadow: 0 0 30px rgba(180, 140, 255, 0.3);
+  }
+  canvas#game {
+    border: 2px solid #2a2530;
+    image-rendering: pixelated;
+    background: #0a0a0f;
+  }
+  .info {
+    font-size: 0.6rem; color: #484040; margin-top: 8px;
+  }
+  .dialogue-box {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    width: 480px; max-width: 90vw;
+    background: rgba(10, 8, 15, 0.95);
+    border: 2px solid #3a3540; border-radius: 6px;
+    padding: 14px 18px;
+    font-size: 0.75rem; color: #c8b8a0; line-height: 1.7;
+    display: none; z-index: 10;
+  }
+  .dialogue-box .speaker {
+    font-family: 'Cinzel', serif; font-size: 0.7rem;
+    color: #b89cff; margin-bottom: 6px;
+  }
+  .combat-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(5, 3, 10, 0.95);
+    display: none; z-index: 20;
+    align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .combat-overlay.active { display: flex; }
+  .combat-overlay iframe {
+    width: 900px; max-width: 95vw; height: 700px; max-height: 80vh;
+    border: 2px solid #3a3540; border-radius: 6px;
+  }
+  .combat-close {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    color: #908880; margin-top: 10px; cursor: pointer;
+    padding: 6px 16px; border: 1px solid #3a3540; border-radius: 4px;
+    background: rgba(20, 18, 25, 0.9);
+  }
+  .combat-close:hover { border-color: #b89cff; color: #e8e0d8; }
+</style>
+</head>
+<body>
+
+<h1>Matrimony Beyond Space and Time</h1>
+<canvas id="game"></canvas>
+<div class="info">Arrow keys to move · Z to interact · X to cancel</div>
+
+<script>
+// ══════════════════════════════════
+// LDtk LEVEL DATA (embedded)
+// ══════════════════════════════════
+let levelData = null;
+
+// ══════════════════════════════════
+// GAME CONFIG
+// ══════════════════════════════════
+const TILE = 16;       // tile size in pixels
+const SCALE = 2;       // render scale (16px tiles → 32px on screen)
+const CANVAS_W = 640;  // native resolution width
+const CANVAS_H = 480;  // native resolution height
+const DISPLAY_SCALE = 1.4; // CSS scale for display
+const CANVAS_TILES_X = Math.ceil(CANVAS_W / (TILE * SCALE)) + 1;
+const CANVAS_TILES_Y = Math.ceil(CANVAS_H / (TILE * SCALE)) + 1;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = CANVAS_W;
+canvas.height = CANVAS_H;
+
+// ══════════════════════════════════
+// AUDIO
+// ══════════════════════════════════
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+let footstepAlt = false;
+function playFootstep() {
+  const ac = getAudioCtx();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'square';
+  // Randomize pitch and volume for natural variation
+  const basePitch = footstepAlt ? 175 : 145;
+  osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
+  footstepAlt = !footstepAlt;
+  const vol = 0.03 + Math.random() * 0.04;
+  const dur = 0.06 + Math.random() * 0.04;
+  gain.gain.setValueAtTime(vol, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + dur);
+}
+function playTick() {
+  const ac = getAudioCtx();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'square';
+  osc.frequency.value = 600;
+  gain.gain.setValueAtTime(0.04, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + 0.05);
+}
+canvas.style.width = (CANVAS_W * DISPLAY_SCALE) + 'px';
+canvas.style.height = (CANVAS_H * DISPLAY_SCALE) + 'px';
+
+// ══════════════════════════════════
+// TILESET (fallback colors until real art)
+// ══════════════════════════════════
+let tilesetImg = null;
+let tilesetLoaded = false;
+let tilesetCols = 0;
+
+// Color fallback for IntGrid values
+const INTGRID_COLORS = {
+  0: '#2a2820', // walkable floor
+  1: '#4a4540', // wall
+};
+
+// ══════════════════════════════════
+// SPRITES (DeepDive 16x16, 4-frame strips)
+// ══════════════════════════════════
+const SPRITE_FRAME_SIZE = 16;
+const SPRITE_FRAMES = 4;
+const ANIM_SPEED = 200; // ms per frame
+
+const sprites = {};
+function loadSprite(name, src) {
+  const img = new Image();
+  img.src = src;
+  sprites[name] = { img, loaded: false };
+  img.onload = () => { sprites[name].loaded = true; };
+}
+
+// Player sprite (Snoblin prototype character)
+// 128x384 sheet, 32x32 frames, 4 cols × 12 rows
+// Row 0: Idle down (2f)
+// Row 1: Idle right (2f)
+// Row 2: Idle up (2f)
+// Row 3: Walk down (4f)
+// Row 4: Walk right (4f)
+// Row 5: Walk up (4f)
+// Row 6: ignore
+// Row 7: Hurt (2f)
+// Row 8: ignore
+// Row 9: Death down (3f)
+// Row 10: Death right (3f)
+// Row 11: Death left (3f)
+const PLAYER_SHEET = {
+  img: null, loaded: false,
+  frameW: 32, frameH: 32, cols: 4,
+  anims: {
+    idle_down:  { row: 0, frames: 2 },
+    idle_right: { row: 1, frames: 2 },
+    idle_up:    { row: 2, frames: 2 },
+    walk_down:  { row: 3, frames: 4 },
+    walk_right: { row: 4, frames: 4 },
+    walk_up:    { row: 5, frames: 4 },
+    hurt:       { row: 7, frames: 2 },
+    death_down: { row: 9, frames: 3 },
+    death_right:{ row: 10, frames: 3 },
+    death_left: { row: 11, frames: 3 },
+  }
+};
+{
+  const img = new Image();
+  img.src = 'character sprite/Snoblin_Prototype_Character/Assets/Prototype_Character/prototype_character.png';
+  img.onload = () => { PLAYER_SHEET.loaded = true; };
+  PLAYER_SHEET.img = img;
+}
+
+// Enemy sprites (DeepDive 16x16, 4-frame strips)
+loadSprite('Enemy1', 'sprites/FireElemental.png');
+
+// ══════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════
+const state = {
+  player: { x: 0, y: 0 },  // grid coords (destination)
+  entities: [],
+  collision: [],  // 2D array: 0=walk, 1=wall
+  mapW: 0, mapH: 0,
+  tiles: [],      // from LDtk tile layers (all of them, in draw order)
+  facing: 'down',
+  moving: false,
+  moveTimer: 0,
+  moveFrom: { x: 0, y: 0 },
+  dialogue: null,
+  flags: {},
+  showFontTest: false,
+  fontTestScroll: 0,
+  fontTestScrollX: 0,
+  fontTestDragging: false,
+  fontTestDragStartY: 0,
+  fontTestDragStartScroll: 0,
+  fontTestContentH: 600,
+  defeatedEnemies: {},
+  openedChests: {},
+  inventory: [],
+  // Smooth camera position (in tile coords, fractional)
+  smoothX: 0,
+  smoothY: 0,
+  // Combat
+  combat: null, // { enemy, enemyHp, enemyMaxHp, enemyEff, enemyDef, enemyWait, playerHp, playerMaxHp, playerEff, playerDef, playerWait, attackText }
+  combatTransition: null, // { type: 'in'|'out', startTime, duration }
+};
+
+// ══════════════════════════════════
+// LOAD LEVEL
+// ══════════════════════════════════
+async function loadLevel() {
+  const resp = await fetch('LDtK_Matrimony/Matrimony.ldtk?v=' + Date.now());
+  const data = await resp.json();
+  const level = data.levels[0];
+  
+  // Load tileset image
+  const tsDef = data.defs.tilesets[0];
+  if (tsDef && tsDef.relPath) {
+    tilesetCols = Math.floor(tsDef.pxWid / tsDef.tileGridSize);
+    tilesetImg = new Image();
+    tilesetImg.onload = () => { tilesetLoaded = true; };
+    tilesetImg.src = 'LDtK_Matrimony/' + tsDef.relPath;
+  }
+
+  // Collect tile layers in reverse order (LDtk stores top-first, we want background drawn first)
+  const tileLayers = [];
+  
+  for (const layer of level.layerInstances) {
+    if (layer.__identifier === 'IntGrid') {
+      state.mapW = layer.__cWid;
+      state.mapH = layer.__cHei;
+      state.collision = [];
+      for (let y = 0; y < state.mapH; y++) {
+        const row = [];
+        for (let x = 0; x < state.mapW; x++) {
+          row.push(layer.intGridCsv[y * state.mapW + x]);
+        }
+        state.collision.push(row);
+      }
+    }
+    if (layer.__type === 'Tiles' && layer.gridTiles && layer.gridTiles.length > 0) {
+      tileLayers.push(layer.gridTiles);
+    }
+    if (layer.__identifier === 'Entities') {
+      state.entities = [];
+      for (const e of layer.entityInstances) {
+        const gx = Math.floor(e.px[0] / TILE);
+        const gy = Math.floor(e.px[1] / TILE);
+        if (e.__identifier === 'Main') {
+          state.player.x = gx;
+          state.player.y = gy;
+        } else {
+          state.entities.push({
+            type: e.__identifier,
+            x: gx, y: gy,
+            id: `${e.__identifier}_${gx}_${gy}`,
+            fields: e.fieldInstances ? Object.fromEntries(e.fieldInstances.map(f => [f.__identifier, f.__value])) : {},
+          });
+        }
+      }
+    }
+  }
+  
+  // Reverse so background layers draw first
+  tileLayers.reverse();
+  state.tiles = tileLayers;
+  
+  updateCamera();
+}
+
+// ══════════════════════════════════
+// CAMERA
+// ══════════════════════════════════
+function updateCamera() {
+  state.smoothX = state.player.x;
+  state.smoothY = state.player.y;
+}
+
+function getPlayerVisualPos() {
+  if (!state.moving) return { x: state.player.x, y: state.player.y };
+  const t = Math.min(1, state.moveTimer / MOVE_DURATION);
+  // Linear interpolation for chained movement (no decel pulse between steps)
+  return {
+    x: state.moveFrom.x + (state.player.x - state.moveFrom.x) * t,
+    y: state.moveFrom.y + (state.player.y - state.moveFrom.y) * t,
+  };
+}
+
+function getCameraOffset() {
+  const vis = getPlayerVisualPos();
+  let camX = vis.x - Math.floor(CANVAS_TILES_X / 2);
+  let camY = vis.y - Math.floor(CANVAS_TILES_Y / 2);
+  camX = Math.max(0, Math.min(Math.max(0, state.mapW - CANVAS_TILES_X), camX));
+  camY = Math.max(0, Math.min(Math.max(0, state.mapH - CANVAS_TILES_Y), camY));
+  return { x: camX, y: camY };
+}
+
+// ══════════════════════════════════
+// INPUT
+// ══════════════════════════════════
+const keys = {};
+document.addEventListener('keydown', (e) => {
+  keys[e.key] = true;
+  
+  // ESC — exit combat after 5s
+  if (e.key === 'Escape' && state.combat && !state.combatTransition) {
+    if (performance.now() - state.combat.startTime > 9000) {
+      exitCombat();
+    }
+    return;
+  }
+  
+  // Combat input — depends on phase
+  if (state.combat) {
+    const c = state.combat;
+    
+    if (c.phase === 'target') {
+      // Left/Right to toggle between enemy and self
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        c.targetSelf = !c.targetSelf;
+        e.preventDefault(); return;
+      }
+    } else if (c.phase === 'action') {
+      // Action selection phase — 2x4 grid navigation
+      const numActions = Math.min((c.actions || []).length, 8);
+      if (numActions > 0) {
+        const sel = c.selectedAction || 0;
+        const col = sel % 2;
+        const row = Math.floor(sel / 2);
+        if (e.key === 'ArrowUp') {
+          const newRow = row - 1;
+          if (newRow >= 0) { const newIdx = newRow * 2 + col; c.selectedAction = newIdx < numActions ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowDown') {
+          const newRow = row + 1;
+          const newIdx = newRow * 2 + col;
+          c.selectedAction = newIdx < numActions ? newIdx : sel;
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowLeft') {
+          if (col === 1) { const newIdx = row * 2; c.selectedAction = newIdx < numActions ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowRight') {
+          if (col === 0) { const newIdx = row * 2 + 1; c.selectedAction = newIdx < numActions ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+      }
+    }
+  }
+  
+  // Z = Confirm
+  if (e.key === 'z' || e.key === 'Z') {
+    e.preventDefault();
+    if (state.combat) {
+      const c = state.combat;
+      // Win state — Z exits immediately
+      if (c.winState) {
+        exitCombat();
+        return;
+      }
+      if (c.phase === 'target') {
+        // Confirm enemy target → move to action selection
+        c.phase = 'action';
+        c.selectedAction = 0;
+      } else if (c.phase === 'action' && !c.waiting) {
+        const action = (c.actions || [])[c.selectedAction || 0];
+        if (action) {
+          const act = COMBAT_ACTIONS[action] || {};
+          c.waitCountdown = act.wait || 0;
+          c.lastWaitTick = performance.now();
+          c.waitAccumulator = 0;
+          c.waiting = true;
+          c.attackText = action;
+          // Enemy picks a new action if it doesn't have one active
+          if (!c.enemyWaiting || c.enemyWaitCountdown <= 0) {
+            const enemyActions = ['Stand Still', 'Do Nothing'];
+            c.enemyAction = enemyActions[c.enemyActionIndex % 2];
+            c.enemyActionIndex++;
+            const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+            c.enemyWaitCountdown = enemyAct.wait || 0;
+            c.enemyWaiting = true;
+          }
+          // If enemy was paused mid-countdown, it resumes when ticking starts
+        }
+      }
+    } else if (state.dialogue) {
+      closeDialogue();
+    } else {
+      interact();
+    }
+    return;
+  }
+  
+  // X = Cancel
+  if (e.key === 'x' || e.key === 'X') {
+    e.preventDefault();
+    if (state.combat) {
+      const c = state.combat;
+      if (c.phase === 'action') {
+        if (c.waiting) {
+          // Cancel wait, go back to action select
+          c.waiting = false;
+          c.waitCountdown = -1;
+        } else {
+          // Cancel back to target selection
+          c.phase = 'target';
+        }
+      }
+    } else if (state.dialogue) {
+      closeDialogue();
+    }
+    return;
+  }
+});
+document.addEventListener('keyup', (e) => {
+  keys[e.key] = false;
+  if (e.key === 'f' || e.key === 'F') state.showFontTest = !state.showFontTest;
+  if (state.showFontTest && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    if (e.key === 'ArrowUp') state.fontTestScroll = Math.max(0, state.fontTestScroll - 20);
+    if (e.key === 'ArrowDown') state.fontTestScroll = Math.min(Math.max(0, state.fontTestContentH - (canvas.height - 24)), state.fontTestScroll + 20);
+    if (e.key === 'ArrowLeft') state.fontTestScrollX = Math.max(0, state.fontTestScrollX - 20);
+    if (e.key === 'ArrowRight') state.fontTestScrollX = Math.min(state.fontTestContentW || 0, state.fontTestScrollX + 20);
+    return;
+  }
+});
+
+function tryMove(dx, dy) {
+  if (state.moving || state.dialogue || state.combat || state.combatTransition) return;
+  
+  // Set facing
+  if (dx < 0) state.facing = 'left';
+  if (dx > 0) state.facing = 'right';
+  if (dy < 0) state.facing = 'up';
+  if (dy > 0) state.facing = 'down';
+  
+  const nx = state.player.x + dx;
+  const ny = state.player.y + dy;
+  
+  // Bounds check
+  if (nx < 0 || nx >= state.mapW || ny < 0 || ny >= state.mapH) return;
+  // Collision check
+  if (state.collision[ny][nx] !== 0) return;
+  // Entity collision — block movement but don't auto-interact
+  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !state.openedChests[e.id]);
+  if (blocking) {
+    state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
+    return;
+  }
+  
+  // Start movement
+  state.moving = true;
+  state.moveTimer = 0;
+  state.moveFrom.x = state.player.x;
+  state.moveFrom.y = state.player.y;
+  state.player.x = nx;
+  state.player.y = ny;
+  // Only play footstep if a direction key is currently held
+  if (keys['ArrowLeft'] || keys['ArrowRight'] || keys['ArrowUp'] || keys['ArrowDown']) {
+    playFootstep();
+  }
+}
+
+const MOVE_DURATION = 230; // ms for grid movement
+let lastFrameTime = 0;
+
+function handleMovement(now) {
+  const dt = lastFrameTime ? Math.min(now - lastFrameTime, 50) : 16; // cap to avoid jumps on tab-back
+  lastFrameTime = now;
+
+  if (state.moving) {
+    state.moveTimer += dt;
+    if (state.moveTimer >= MOVE_DURATION) {
+      state.moving = false;
+      // Chain movement immediately if key held — no gap between steps
+      if (keys['ArrowLeft']) tryMove(-1, 0);
+      else if (keys['ArrowRight']) tryMove(1, 0);
+      else if (keys['ArrowUp']) tryMove(0, -1);
+      else if (keys['ArrowDown']) tryMove(0, 1);
+    }
+    return;
+  }
+
+  if (keys['ArrowLeft']) tryMove(-1, 0);
+  else if (keys['ArrowRight']) tryMove(1, 0);
+  else if (keys['ArrowUp']) tryMove(0, -1);
+  else if (keys['ArrowDown']) tryMove(0, 1);
+}
+
+// ══════════════════════════════════
+// INTERACTION
+// ══════════════════════════════════
+function getFacingTile() {
+  const dx = state.facing === 'left' ? -1 : state.facing === 'right' ? 1 : 0;
+  const dy = state.facing === 'up' ? -1 : state.facing === 'down' ? 1 : 0;
+  return { x: state.player.x + dx, y: state.player.y + dy };
+}
+
+function interact() {
+  const { x, y } = getFacingTile();
+  const entity = state.entities.find(e => e.x === x && e.y === y && !state.defeatedEnemies[e.id]);
+  if (entity) {
+    handleEntityContact(entity);
+  }
+}
+
+function handleEntityContact(entity) {
+  if (entity.type === 'Enemy1') {
+    startCombat(entity, {
+      name: 'Fire Elemental',
+      maxHp: 20, hp: 20,
+      eff: 8, def: 3, wait: 5,
+    });
+  } else if (entity.type === 'Chest') {
+    if (!state.openedChests[entity.id]) {
+      state.openedChests[entity.id] = true;
+      const item = entity.fields.Item || 'Shortbow';
+      state.inventory.push(item);
+      showDialogue('', 'Found ' + item + '!');
+      // Add Shortbow as combat action
+      if (item === 'Shortbow' && !COMBAT_ACTIONS['Shortbow']) {
+        COMBAT_ACTIONS['Shortbow'] = { eff: 10, def: 0, wait: 3 };
+      }
+    } else {
+      showDialogue('', 'The chest is empty.');
+    }
+  } else {
+    showDialogue('', 'Nothing happens.');
+  }
+}
+
+// ══════════════════════════════════
+// COMBAT SYSTEM
+// ══════════════════════════════════
+const ENEMY_DATA = {
+  'Enemy1': {
+    name: 'Fire Elemental',
+    sprite: 'Enemy1',
+    maxHp: 200, eff: 8, def: 3, wait: 5,
+  },
+};
+
+function startCombat(entity, enemyStats) {
+  state.combat = {
+    enemy: entity,
+    enemyName: enemyStats.name || entity.type,
+    enemySprite: entity.type,
+    enemyHp: enemyStats.maxHp,
+    enemyMaxHp: enemyStats.maxHp,
+    enemyDisplayHp: enemyStats.maxHp,
+    enemyEff: enemyStats.eff,
+    enemyDef: enemyStats.def,
+    enemyWait: enemyStats.wait,
+    playerHp: 30,
+    playerMaxHp: 30,
+    playerEff: 10,
+    playerDef: 2,
+    playerWait: 0,
+    attackText: '',
+    startTime: performance.now(),
+    slideInDuration: 500,
+    phase: 'target', // 'target' = select enemy/self, 'action' = select attack
+    targetSelf: false, // false = targeting enemy, true = targeting self
+    selectedEnemy: 0,
+    actions: ['Punch', 'Kick', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])],
+    selectedAction: 0,
+    waitCountdown: -1, // player wait: -1 = not counting, >=0 = ticking down
+    waitTickSpeed: 300, // ms per tick
+    lastWaitTick: 0,
+    waitAccumulator: 0, // accumulator for precise ticking
+    waiting: false, // true while player wait is counting down
+    // Enemy action state
+    enemyAction: null, // name of enemy's chosen action
+    enemyWaitCountdown: -1,
+    enemyWaiting: false,
+    enemyActionIndex: 0,
+    // Attack animation
+    playerAttackAnim: null, // { startTime, duration, phase: 'rush'|'hit'|'return' }
+    enemyReactAnim: null,  // { startTime, duration, type: 'flash'|'question' }
+  };
+}
+
+function exitCombat() {
+  const enemy = state.combat.enemy;
+  // Don't permanently defeat for now — enemy respawns each fight
+  state.combat = null;
+}
+
+// Combat action data
+const COMBAT_ACTIONS = {
+  'Punch': { eff: 8, def: 0, wait: 2 },
+  'Kick':  { eff: 12, def: 0, wait: 5 },
+  'Stand Still': { eff: 0, def: 0, wait: 10 },
+  'Do Nothing':  { eff: 0, def: 0, wait: 10 },
+};
+
+// Mouse state for combat menu
+const mouse = { x: 0, y: 0 };
+canvas.addEventListener('wheel', (e) => {
+  if (state.showFontTest) { e.preventDefault(); if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { state.fontTestScrollX += (e.deltaX || e.deltaY) > 0 ? 10 : -10; state.fontTestScrollX = Math.max(0, Math.min(state.fontTestScrollX, state.fontTestContentW || 0)); } else { state.fontTestScroll += e.deltaY > 0 ? 10 : -10; state.fontTestScroll = Math.max(0, Math.min(state.fontTestScroll, Math.max(0, state.fontTestContentH - (canvas.height - 24)))); } }
+}, { passive: false });
+canvas.addEventListener('mousedown', (e) => {
+  if (!state.showFontTest) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+  // Check if click is near scrollbar area (right 12px of panel)
+  if (mx >= canvas.width - 22) {
+    state.fontTestDragging = true;
+    state.fontTestDragStartY = my;
+    state.fontTestDragStartScroll = state.fontTestScroll;
+  }
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (!state.fontTestDragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const panelH = canvas.height - 24;
+  const contentH = state.fontTestContentH;
+  const maxScroll = Math.max(0, contentH - panelH);
+  const dragRatio = (my - state.fontTestDragStartY) / panelH;
+  state.fontTestScroll = Math.max(0, Math.min(maxScroll, state.fontTestDragStartScroll + dragRatio * contentH));
+});
+document.addEventListener('mouseup', () => { state.fontTestDragging = false; });
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+});
+canvas.addEventListener('click', (e) => {
+  if (!state.combat) return;
+  const c = state.combat;
+  
+  if (c.phase === 'target') {
+    // Click on enemy in arena to confirm target
+    c.phase = 'action';
+    c.selectedAction = 0;
+    return;
+  }
+  
+  if (c.phase === 'action') {
+    const actions = c.actions || [];
+    const W = canvas.width;
+    const H = canvas.height;
+    const topH = Math.round(H * 0.10);
+    const arenaH = Math.round(H * 0.42);
+    const botContentY = topH + arenaH;
+    const botH = H - botContentY;
+    const pad = 8;
+    const portraitH = Math.round(topH * 0.7);
+    const portraitW = Math.round(portraitH * 2.5);
+    const pPortraitY = botContentY + pad + 2;
+    const portraitCenterY = pPortraitY + Math.round(portraitH / 2);
+    const gridX = pad + 12 + portraitW + 16;
+    const gridRowH = 20;
+    const gridTotalH = 4 * gridRowH;
+    const gridY = portraitCenterY - Math.round(gridTotalH / 2);
+    const colW = Math.round((W - gridX - 16) / 2);
+    for (let i = 0; i < actions.length && i < 8; i++) {
+      const col = i < 4 ? 0 : 1;
+      const row = i < 4 ? i : i - 4;
+      const ax = gridX + col * colW;
+      const ay = gridY + row * gridRowH;
+      if (mouse.x >= ax && mouse.x <= ax + colW && mouse.y >= ay && mouse.y <= ay + gridRowH) {
+        c.selectedAction = i;
+        c.firstAttackDone = true;
+        c.attackText = actions[i];
+        break;
+      }
+    }
+  }
+});
+
+// ══════════════════════════════════
+// CRISP TEXT RENDERING
+// ══════════════════════════════════
+const CRISP_THRESHOLD = 220;
+const CRISP_FONT = 'RM2000';
+const CRISP_FONT_ALT = 'RM2000Alt';
+const CRISP_SIZE = 12;
+
+function crispText(text, x, y, size, color, spacing, fontOverride) {
+  if (!crispText._c) {
+    crispText._c = document.createElement('canvas');
+    crispText._ctx = crispText._c.getContext('2d', { willReadFrequently: true });
+    crispText._c2 = document.createElement('canvas');
+    crispText._ctx2 = crispText._c2.getContext('2d', { willReadFrequently: true });
+  }
+  const fs = size || CRISP_SIZE;
+  const sp = spacing != null ? spacing : 0;
+  const ff = fontOverride || CRISP_FONT;
+  const oc = crispText._c, octx = crispText._ctx;
+  const w = 700, h = fs + 8;
+  oc.width = w; oc.height = h;
+  octx.clearRect(0, 0, w, h);
+  octx.font = fs + 'px "' + ff + '"';
+  octx.textAlign = 'left'; octx.textBaseline = 'top';
+  octx.fillStyle = '#ffffff';
+  let tx = 2;
+  for (let i = 0; i < text.length; i++) { octx.fillText(text[i], tx, 2); tx += octx.measureText(text[i]).width + sp; }
+  const imgData = octx.getImageData(0, 0, tx + 2, h);
+  for (let i = 3; i < imgData.data.length; i += 4) imgData.data[i] = imgData.data[i] >= CRISP_THRESHOLD ? 255 : 0;
+  octx.putImageData(imgData, 0, 0);
+  octx.globalCompositeOperation = 'source-atop';
+  octx.fillStyle = color || '#e8e0d0';
+  octx.fillRect(0, 0, tx + 2, h);
+  octx.globalCompositeOperation = 'source-over';
+  const sc = crispText._c2, sctx = crispText._ctx2;
+  sc.width = w; sc.height = h;
+  sctx.clearRect(0, 0, w, h);
+  sctx.font = fs + 'px "' + ff + '"';
+  sctx.textAlign = 'left'; sctx.textBaseline = 'top';
+  sctx.fillStyle = '#ffffff';
+  let stx = 2;
+  for (let i = 0; i < text.length; i++) { sctx.fillText(text[i], stx, 2); stx += sctx.measureText(text[i]).width + sp; }
+  const sData = sctx.getImageData(0, 0, stx + 2, h);
+  for (let i = 3; i < sData.data.length; i += 4) sData.data[i] = sData.data[i] >= CRISP_THRESHOLD ? 255 : 0;
+  for (let i = 0; i < sData.data.length; i += 4) { sData.data[i] = 0; sData.data[i+1] = 0; sData.data[i+2] = 0; }
+  sctx.putImageData(sData, 0, 0);
+  ctx.drawImage(sc, 0, 0, stx + 2, h, x + 2, y + 2, stx + 2, h);
+  ctx.drawImage(oc, 0, 0, tx + 2, h, x, y, tx + 2, h);
+  return tx;
+}
+
+function crispGradientText(text, x, y, size, stops, spacing, fontOverride) {
+  if (!crispGradientText._c) {
+    crispGradientText._c = document.createElement('canvas');
+    crispGradientText._ctx = crispGradientText._c.getContext('2d', { willReadFrequently: true });
+    crispGradientText._c2 = document.createElement('canvas');
+    crispGradientText._ctx2 = crispGradientText._c2.getContext('2d', { willReadFrequently: true });
+  }
+  const fs = size || CRISP_SIZE;
+  const sp = spacing != null ? spacing : 0;
+  const ff = fontOverride || CRISP_FONT;
+  const oc = crispGradientText._c, octx = crispGradientText._ctx;
+  const w = 700, h = fs + 8;
+  oc.width = w; oc.height = h;
+  octx.clearRect(0, 0, w, h);
+  octx.font = fs + 'px "' + ff + '"';
+  octx.textAlign = 'left'; octx.textBaseline = 'top';
+  octx.fillStyle = '#ffffff';
+  let tx = 2;
+  for (let i = 0; i < text.length; i++) { octx.fillText(text[i], tx, 2); tx += octx.measureText(text[i]).width + sp; }
+  const imgData = octx.getImageData(0, 0, tx + 2, h);
+  for (let i = 3; i < imgData.data.length; i += 4) imgData.data[i] = imgData.data[i] >= CRISP_THRESHOLD ? 255 : 0;
+  octx.putImageData(imgData, 0, 0);
+  octx.globalCompositeOperation = 'source-atop';
+  const grad = octx.createLinearGradient(0, 0, 0, h);
+  for (const [pos, col] of stops) grad.addColorStop(pos, col);
+  octx.fillStyle = grad;
+  octx.fillRect(0, 0, tx + 2, h);
+  octx.globalCompositeOperation = 'source-over';
+  const sc = crispGradientText._c2, sctx = crispGradientText._ctx2;
+  sc.width = w; sc.height = h;
+  sctx.clearRect(0, 0, w, h);
+  sctx.font = fs + 'px "' + ff + '"';
+  sctx.textAlign = 'left'; sctx.textBaseline = 'top';
+  sctx.fillStyle = '#ffffff';
+  let stx = 2;
+  for (let i = 0; i < text.length; i++) { sctx.fillText(text[i], stx, 2); stx += sctx.measureText(text[i]).width + sp; }
+  const sData = sctx.getImageData(0, 0, stx + 2, h);
+  for (let i = 3; i < sData.data.length; i += 4) sData.data[i] = sData.data[i] >= CRISP_THRESHOLD ? 255 : 0;
+  for (let i = 0; i < sData.data.length; i += 4) { sData.data[i] = 0; sData.data[i+1] = 0; sData.data[i+2] = 0; }
+  sctx.putImageData(sData, 0, 0);
+  ctx.drawImage(sc, 0, 0, stx + 2, h, x + 2, y + 2, stx + 2, h);
+  ctx.drawImage(oc, 0, 0, tx + 2, h, x, y, tx + 2, h);
+  return tx;
+}
+
+const GOLD_GRADIENT = [[0, '#f0d060'], [0.4, '#ffe8a0'], [0.6, '#ffe8a0'], [1, '#c89830']];
+
+// Draw a gold gradient outline rect
+function drawGoldOutline(x, y, w, h, thickness) {
+  const t = thickness || 3;
+  const grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, '#f0d060');
+  grad.addColorStop(0.3, '#ffe8a0');
+  grad.addColorStop(0.7, '#ffe8a0');
+  grad.addColorStop(1, '#c89830');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = t;
+  ctx.strokeRect(x, y, w, h);
+}
+
+function drawCombat() {
+  const c = state.combat;
+  const W = canvas.width;
+  const H = canvas.height;
+  const now = performance.now();
+  const elapsed = now - c.startTime;
+  
+  const FONT = '"RM2000Alt", sans-serif';
+  const spr = sprites[c.enemySprite];
+  
+  // Slide-in easing (SmoothStop2: 1-(1-t)^2)
+  const slideT = Math.min(1, elapsed / c.slideInDuration);
+  const eased = 1 - (1 - slideT) * (1 - slideT);
+  
+  // Layout
+  const topH = Math.round(H * 0.16);
+  const arenaH = Math.round(H * 0.36);
+  const arenaY = topH;
+  const botContentY = arenaY + arenaH;
+  const botH = H - botContentY;
+  
+  const portraitH = Math.round(topH * 0.42);
+  const portraitW = Math.round(portraitH * 3.5);
+  
+  // ── TOP BAR ──
+  ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
+  ctx.fillRect(0, 0, W, topH);
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, topH - 0.5); ctx.lineTo(W, topH - 0.5); ctx.stroke();
+  
+  // Enemy portrait
+  const pad = 8; // padding from edges
+  const ePortraitX = pad + 20;
+  const ePortraitY = Math.round((topH - portraitH) / 2);
+  ctx.fillStyle = '#0c0c14';
+  ctx.fillRect(ePortraitX, ePortraitY, portraitW, portraitH);
+  drawGoldOutline(ePortraitX, ePortraitY, portraitW, portraitH, 3);
+  if (spr && spr.loaded) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ePortraitX + 1, ePortraitY + 1, portraitW - 2, portraitH - 2);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    // Draw sprite at natural scale, centered, clipped by portrait rect
+    const sprDrawSize = Math.round(portraitW * 0.7);
+    const dx = ePortraitX + 1 + Math.round((portraitW - 2 - sprDrawSize) / 2);
+    const dy = ePortraitY + 1 + Math.round((portraitH - 2 - sprDrawSize) / 2);
+    ctx.drawImage(spr.img, 0, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE, dx, dy, sprDrawSize, sprDrawSize);
+    ctx.imageSmoothingEnabled = true;
+    ctx.restore();
+  }
+  
+  // Enemy HP bar
+  const infoX = ePortraitX + portraitW + 16;
+  const barW = Math.round(W * 0.22);
+  const barH = 10;
+  const barY = ePortraitY + 4;
+  // Animated HP bar — ease display toward actual, speed proportional to damage
+  if (c.enemyDisplayHp > c.enemyHp) {
+    const diff = c.enemyDisplayHp - c.enemyHp;
+    const speed = Math.max(0.5, diff * 0.08); // faster for bigger hits
+    c.enemyDisplayHp = Math.max(c.enemyHp, c.enemyDisplayHp - speed);
+  }
+  ctx.fillStyle = '#2a1a1a'; ctx.fillRect(infoX, barY, barW, barH);
+  const hpRatio = c.enemyDisplayHp / c.enemyMaxHp;
+  ctx.fillStyle = hpRatio > 0.5 ? '#3a8a3a' : hpRatio > 0.25 ? '#b89030' : '#a03030';
+  ctx.fillRect(infoX, barY, Math.round(barW * hpRatio), barH);
+  drawGoldOutline(infoX - 2, barY - 2, barW + 4, barH + 4, 4);
+  
+  // Enemy action display — name right of HP bar, stats below
+  if (c.enemyAction) {
+    const act = COMBAT_ACTIONS[c.enemyAction] || {};
+    crispText(c.enemyAction, infoX + barW + 8, barY - 4, 32, '#d0c0a0');
+    const statY = barY + barH + 12;
+    let sx = infoX;
+    const waitVal = c.enemyWaitCountdown >= 0 ? c.enemyWaitCountdown : (act.wait || 0);
+    sx += crispGradientText('Eff:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + (act.eff || 0), sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+    sx += crispGradientText('Def:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + (act.def || 0), sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+    sx += crispGradientText('Wait:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    crispText('' + waitVal, sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  }
+  
+  // ── ARENA ──
+  ctx.fillStyle = 'rgba(2, 2, 8, 0.97)';
+  ctx.fillRect(0, arenaY, W, arenaH);
+  
+  const playerCombatSize = 64;
+  const enemyCombatSize = 48;
+  const groundY = arenaY + Math.round(arenaH * 0.82);
+  
+  // Camera: smooth easing between positions
+  const isActionPhase = c.phase === 'action' && !c.waiting && !c.playerAttackAnim;
+  const camTarget = isActionPhase ? 1.0 : 0.0; // 1 = centered on player, 0 = normal
+  if (c.camLerp == null) c.camLerp = 0;
+  c.camLerp += (camTarget - c.camLerp) * 0.08; // asymptotic easing
+  const cl = c.camLerp;
+  
+  // Player/enemy positions interpolated by camera lerp
+  const enemyNormalX = Math.round(W * 0.28) - enemyCombatSize / 2;
+  const playerNormalX = Math.round(W * 0.72) - playerCombatSize / 2;
+  const enemyActionX = Math.round(W * 0.12) - enemyCombatSize / 2; // pushed left
+  const playerActionX = Math.round(W * 0.5) - playerCombatSize / 2; // centered
+  
+  const enemyTargetX = Math.round(enemyNormalX + (enemyActionX - enemyNormalX) * cl);
+  const playerTargetX = Math.round(playerNormalX + (playerActionX - playerNormalX) * cl);
+  
+  // Slide in from edges
+  const enemySlideFrom = -enemyCombatSize - 20;
+  const playerSlideFrom = W + 20;
+  const enemyArenaX = Math.round(enemySlideFrom + (enemyTargetX - enemySlideFrom) * eased);
+  let playerArenaX = Math.round(playerSlideFrom + (playerTargetX - playerSlideFrom) * eased);
+  const enemyArenaY = groundY - enemyCombatSize - 8;
+  const playerArenaY = groundY - playerCombatSize;
+  
+  // Player attack animation — rush toward enemy then return
+  let playerAttacking = false;
+  if (c.playerAttackAnim) {
+    const a = c.playerAttackAnim;
+    const t = now - a.startTime;
+    const targetX = enemyTargetX + enemyCombatSize; // just past enemy
+    playerAttacking = true;
+    if (t < a.rushDuration) {
+      // Rush toward enemy (SmoothStop)
+      const rt = t / a.rushDuration;
+      const re = 1 - (1 - rt) * (1 - rt);
+      playerArenaX = Math.round(playerTargetX + (targetX - playerTargetX) * re);
+    } else if (t < a.rushDuration + a.hitPause) {
+      // Hit pause — hold position
+      playerArenaX = targetX;
+    } else {
+      // Return (SmoothStart)
+      const rt = (t - a.rushDuration - a.hitPause) / a.returnDuration;
+      const re = Math.min(1, rt * rt);
+      playerArenaX = Math.round(targetX + (playerTargetX - targetX) * re);
+    }
+  }
+  
+  // Draw enemy
+  if (spr && spr.loaded) {
+    const frame = Math.floor(now / ANIM_SPEED) % SPRITE_FRAMES;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(spr.img, frame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE,
+      enemyArenaX, enemyArenaY, enemyCombatSize, enemyCombatSize);
+    
+    // White tint on enemy pixels — baseline + flash during target phase
+    if (slideT >= 1 && c.phase === 'target' && !c.targetSelf) {
+      const baseAlpha = 0.15; // constant white tint so you always see selection
+      const flashAlpha = baseAlpha + 0.2 * (0.5 + 0.5 * Math.sin(now / 180));
+      if (flashAlpha > 0) {
+        // Use offscreen canvas to create white silhouette
+        if (!drawCombat._flashCanvas) {
+          drawCombat._flashCanvas = document.createElement('canvas');
+          drawCombat._flashCtx = drawCombat._flashCanvas.getContext('2d');
+        }
+        const fc = drawCombat._flashCanvas;
+        const fctx = drawCombat._flashCtx;
+        fc.width = enemyCombatSize;
+        fc.height = enemyCombatSize;
+        fctx.clearRect(0, 0, fc.width, fc.height);
+        fctx.imageSmoothingEnabled = false;
+        // Draw sprite
+        fctx.drawImage(spr.img, frame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE,
+          0, 0, enemyCombatSize, enemyCombatSize);
+        // Fill white, only on existing pixels
+        fctx.globalCompositeOperation = 'source-atop';
+        fctx.fillStyle = 'white';
+        fctx.fillRect(0, 0, fc.width, fc.height);
+        fctx.globalCompositeOperation = 'source-over';
+        // Draw the white silhouette with alpha
+        ctx.globalAlpha = flashAlpha;
+        ctx.drawImage(fc, enemyArenaX, enemyArenaY);
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+  }
+  
+  // Enemy react animation — flash yellow + question mark when their action resolves
+  if (c.enemyReactAnim) {
+    const rt = (now - c.enemyReactAnim.startTime) / c.enemyReactAnim.duration;
+    if (rt < 1) {
+      // Yellow flash on enemy pixels
+      const flashAlpha = 0.3 * (1 - rt) * (0.5 + 0.5 * Math.sin(now / 80));
+      if (flashAlpha > 0 && spr && spr.loaded) {
+        if (!drawCombat._flashCanvas3) {
+          drawCombat._flashCanvas3 = document.createElement('canvas');
+          drawCombat._flashCtx3 = drawCombat._flashCanvas3.getContext('2d');
+        }
+        const fc = drawCombat._flashCanvas3;
+        const fctx = drawCombat._flashCtx3;
+        fc.width = enemyCombatSize; fc.height = enemyCombatSize;
+        fctx.clearRect(0, 0, fc.width, fc.height);
+        fctx.imageSmoothingEnabled = false;
+        const frame = Math.floor(now / ANIM_SPEED) % SPRITE_FRAMES;
+        fctx.drawImage(spr.img, frame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE,
+          0, 0, enemyCombatSize, enemyCombatSize);
+        fctx.globalCompositeOperation = 'source-atop';
+        fctx.fillStyle = '#ffdd44';
+        fctx.fillRect(0, 0, fc.width, fc.height);
+        fctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = flashAlpha;
+        ctx.drawImage(fc, enemyArenaX, enemyArenaY);
+        ctx.globalAlpha = 1;
+      }
+      // Question mark above enemy
+      const bobY = Math.sin(now / 200) * 3;
+      const qAlpha = Math.min(1, rt < 0.1 ? rt / 0.1 : rt > 0.7 ? (1 - rt) / 0.3 : 1);
+      ctx.globalAlpha = qAlpha;
+      crispText('?', enemyArenaX + enemyCombatSize / 2 - 6, enemyArenaY - 16 + bobY, 32, '#ffdc50');
+      ctx.globalAlpha = 1;
+    }
+  }
+  
+  // Draw player (facing left)
+  if (PLAYER_SHEET.loaded) {
+    const anim = PLAYER_SHEET.anims[playerAttacking ? 'walk_right' : 'idle_right'];
+    const frame = Math.floor(now / 400) % anim.frames;
+    const srcX = frame * PLAYER_SHEET.frameW;
+    const srcY = anim.row * PLAYER_SHEET.frameH;
+    ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    ctx.translate(playerArenaX + playerCombatSize, playerArenaY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(PLAYER_SHEET.img, srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+      0, 0, playerCombatSize, playerCombatSize);
+    ctx.restore();
+    
+    // White flash on player pixels — when self-targeting
+    if (slideT >= 1 && c.phase === 'target' && c.targetSelf) {
+      const flashAlpha = 0.1 + 0.2 * Math.sin(now / 180);
+      if (flashAlpha > 0) {
+        if (!drawCombat._flashCanvas2) {
+          drawCombat._flashCanvas2 = document.createElement('canvas');
+          drawCombat._flashCtx2 = drawCombat._flashCanvas2.getContext('2d');
+        }
+        const fc = drawCombat._flashCanvas2;
+        const fctx = drawCombat._flashCtx2;
+        fc.width = playerCombatSize;
+        fc.height = playerCombatSize;
+        fctx.clearRect(0, 0, fc.width, fc.height);
+        fctx.imageSmoothingEnabled = false;
+        fctx.save();
+        fctx.translate(playerCombatSize, 0);
+        fctx.scale(-1, 1);
+        fctx.drawImage(PLAYER_SHEET.img, srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+          0, 0, playerCombatSize, playerCombatSize);
+        fctx.restore();
+        fctx.globalCompositeOperation = 'source-atop';
+        fctx.fillStyle = 'white';
+        fctx.fillRect(0, 0, fc.width, fc.height);
+        fctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = flashAlpha;
+        ctx.drawImage(fc, playerArenaX, playerArenaY);
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+  }
+  
+  // ESC — after 5s idle
+  if (elapsed > 9000) {
+    const alpha = 0.3 + 0.3 * Math.sin(now / 800);
+    ctx.globalAlpha = alpha;
+    crispText('Esc = Run Away', W - 180, arenaY + 4, 32, '#8c828c');
+    ctx.globalAlpha = 1;
+  }
+  
+  // ── BOTTOM BAR ──
+  ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
+  ctx.fillRect(0, botContentY, W, botH);
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, botContentY + 0.5); ctx.lineTo(W, botContentY + 0.5); ctx.stroke();
+  
+  // Player portrait
+  const pPortraitX = pad + 20;
+  const pPortraitY = botContentY + pad + 2;
+  ctx.fillStyle = '#0c0c14';
+  ctx.fillRect(pPortraitX, pPortraitY, portraitW, portraitH);
+  drawGoldOutline(pPortraitX, pPortraitY, portraitW, portraitH, 3);
+  if (PLAYER_SHEET.loaded) {
+    const anim = PLAYER_SHEET.anims['idle_down'];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pPortraitX + 1, pPortraitY + 1, portraitW - 2, portraitH - 2);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    // Draw sprite at natural scale, centered, clipped by portrait rect
+    const pDrawSize = Math.round(portraitW * 0.7);
+    const pdx = pPortraitX + 1 + Math.round((portraitW - 2 - pDrawSize) / 2);
+    const pdy = pPortraitY + 1 + Math.round((portraitH - 2 - pDrawSize) / 2);
+    ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+      pdx, pdy, pDrawSize, pDrawSize);
+    ctx.imageSmoothingEnabled = true;
+    ctx.restore();
+  }
+  
+  // HP below portrait
+  crispText('HP ' + c.playerHp + '/' + c.playerMaxHp, pPortraitX + 12, pPortraitY + portraitH + 4, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  
+  // ── ACTION GRID: 2 columns × 4 rows, fill left-to-right then down ──
+  const gridX = pPortraitX + portraitW + 48;
+  const gridRowH = 34;
+  const gridY = pPortraitY;
+  const colW = Math.round((W - gridX - 24) / 2);
+  
+  const actions = c.actions || ['Punch', 'Kick'];
+  
+  // Mouse hover (only when in action phase and not waiting)
+  let hovered = -1;
+  if (c.phase === 'action' && !c.waiting) {
+    for (let i = 0; i < actions.length && i < 8; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const ax = gridX + col * colW;
+      const ay = gridY + row * gridRowH;
+      if (mouse.x >= ax && mouse.x <= ax + colW && mouse.y >= ay && mouse.y <= ay + gridRowH) {
+        hovered = i;
+      }
+    }
+    if (hovered >= 0) c.selectedAction = hovered;
+  }
+  
+  // Draw grid items
+  for (let i = 0; i < actions.length && i < 8; i++) {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const ax = gridX + col * colW;
+    const ay = gridY + row * gridRowH;
+    const isSelected = (c.phase === 'action') && i === (c.selectedAction || 0);
+    const dimmed = c.phase === 'target' || c.waiting;
+    
+    // Highlight background — starts at first character pixel, rounded corners
+    if (isSelected && !dimmed) {
+      const hx = ax + 3;  // align with text start
+      const hy = ay;
+      const hw = colW - 3;
+      const hh = gridRowH;
+      ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
+      ctx.fillRect(hx + 1, hy, hw - 2, 1);
+      ctx.fillRect(hx, hy + 1, hw, hh - 2);
+      ctx.fillRect(hx + 1, hy + hh - 1, hw - 2, 1);
+    }
+    
+    crispText(actions[i], ax + 3, ay + 2, 32, '#ffffff');
+  }
+  
+  // Selected action stats — centered on screen, anchored positions for each stat
+  const sel = c.selectedAction || 0;
+  if (c.phase === 'action' && sel < actions.length) {
+    const act = COMBAT_ACTIONS[actions[sel]] || {};
+    const statsY = H - pad - 26;
+    const waitVal = c.waiting ? c.waitCountdown : (act.wait || 0);
+    // Fixed-width slots: label + 3-digit number space. Center the whole block.
+    const slotW = 120; // enough for "Wait:" + "100"
+    const totalW = slotW * 3;
+    const startX = Math.round((W - totalW) / 2);
+    
+    let sx = startX;
+    crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + (act.eff || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += slotW;
+    crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + (act.def || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += slotW;
+    crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + waitVal, sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  }
+  
+  // Hints
+  if (c.waiting) {
+    crispText('X = Cancel', W - pad - 110, H - pad - 14, 32, '#8c828c');
+  }
+  
+  // Win state overlay
+  if (c.winState && c.enemyDisplayHp <= 0.5) {
+    const ws = c.winState;
+    const wt = (now - ws.startTime) / 1000;
+    
+    // Darken
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // "You Win!" with flashing vertical gradient
+    const textY = Math.round(H * 0.42);
+    const gradShift = (now / 400) % 1;
+    const winStops = [
+      [Math.max(0, gradShift - 0.3), '#f0d060'],
+      [gradShift, '#fffce0'],
+      [Math.min(1, gradShift + 0.3), '#f0d060'],
+    ];
+    const clampedStops = winStops.map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
+    crispGradientText('You Win!', Math.round(W / 2) - 60, textY, 32, clampedStops, 0, 'Pixelify Sans');
+  }
+}
+
+function drawCombatTransition() {
+  // No screen wipe — combat overlays directly on the overworld
+}
+
+function showDialogue(speaker, text) {
+  state.dialogue = { speaker, text };
+}
+
+function closeDialogue() {
+  state.dialogue = null;
+}
+
+function drawDialogue() {
+  if (!state.dialogue) return;
+  const W = canvas.width;
+  const H = canvas.height;
+  const FONT = '"RM2000Alt", sans-serif';
+  
+  // Box in bottom third of canvas
+  const boxH = Math.round(H * 0.22);
+  const boxY = H - boxH - 16;
+  const boxX = 16;
+  const boxW = W - 32;
+  
+  // Background
+  ctx.fillStyle = 'rgba(10, 8, 15, 0.92)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = '#5a5060';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+  
+  // Speaker name
+  if (state.dialogue.speaker) {
+    crispText(state.dialogue.speaker, boxX + 12, boxY + 6, 32, '#b89cff');
+  }
+  
+  // Text (word wrap) — use crisp text
+  const textY = state.dialogue.speaker ? boxY + 26 : boxY + 6;
+  // We need to word-wrap with crisp text. Measure using an offscreen ctx.
+  if (!drawDialogue._mc) {
+    drawDialogue._mc = document.createElement('canvas').getContext('2d');
+  }
+  const mctx = drawDialogue._mc;
+  mctx.font = '32px "' + CRISP_FONT + '"';
+  const maxW = boxW - 24;
+  const words = state.dialogue.text.split(' ');
+  let line = '';
+  let lineY = textY;
+  for (const word of words) {
+    const test = line + word + ' ';
+    if (mctx.measureText(test).width > maxW && line) {
+      crispText(line.trim(), boxX + 12, lineY, 32, '#c8b8a0');
+      line = word + ' ';
+      lineY += 18;
+    } else {
+      line = test;
+    }
+  }
+  crispText(line.trim(), boxX + 12, lineY, 32, '#c8b8a0');
+}
+
+// ══════════════════════════════════
+// RENDERING
+// ══════════════════════════════════
+function draw() {
+  // Fill with dark color to prevent black edges at map boundaries
+  ctx.fillStyle = '#1a1a20';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Don't render until tileset is loaded (prevents flash of IntGrid)
+  if (!tilesetLoaded) return;
+  
+  const cam = getCameraOffset();
+  const camX = cam.x;
+  const camY = cam.y;
+  const vis = getPlayerVisualPos();
+  
+  // Draw IntGrid (floor/walls) as fallback
+  // We need to draw extra tiles to cover fractional camera offsets
+  const startX = Math.floor(camX) - 1;
+  const startY = Math.floor(camY) - 1;
+  const endX = Math.ceil(camX) + CANVAS_TILES_X + 1;
+  const endY = Math.ceil(camY) + CANVAS_TILES_Y + 1;
+  
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      if (x < 0 || x >= state.mapW || y < 0 || y >= state.mapH) continue;
+      const val = state.collision[y][x];
+      const sx = (x - camX) * TILE * SCALE;
+      const sy = (y - camY) * TILE * SCALE;
+      ctx.fillStyle = INTGRID_COLORS[val] || '#1a1520';
+      ctx.fillRect(Math.round(sx), Math.round(sy), TILE * SCALE + 1, TILE * SCALE + 1); // +1 to avoid seams
+    }
+  }
+  
+  // Draw tile layers (background first, foreground last)
+  if (tilesetLoaded && tilesetImg) {
+    ctx.imageSmoothingEnabled = false;
+    for (const tileLayer of state.tiles) {
+      for (const tile of tileLayer) {
+        const gx = Math.floor(tile.px[0] / TILE);
+        const gy = Math.floor(tile.px[1] / TILE);
+        if (gx < startX || gx > endX || gy < startY || gy > endY) continue;
+        const sx = (gx - camX) * TILE * SCALE;
+        const sy = (gy - camY) * TILE * SCALE;
+        ctx.drawImage(tilesetImg,
+          tile.src[0], tile.src[1], TILE, TILE,
+          Math.round(sx), Math.round(sy), TILE * SCALE, TILE * SCALE
+        );
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+  }
+  
+  // Draw entities
+  for (const e of state.entities) {
+    if (state.defeatedEnemies[e.id]) continue;
+    if (e.x < startX || e.x > endX || e.y < startY || e.y > endY) continue;
+    const sx = Math.round((e.x - camX) * TILE * SCALE);
+    const sy = Math.round((e.y - camY) * TILE * SCALE);
+    drawEntity(ctx, e, sx, sy);
+  }
+  
+  // Draw player at visual (interpolated) position
+  const playerDrawX = Math.round((vis.x - camX) * TILE * SCALE);
+  const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
+  drawPlayer(ctx, playerDrawX, playerDrawY);
+  
+  // Version number (top right)
+  ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
+  ctx.font = '10px "JetBrains Mono", monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('v0.53', canvas.width - 8, 14);
+  
+  // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
+  if (state.showFontTest) {
+    const panelX = 10, panelY = 10, panelW = canvas.width - 20, panelH = canvas.height - 20;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    // Subtle background pattern so shadows/outlines are visible
+    ctx.fillStyle = 'rgba(30, 25, 40, 1)';
+    ctx.fillRect(panelX + 1, panelY + 1, panelW - 2, panelH - 2);
+    // Checkerboard pattern
+    for (let cy = panelY; cy < panelY + panelH; cy += 8) {
+      for (let cx = panelX; cx < panelX + panelW; cx += 8) {
+        if ((cx + cy) % 16 === 0) {
+          ctx.fillStyle = 'rgba(40, 35, 55, 1)';
+          ctx.fillRect(cx, cy, 8, 8);
+        }
+      }
+    }
+    ctx.strokeStyle = '#5a5060'; ctx.lineWidth = 1;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(panelX + 1, panelY + 1, panelW - 2, panelH - 2);
+    ctx.clip();
+    
+    // Helper: draw text with extra letter spacing and optional drop shadow
+    function drawSpaced(text, x, y, spacing, shadow) {
+      if (shadow) {
+        const origFill = ctx.fillStyle;
+        ctx.fillStyle = '#000000';
+        let sx = x + 2;
+        for (let i = 0; i < text.length; i++) {
+          ctx.fillText(text[i], sx, y + 2);
+          sx += ctx.measureText(text[i]).width + spacing;
+        }
+        ctx.fillStyle = origFill;
+      }
+      let tx = x;
+      for (let i = 0; i < text.length; i++) {
+        ctx.fillText(text[i], tx, y);
+        tx += ctx.measureText(text[i]).width + spacing;
+      }
+      return tx;
+    }
+    
+    // Helper: render crisp pixel text — no anti-aliasing outlines
+    // Renders to offscreen canvas, thresholds alpha to kill grey AA fringe,
+    // then stamps result with drop shadow
+    function drawCrispText(text, x, y, fontSize, color, spacing, fontFamily) {
+      if (!drawCrispText._c) {
+        drawCrispText._c = document.createElement('canvas');
+        drawCrispText._ctx = drawCrispText._c.getContext('2d', { willReadFrequently: true });
+      }
+      const oc = drawCrispText._c;
+      const octx = drawCrispText._ctx;
+      const w = 500, h = fontSize + 8;
+      const ff = fontFamily || 'RM2000';
+      oc.width = w; oc.height = h;
+      octx.clearRect(0, 0, w, h);
+      octx.font = fontSize + 'px "' + ff + '"';
+      octx.textAlign = 'left';
+      octx.textBaseline = 'top';
+      octx.fillStyle = '#ffffff';
+      
+      // Draw each character with spacing
+      let tx = 2;
+      const sp = spacing || 2;
+      for (let i = 0; i < text.length; i++) {
+        octx.fillText(text[i], tx, 2);
+        tx += octx.measureText(text[i]).width + sp;
+      }
+      
+      // Threshold alpha: anything < 220 becomes 0, anything >= 220 becomes 255
+      const imgData = octx.getImageData(0, 0, tx + 2, h);
+      const d = imgData.data;
+      for (let i = 3; i < d.length; i += 4) {
+        d[i] = d[i] >= 220 ? 255 : 0;
+      }
+      octx.putImageData(imgData, 0, 0);
+      
+      // Now colorize: draw a color rect with source-atop to recolor white→target
+      octx.globalCompositeOperation = 'source-atop';
+      octx.fillStyle = color || '#e8e0d0';
+      octx.fillRect(0, 0, tx + 2, h);
+      octx.globalCompositeOperation = 'source-over';
+      
+      // Draw shadow first (offset version in black)
+      if (!drawCrispText._c2) {
+        drawCrispText._c2 = document.createElement('canvas');
+        drawCrispText._ctx2 = drawCrispText._c2.getContext('2d', { willReadFrequently: true });
+      }
+      const sc = drawCrispText._c2;
+      const sctx = drawCrispText._ctx2;
+      sc.width = w; sc.height = h;
+      sctx.clearRect(0, 0, w, h);
+      sctx.font = fontSize + 'px "' + ff + '"';
+      sctx.textAlign = 'left';
+      sctx.textBaseline = 'top';
+      sctx.fillStyle = '#ffffff';
+      let stx = 2;
+      for (let i = 0; i < text.length; i++) {
+        sctx.fillText(text[i], stx, 2);
+        stx += sctx.measureText(text[i]).width + sp;
+      }
+      const sData = sctx.getImageData(0, 0, stx + 2, h);
+      const sd = sData.data;
+      for (let i = 3; i < sd.length; i += 4) {
+        sd[i] = sd[i] >= 220 ? 255 : 0;
+      }
+      // Make shadow black
+      for (let i = 0; i < sd.length; i += 4) {
+        sd[i] = 0; sd[i+1] = 0; sd[i+2] = 0;
+      }
+      sctx.putImageData(sData, 0, 0);
+      
+      // Stamp shadow then text
+      ctx.drawImage(sc, 0, 0, stx + 2, h, x + 2, y + 2, stx + 2, h);
+      ctx.drawImage(oc, 0, 0, tx + 2, h, x, y, tx + 2, h);
+      
+      return tx + 2;
+    }
+    
+    // Render at small native size, threshold AA, then scale up with nearest-neighbor
+    function drawCrispScaled(text, x, y, fontSize, scale, color, spacing, fontFamily) {
+      if (!drawCrispScaled._c) {
+        drawCrispScaled._c = document.createElement('canvas');
+        drawCrispScaled._ctx = drawCrispScaled._c.getContext('2d', { willReadFrequently: true });
+        drawCrispScaled._c2 = document.createElement('canvas');
+        drawCrispScaled._ctx2 = drawCrispScaled._c2.getContext('2d', { willReadFrequently: true });
+      }
+      const oc = drawCrispScaled._c;
+      const octx = drawCrispScaled._ctx;
+      const w = 500, h = fontSize + 6;
+      const ff = fontFamily || 'RM2000';
+      oc.width = w; oc.height = h;
+      octx.clearRect(0, 0, w, h);
+      octx.font = fontSize + 'px "' + ff + '"';
+      octx.textAlign = 'left';
+      octx.textBaseline = 'top';
+      octx.fillStyle = '#ffffff';
+      
+      const sp = spacing || 1;
+      let tx = 1;
+      for (let i = 0; i < text.length; i++) {
+        octx.fillText(text[i], tx, 1);
+        tx += octx.measureText(text[i]).width + sp;
+      }
+      
+      // Threshold alpha
+      const imgData = octx.getImageData(0, 0, tx + 2, h);
+      const d = imgData.data;
+      for (let i = 3; i < d.length; i += 4) {
+        d[i] = d[i] >= 220 ? 255 : 0;
+      }
+      octx.putImageData(imgData, 0, 0);
+      
+      // Colorize
+      octx.globalCompositeOperation = 'source-atop';
+      octx.fillStyle = color || '#e8e0d0';
+      octx.fillRect(0, 0, tx + 2, h);
+      octx.globalCompositeOperation = 'source-over';
+      
+      // Shadow version
+      const sc2 = drawCrispScaled._c2;
+      const sctx = drawCrispScaled._ctx2;
+      sc2.width = w; sc2.height = h;
+      sctx.clearRect(0, 0, w, h);
+      sctx.font = fontSize + 'px "' + ff + '"';
+      sctx.textAlign = 'left';
+      sctx.textBaseline = 'top';
+      sctx.fillStyle = '#ffffff';
+      let stx = 1;
+      for (let i = 0; i < text.length; i++) {
+        sctx.fillText(text[i], stx, 1);
+        stx += sctx.measureText(text[i]).width + sp;
+      }
+      const sData = sctx.getImageData(0, 0, stx + 2, h);
+      const sd = sData.data;
+      for (let i = 3; i < sd.length; i += 4) {
+        sd[i] = sd[i] >= 220 ? 255 : 0;
+      }
+      for (let i = 0; i < sd.length; i += 4) {
+        sd[i] = 0; sd[i+1] = 0; sd[i+2] = 0;
+      }
+      sctx.putImageData(sData, 0, 0);
+      
+      // Scale up with nearest-neighbor
+      const dw = (tx + 2) * scale, dh = h * scale;
+      ctx.imageSmoothingEnabled = false;
+      // Shadow offset = 1 source pixel = `scale` display pixels
+      ctx.drawImage(sc2, 0, 0, stx + 2, h, x + scale, y + scale, (stx + 2) * scale, h * scale);
+      ctx.drawImage(oc, 0, 0, tx + 2, h, x, y, dw, dh);
+      ctx.imageSmoothingEnabled = true;
+      
+      return dw;
+    }
+    
+    // Like drawCrispText but with adjustable threshold
+    function drawCrispTextThresh(text, x, y, fontSize, color, spacing, threshold, fontFamily) {
+      if (!drawCrispTextThresh._c) {
+        drawCrispTextThresh._c = document.createElement('canvas');
+        drawCrispTextThresh._ctx = drawCrispTextThresh._c.getContext('2d', { willReadFrequently: true });
+        drawCrispTextThresh._c2 = document.createElement('canvas');
+        drawCrispTextThresh._ctx2 = drawCrispTextThresh._c2.getContext('2d', { willReadFrequently: true });
+      }
+      const oc = drawCrispTextThresh._c;
+      const octx = drawCrispTextThresh._ctx;
+      const w = 500, h = fontSize + 8;
+      const ff = fontFamily || 'RM2000';
+      oc.width = w; oc.height = h;
+      octx.clearRect(0, 0, w, h);
+      octx.font = fontSize + 'px "' + ff + '"';
+      octx.textAlign = 'left';
+      octx.textBaseline = 'top';
+      octx.fillStyle = '#ffffff';
+      const sp = spacing || 2;
+      let tx = 2;
+      for (let i = 0; i < text.length; i++) {
+        octx.fillText(text[i], tx, 2);
+        tx += octx.measureText(text[i]).width + sp;
+      }
+      const imgData = octx.getImageData(0, 0, tx + 2, h);
+      const d = imgData.data;
+      for (let i = 3; i < d.length; i += 4) {
+        d[i] = d[i] >= threshold ? 255 : 0;
+      }
+      octx.putImageData(imgData, 0, 0);
+      octx.globalCompositeOperation = 'source-atop';
+      octx.fillStyle = color || '#e8e0d0';
+      octx.fillRect(0, 0, tx + 2, h);
+      octx.globalCompositeOperation = 'source-over';
+      
+      // Shadow
+      const sc = drawCrispTextThresh._c2;
+      const sctx = drawCrispTextThresh._ctx2;
+      sc.width = w; sc.height = h;
+      sctx.clearRect(0, 0, w, h);
+      sctx.font = fontSize + 'px "' + ff + '"';
+      sctx.textAlign = 'left';
+      sctx.textBaseline = 'top';
+      sctx.fillStyle = '#ffffff';
+      let stx = 2;
+      for (let i = 0; i < text.length; i++) {
+        sctx.fillText(text[i], stx, 2);
+        stx += sctx.measureText(text[i]).width + sp;
+      }
+      const sData = sctx.getImageData(0, 0, stx + 2, h);
+      const sd = sData.data;
+      for (let i = 3; i < sd.length; i += 4) {
+        sd[i] = sd[i] >= threshold ? 255 : 0;
+      }
+      for (let i = 0; i < sd.length; i += 4) {
+        sd[i] = 0; sd[i+1] = 0; sd[i+2] = 0;
+      }
+      sctx.putImageData(sData, 0, 0);
+      
+      ctx.drawImage(sc, 0, 0, stx + 2, h, x + 2, y + 2, stx + 2, h);
+      ctx.drawImage(oc, 0, 0, tx + 2, h, x, y, tx + 2, h);
+      return tx + 2;
+    }
+    
+    const sample = 'Punch  Kick  Eff: 12  Def: 5  Wait: 8  HP 30/30';
+    const scrollY = -(state.fontTestScroll || 0);
+    const scrollX = -(state.fontTestScrollX || 0);
+    ctx.textAlign = 'left';
+    ctx.translate(scrollX, 0);
+    let y = 30 + scrollY;
+    
+    // RM2000 32px threshold + scale
+    const sampleText = 'Punch  Kick  Eff: 12  Def: 5  Wait: 8  HP 30/30  ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('RM2000 32px threshold+scale (nearest-neighbor):', 20, y); y += 16;
+    
+    const scaledCombos = [
+      { sc: 1, label: '32px × 1 (32)' },
+      { sc: 2, label: '32px × 2 (64)' },
+    ];
+    for (const c2 of scaledCombos) {
+      ctx.fillStyle = '#706860'; ctx.font = '9px "Pixelify Sans"';
+      ctx.fillText(c2.label + ':', 20, y + 16);
+      drawCrispScaled(sampleText, 130, y, 32, c2.sc, '#e8e0d0', 2);
+      y += 32 * c2.sc + 12;
+    }
+    y += 10;
+    
+    // Try lowering threshold to be more aggressive at killing AA
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('32px direct — varying threshold (killing more AA):', 20, y); y += 16;
+    
+    const thresholds = [180, 190, 200, 210, 220, 230, 240];
+    for (const thresh of thresholds) {
+      ctx.fillStyle = '#706860'; ctx.font = '9px "Pixelify Sans"';
+      ctx.fillText('thresh ' + thresh + ':', 20, y + 12);
+      drawCrispTextThresh(sampleText, 110, y, 32, '#e8e0d0', 2, thresh);
+      y += 40;
+    }
+    y += 10;
+    
+    // RM2000Alt 32px with varying thresholds
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('RM2000Alt 32px — varying threshold:', 20, y); y += 16;
+    for (const thresh of thresholds) {
+      ctx.fillStyle = '#706860'; ctx.font = '9px "Pixelify Sans"';
+      ctx.fillText('thresh ' + thresh + ':', 20, y + 12);
+      drawCrispTextThresh(sampleText, 110, y, 32, '#e8e0d0', 2, thresh, 'RM2000Alt');
+      y += 40;
+    }
+    
+    // Other fonts at 24px with shadow
+    const others = [
+      { name: 'RM2000Alt 24px', font: '24px "RM2000Alt"', sp: 1 },
+      { name: 'RM2000Alt 32px', font: '32px "RM2000Alt"', sp: 1 },
+      { name: 'RMG2000 24px', font: '24px "RMG2000"', sp: 1 },
+      { name: 'RMG2000 32px', font: '32px "RMG2000"', sp: 1 },
+      { name: 'Pixelify 24px', font: '24px "Pixelify Sans"', sp: 0 },
+      { name: 'Pixelify 32px', font: '32px "Pixelify Sans"', sp: 0 },
+    ];
+    for (const o of others) {
+      ctx.fillStyle = '#706860'; ctx.font = '9px "Pixelify Sans"';
+      ctx.fillText(o.name + ':', 20, y + 10);
+      ctx.fillStyle = '#e8e0d0'; ctx.font = o.font;
+      drawSpaced(sampleText, 120, y + 10, o.sp, true);
+      y += 28;
+    }
+    y += 16;
+    
+    // ═══ RM2000 24px HORIZONTAL GRADIENTS ═══
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('── RM2000 24px — Horizontal Gradients (left→right) ──', 20, y); y += 20;
+    
+    const gradSamples = [
+      { text: '★ CRITICAL HIT ★', stops: [[0,'#ff4040'],[0.5,'#ffcc00'],[1,'#ff4040']] },
+      { text: '♦ LEVEL UP ♦', stops: [[0,'#60c0ff'],[0.4,'#ffffff'],[0.6,'#ffffff'],[1,'#60c0ff']] },
+      { text: '◆ FIRE STORM ◆', stops: [[0,'#ff2200'],[0.3,'#ff8800'],[0.6,'#ffdd00'],[1,'#ff2200']] },
+      { text: '✦ HOLY LIGHT ✦', stops: [[0,'#ffffa0'],[0.3,'#ffffff'],[0.7,'#ffffff'],[1,'#ffffa0']] },
+      { text: '☠ POISON FANG ☠', stops: [[0,'#40ff40'],[0.3,'#a0ff60'],[0.7,'#40ff40'],[1,'#208020']] },
+      { text: '❄ ICE SHARD ❄', stops: [[0,'#80c0ff'],[0.3,'#c0e8ff'],[0.7,'#ffffff'],[1,'#80c0ff']] },
+      { text: '⚡ THUNDER ⚡', stops: [[0,'#ffff40'],[0.3,'#ffffff'],[0.5,'#ffff40'],[0.8,'#ffffff'],[1,'#ffff40']] },
+      { text: 'RAINBOW BLADE', stops: [[0,'#ff4040'],[0.17,'#ff8800'],[0.33,'#ffff00'],[0.5,'#40ff40'],[0.67,'#4080ff'],[0.83,'#8040ff'],[1,'#ff40ff']] },
+    ];
+    for (const gs of gradSamples) {
+      ctx.font = '24px "RM2000"';
+      // Heavy shadow (2px offset, opaque black)
+      ctx.fillStyle = '#000000';
+      drawSpaced(gs.text, 22, y + 22, 1, false);
+      // Gradient on top
+      const tw = ctx.measureText(gs.text).width + gs.text.length;
+      const grad = ctx.createLinearGradient(20, 0, 20 + tw, 0);
+      for (const [pos, color] of gs.stops) grad.addColorStop(pos, color);
+      ctx.fillStyle = grad;
+      drawSpaced(gs.text, 20, y + 20, 1, false);
+      y += 32;
+    }
+    y += 16;
+    
+    // ═══ RM2000 24px VERTICAL GRADIENTS (top→bottom) ═══
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('── RM2000 24px — Vertical Gradients (top→bottom) ──', 20, y); y += 20;
+    
+    for (const gs of [...gradSamples]) {
+      ctx.font = '24px "RM2000"';
+      const textY = y + 20;
+      // Heavy shadow
+      ctx.fillStyle = '#000000';
+      drawSpaced(gs.text, 22, textY + 2, 1, false);
+      // Vertical gradient
+      const grad = ctx.createLinearGradient(0, textY - 20, 0, textY + 4);
+      for (const [pos, color] of gs.stops) grad.addColorStop(pos, color);
+      ctx.fillStyle = grad;
+      drawSpaced(gs.text, 20, textY, 1, false);
+      y += 32;
+    }
+    y += 16;
+    
+    // Pixelify Sans gradient for comparison
+    ctx.fillStyle = '#d4a830'; ctx.font = '10px "Pixelify Sans"';
+    ctx.fillText('── Pixelify Sans 20px with Gradients ──', 20, y); y += 20;
+    for (const gs of gradSamples.slice(0, 3)) {
+      ctx.font = 'bold 20px "Pixelify Sans"';
+      const tw = ctx.measureText(gs.text).width;
+      const grad = ctx.createLinearGradient(20, 0, 20 + tw, 0);
+      for (const [pos, color] of gs.stops) grad.addColorStop(pos, color);
+      ctx.fillStyle = grad;
+      ctx.fillText(gs.text, 20, y + 16);
+      y += 28;
+    }
+    
+    // Track content height for scrollbar
+    const contentH = (y - scrollY) - 10;
+    state.fontTestContentH = contentH;
+    state.fontTestContentW = Math.max(0, 1200 - panelW); // estimated content width overflow
+    
+    ctx.restore();
+    
+    // Scroll hint
+    ctx.fillStyle = 'rgba(140, 130, 140, 0.6)';
+    ctx.font = '10px "Pixelify Sans"';
+    ctx.textAlign = 'left';
+    ctx.fillText('Scroll: wheel=vertical, shift+wheel=horizontal  |  Press F to close', panelX + 8, panelY + panelH - 6);
+    
+    // Scrollbar
+    const viewH = panelH - 4;
+    if (contentH > viewH) {
+      const maxScroll = contentH - viewH;
+      const scrollRatio = Math.min(1, (state.fontTestScroll || 0) / maxScroll);
+      const barH = Math.max(20, Math.round(viewH * viewH / contentH));
+      const barY = panelY + 2 + Math.round(scrollRatio * (viewH - barH));
+      ctx.fillStyle = state.fontTestDragging ? 'rgba(200, 180, 200, 0.7)' : 'rgba(160, 140, 160, 0.4)';
+      ctx.fillRect(panelX + panelW - 8, barY, 6, barH);
+    }
+  }
+  ctx.textAlign = 'left';
+}
+
+function drawSprite(ctx, spriteName, x, y, time) {
+  const s = TILE * SCALE;
+  const spr = sprites[spriteName];
+  if (spr && spr.loaded) {
+    const frame = Math.floor((time || performance.now()) / ANIM_SPEED) % SPRITE_FRAMES;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(spr.img,
+      frame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE,
+      x, y, s, s
+    );
+    ctx.imageSmoothingEnabled = true;
+  } else {
+    // Fallback rectangle
+    ctx.fillStyle = spriteName === 'player' ? '#6a8aca' : '#d77643';
+    ctx.fillRect(x + s*0.2, y + s*0.15, s*0.6, s*0.7);
+  }
+}
+
+function drawPlayer(ctx, x, y) {
+  const s = TILE * SCALE;
+  if (!PLAYER_SHEET.loaded) {
+    ctx.fillStyle = '#6a8aca';
+    ctx.fillRect(x + s*0.2, y + s*0.15, s*0.6, s*0.7);
+    return;
+  }
+  
+  // Left uses right's rows but flipped
+  let dir = state.facing;
+  let flip = false;
+  if (dir === 'left') { dir = 'right'; flip = true; }
+  
+  const animName = (state.moving ? 'walk_' : 'idle_') + dir;
+  const anim = PLAYER_SHEET.anims[animName];
+  const speed = state.moving ? 120 : 400;
+  const frame = Math.floor(performance.now() / speed) % anim.frames;
+  
+  const srcX = frame * PLAYER_SHEET.frameW;
+  const srcY = anim.row * PLAYER_SHEET.frameH;
+  
+  const drawSize = s * 2;
+  const drawX = Math.round(x - s / 2);
+  const drawY = Math.round(y - s / 2);
+  
+  ctx.imageSmoothingEnabled = false;
+  
+  if (flip) {
+    ctx.save();
+    ctx.translate(drawX + drawSize, drawY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(PLAYER_SHEET.img,
+      srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+      0, 0, drawSize, drawSize
+    );
+    ctx.restore();
+  } else {
+    ctx.drawImage(PLAYER_SHEET.img,
+      srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+      drawX, drawY, drawSize, drawSize
+    );
+  }
+  
+  ctx.imageSmoothingEnabled = true;
+}
+
+// Load chest sprites
+const CHEST_CLOSED = new Image(); CHEST_CLOSED.src = 'chest_closed.png';
+const CHEST_OPEN = new Image(); CHEST_OPEN.src = 'chest_open.png';
+
+function drawEntity(ctx, entity, x, y) {
+  if (entity.type === 'Chest') {
+    const s = TILE * SCALE;
+    const img = state.openedChests[entity.id] ? CHEST_OPEN : CHEST_CLOSED;
+    if (img.complete && img.naturalWidth) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, x, y, s, s);
+      ctx.imageSmoothingEnabled = true;
+    }
+    return;
+  }
+  drawSprite(ctx, entity.type, x, y, performance.now());
+}
+
+// ══════════════════════════════════
+// GAME LOOP
+// ══════════════════════════════════
+let lastTime = 0;
+
+function gameLoop(time) {
+  if (!state.combat) {
+    handleMovement(time);
+  }
+  // Update combat wait countdowns + animations
+  if (state.combat) {
+    const c = state.combat;
+    
+    // Update player attack animation
+    if (c.playerAttackAnim) {
+      const a = c.playerAttackAnim;
+      const t = time - a.startTime;
+      if (t >= a.totalDuration) {
+        c.playerAttackAnim = null;
+        // Apply damage to enemy
+        if (c.attackText) {
+          const act = COMBAT_ACTIONS[c.attackText] || {};
+          c.enemyHp = Math.max(0, c.enemyHp - (act.eff || 0));
+          // Trigger win state when enemy dies (after HP bar drains)
+          if (c.enemyHp <= 0 && !c.winState) {
+            c.winState = { startTime: performance.now() };
+          }
+        }
+        // Reset — player's attack executed, clear waiting state
+        c.waiting = false;
+        c.waitCountdown = -1;
+        c.attackText = null;
+      }
+    }
+    
+    // Update enemy react animation
+    if (c.enemyReactAnim) {
+      const t = time - c.enemyReactAnim.startTime;
+      if (t >= c.enemyReactAnim.duration) {
+        c.enemyReactAnim = null;
+        // Enemy's action resolved — clear it. New action picked when player next attacks.
+        c.enemyAction = null;
+        c.enemyWaiting = false;
+      }
+    }
+    
+    // Tick system — use accumulator for precise 1-at-a-time decrements
+    // ONLY tick when player is actively waiting (both countdowns are driven by player's action)
+    if (c.waiting && c.waitCountdown > 0 && !c.playerAttackAnim && !c.enemyReactAnim) {
+      const dt = time - c.lastWaitTick;
+      c.lastWaitTick = time;
+      c.waitAccumulator += dt;
+      
+      // Process exactly one tick per tickSpeed interval
+      if (c.waitAccumulator >= c.waitTickSpeed) {
+        c.waitAccumulator -= c.waitTickSpeed;
+        // Cap accumulator to prevent catching up (no skipping)
+        if (c.waitAccumulator > c.waitTickSpeed) c.waitAccumulator = 0;
+        playTick();
+        
+        // Tick player
+        if (c.waiting && c.waitCountdown > 0) {
+          c.waitCountdown--;
+        }
+        // Tick enemy
+        if (c.enemyWaiting && c.enemyWaitCountdown > 0) {
+          c.enemyWaitCountdown--;
+        }
+        
+        // Player hit zero — start attack animation, pause everything (player always goes first on tie)
+        if (c.waiting && c.waitCountdown <= 0) {
+          c.waiting = false;
+          c.waitAccumulator = 0;
+          c.playerAttackAnim = {
+            startTime: time,
+            rushDuration: 200,
+            hitPause: 100,
+            returnDuration: 200,
+            totalDuration: 500,
+          };
+        }
+        
+        // Enemy hit zero — trigger react animation (only if player isn't also attacking this tick)
+        else if (c.enemyWaiting && c.enemyWaitCountdown <= 0) {
+          c.enemyWaiting = false;
+          c.waitAccumulator = 0;
+          c.enemyReactAnim = { startTime: time, duration: 800 };
+        }
+      }
+    }
+  }
+  draw(); // Always draw overworld
+  if (state.combat) {
+    drawCombat(); // Overlay combat on top
+  }
+  if (state.dialogue) {
+    drawDialogue(); // Dialogue box on canvas
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// ══════════════════════════════════
+// INIT
+// ══════════════════════════════════
+loadLevel().then(() => {
+  // Wait for fonts before first render to prevent flash
+  Promise.all([
+    document.fonts.load('32px "RM2000"'),
+    document.fonts.load('32px "RM2000Alt"'),
+    document.fonts.load('32px "Pixelify Sans"')
+  ]).then(() => requestAnimationFrame(gameLoop))
+    .catch(() => requestAnimationFrame(gameLoop));
+});
+
+</script>
+</body>
+</html>
