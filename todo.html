@@ -127,6 +127,7 @@ button{cursor:pointer;font-family:inherit}
 <div class="tabs">
   <button class="tab active" data-tab="tasks">📋 Tasks</button>
   <button class="tab" data-tab="decisions">⚖️ Decisions</button>
+  <button class="tab" data-tab="lore">🌍 Worldbuilding</button>
   <button class="tab" data-tab="ideas">💡 Ideas</button>
 </div>
 
@@ -136,6 +137,13 @@ button{cursor:pointer;font-family:inherit}
 
 <div class="panel" id="panel-decisions">
   <div class="decisions" id="decisions"></div>
+</div>
+
+<div class="panel" id="panel-lore">
+  <div class="ideas-panel">
+    <textarea id="lore-text" spellcheck="false"></textarea>
+    <div class="ideas-status" id="lore-status">Saved</div>
+  </div>
 </div>
 
 <div class="panel" id="panel-ideas">
@@ -165,67 +173,226 @@ const COL_NAMES={backlog:"Backlog",inprogress:"In Progress",done:"Done"};
 
 function defaultData(){return{
 tasks:{backlog:[
-{id:id(),title:"Wire DeepDive enemy sprites into game (animated)",desc:"",priority:"high",categories:["Combat","Art/Sprites"]},
-{id:id(),title:"Earthbound-style animated backgrounds in combat",desc:"",priority:"high",categories:["Art/Sprites"]},
+// ── COMBAT CORE ──
+{id:id(),title:"Wire DeepDive enemy sprites into game (animated)",desc:"Replace placeholder with actual 16×16 4-frame idle animations from DeepDive packs",priority:"high",categories:["Combat","Art/Sprites"]},
+{id:id(),title:"Earthbound-style animated backgrounds in combat",desc:"173px opaque section in combat arena, procedural animated patterns",priority:"high",categories:["Art/Sprites"]},
 {id:id(),title:"Death animation for enemies",desc:"",priority:"high",categories:["Combat"]},
-{id:id(),title:"Rewards text window after combat",desc:"",priority:"high",categories:["Combat"]},
-{id:id(),title:"Fire visual effect for Fire Punch",desc:"",priority:"medium",categories:["Combat"]},
-{id:id(),title:'"Clash!" system (simultaneous timer → minigame)',desc:"",priority:"medium",categories:["Combat","Systems"]},
-{id:id(),title:"Combo detection system",desc:"",priority:"medium",categories:["Systems"]},
-{id:id(),title:"Build more rooms in LDtk",desc:"",priority:"high",categories:["Level Design"]},
-{id:id(),title:"Add more enemies",desc:"",priority:"medium",categories:["Content"]},
-{id:id(),title:"Add more weapons/actions",desc:"",priority:"medium",categories:["Content"]},
-{id:id(),title:"Weapon Awakening system",desc:"",priority:"medium",categories:["Systems"]},
-{id:id(),title:"Equipment slots (Weapon, Armor, Cloak, Accessory)",desc:"",priority:"medium",categories:["UI/UX","Systems"]},
-{id:id(),title:"Transformation system (Vampire/Werewolf/Lich)",desc:"",priority:"low",categories:["Systems"]},
-{id:id(),title:"NPC dialogue system",desc:"",priority:"medium",categories:["Content"]},
-{id:id(),title:"Downtime activities (Cook/Fish/Craft/Forage)",desc:"",priority:"low",categories:["Systems","Content"]},
-{id:id(),title:"Boss gates on upgrade caps",desc:"",priority:"low",categories:["Systems"]},
-{id:id(),title:"Flying/free movement",desc:"",priority:"low",categories:["Systems"]},
-{id:id(),title:"Safari performance optimization",desc:"",priority:"low",categories:["Polish"]},
+{id:id(),title:"Rewards text window after combat",desc:"Show loot/items gained after enemy defeat",priority:"high",categories:["Combat","UI/UX"]},
+{id:id(),title:"Fire visual effect for Fire Punch",desc:"Explosion sprite exists but no fire-specific visual yet",priority:"medium",categories:["Combat","Art/Sprites"]},
+{id:id(),title:"Add multiple enemies per encounter",desc:"Juggling multiple WAIT times simultaneously. Major combat depth expansion.",priority:"medium",categories:["Combat","Systems"]},
+// ── COMBAT SYSTEMS ──
+{id:id(),title:'"Clash!" system',desc:"When both timers hit 0 on same tick: both attacking = +50% Eff (mutual kill possible). Attack vs Shield = half Def ignored. Both shielding = nothing (punishes passivity). Screen flash, special log message.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Combo detection system",desc:"Track last 3-4 actions. Check against hidden combo table. Flash text on discovery. First discovery = fanfare + journal. Stun→attack='Shattered Guard' (+5 Eff), Seal→pierce='Exploit' (+8 Eff), Longbow×3='Volley' (2× Eff), Shield→Broadsword='Shield Bash', Invigorate→Thunder='Overcharge' (+10 Eff AND stun 3).",priority:"medium",categories:["Systems"]},
+{id:id(),title:"Stun mechanic",desc:"Adds wait ticks to target. Buy time for heal or keep boss locked down.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Seal mechanic",desc:"Locks target's current action for next turn. Seal dragon's Fire Breath to force melee. Enemies can seal YOU.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Absorb/Drain mechanic",desc:"Heals attacker for damage dealt. Drain Touch: weaker but sustains through long fights.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Invigorate action",desc:"+5 Eff to ALL weapons permanently (stacks). Wait 10, 0 Def. Two casts turns Longbow 10→20 dmg.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Piercing attacks",desc:"Thunder, Trusty Dagger — ignore defense. Anti-turtle tools.",priority:"medium",categories:["Combat","Systems"]},
+{id:id(),title:"Action sequences (repeat bonuses)",desc:"Shortsword×3 = 'Slash!' with less Wait + more Eff. Longbow×3 = 'Volley' at 2× Eff. Any weapon×3 = 'Mastery' +4 Eff. Dagger→Longsword = 'Riposte' (gains pierce).",priority:"medium",categories:["Combat","Systems"]},
+// ── TRANSFORMATIONS ──
+{id:id(),title:"Vampire transformation",desc:"Blood meter (0-30) fills from damage taken. 10=2× Eff, 20=2× Eff+heal, 30=3× Eff+heal+stun. UI: screen darkens, enemy heartbeat pulse, blood meter lights screen.",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Werewolf transformation",desc:"3 innate actions only: Claw(12/3/3), Bite(18/0/5 absorb), Howl(0/0/4 stun 4). Act TWICE per cycle. No shield/heal/range. UI: numbers hidden, only vague feels.",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Lich transformation",desc:"All attacks pierce. Heal→Soul Harvest (kills <15% HP instantly). Max HP ticks down every 3 ticks. UI: enemies as skeletons, your HP bar has no number (drifts ±3).",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Revenant transformation",desc:"Resurrect at 15 HP once per fight. After: all Wait doubled. UI: screen flickers, sprite glitches, corrupted text.",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Chronomancer transformation",desc:"See enemy's current AND next action. All Wait +3 penalty. Perfect info, imperfect tempo.",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Berserker transformation",desc:"Each consecutive attack adds +3 Eff (stacks). Shield/Heal resets. 5-streak+Broadsword = 'Deathblow' (3× Eff, 10 self-damage). UI: vignette tightens with streak.",priority:"low",categories:["Systems","Combat"]},
+{id:id(),title:"Transformation interface shifts",desc:"Each form changes UI: Vampire=Dark Sight, Werewolf=Instinct (hidden numbers), Lich=Death's Eyes, Chronomancer=Foresight, Revenant=Afterimage, Berserker=Tunnel Vision",priority:"low",categories:["Systems","UI/UX"]},
+// ── WEAPON AWAKENING ──
+{id:id(),title:"Weapon Awakening system",desc:"Weapons track usage. Different histories = different awakenings. Longsword(high kills)→'Oathblade'. Longsword(high dmg taken)→'Scar'(Eff scales with low HP). Shield(many blocks)→'Aegis'. Like Beet's Saiga.",priority:"medium",categories:["Systems"]},
+{id:id(),title:"Weapon enchantments (random)",desc:"At evolution milestones: '...of the Comet'(+3 Eff first use), '...of Echoes'(15% repeat), '...of the Pyre'(20% burn), '...of Famine'(absorb 2), '...of Thorns'(3 dmg to attacker), '...of Whispers'(reveals next action).",priority:"low",categories:["Systems","Content"]},
+{id:id(),title:"Weapon evolution paths",desc:"Longsword 1→2:'Keen Edge'(20% pierce), 2→3:'Blade Mastery'(Wait-1). Longbow 1→2:'Steady Aim'(Def+2 while waiting), 2→3:'Double Nock'(30% fire twice). Shield 2→3:Iron Shield(Def+4).",priority:"low",categories:["Systems","Content"]},
+// ── WORLD ──
+{id:id(),title:"Build more rooms in LDtk",desc:"Diverse biomes showing deep time aesthetic. Fossilized machines in canyon walls. Reactor-trees. Stratified ground.",priority:"high",categories:["Level Design"]},
+{id:id(),title:"NPC dialogue system (dramatization)",desc:"Never force exposition. Show honest natural scenes. NPCs have personal philosophies about the Divorce.",priority:"medium",categories:["Content","Systems"]},
+{id:id(),title:"Evanui companion character",desc:"Can't bond, can't transform, doesn't Drift. Rates weapons /10. Falls asleep during awakenings. The human anchor. (évanouir = to vanish)",priority:"medium",categories:["Content"]},
+{id:id(),title:"Creature philosophy",desc:"Nothing evil. Creatures hunger for connection. Slime = trying to merge. Dragon's fire = reaching out. Combat = failed matrimony.",priority:"low",categories:["Content","Systems"]},
+{id:id(),title:"Add more enemies",desc:"Each embodies an action component. Kill to extract (Aria model), not random drops.",priority:"medium",categories:["Content"]},
+{id:id(),title:"Add more weapons/actions",desc:"Longsword, Broadsword, Trusty Dagger (pierce), Thunder (pierce+stun), Stun Mace, Heal, Seal Rune, Drain Touch, Wooden Shield, Metronome (Wait 1)",priority:"medium",categories:["Content"]},
+// ── EQUIPMENT & MENU ──
+{id:id(),title:"Equipment slots (Weapon, Armor, Cloak, Accessory)",desc:"Separate from 8 action slots. Cloak of Invisibility: DEF-3, ambush from behind = half Wait + 10 Eff.",priority:"medium",categories:["UI/UX","Systems"]},
+{id:id(),title:"Menu structure",desc:"X → Actions, Equipment, Activities (Cook/Fish/Craft/Forage), Transform, Status. Activities greyed when not near context.",priority:"medium",categories:["UI/UX","Systems"]},
+// ── DOWNTIME ──
+{id:id(),title:"Downtime activities",desc:"Cooking(campfires), Fishing(water), Foraging(plants), Crafting(workbenches). Context-dependent.",priority:"low",categories:["Systems","Content"]},
+// ── EXPLORATION ──
+{id:id(),title:"Flying/free movement (mid-game)",desc:"Go anywhere like Chained Echoes. Exploration as freedom. canFly flag + collision 2 ready.",priority:"low",categories:["Systems","Level Design"]},
+{id:id(),title:"Multi-character control segments",desc:"Different characters, different abilities, different times. Powerful ally that limits grinding.",priority:"low",categories:["Systems","Content"]},
+// ── ANTI-GRIND ──
+{id:id(),title:"Boss gates on upgrade caps",desc:"Before Boss 1: max +1. After Boss 1: +3. After Boss 2: +5.",priority:"low",categories:["Systems"]},
+{id:id(),title:"Diminishing enemy respawns (KOTOR)",desc:"Each kill -15-20% respawn. 5-7 kills clears area. Early areas empty = world responds.",priority:"low",categories:["Systems"]},
+// ── POLISH ──
+{id:id(),title:"Safari performance optimization",desc:"Notably worse than Chrome (Ethan reported)",priority:"low",categories:["Polish"]},
 {id:id(),title:"Minify + obfuscate for release",desc:"",priority:"low",categories:["Tools"]},
 ],inprogress:[],done:[
 {id:id(),title:"LDtk level loading + tile rendering",desc:"",priority:"high",categories:["Level Design"]},
-{id:id(),title:"Wait-based combat (Helen's MC)",desc:"",priority:"high",categories:["Combat","Systems"]},
+{id:id(),title:"Wait-based combat (Helen's MC)",desc:"Eff/Def/Wait, staggered resolve, simultaneous countdowns",priority:"high",categories:["Combat","Systems"]},
 {id:id(),title:"Player sprite (Snoblin, 32×32 at 2×)",desc:"",priority:"high",categories:["Art/Sprites"]},
-{id:id(),title:"Title screen (stars, planets, satellites)",desc:"",priority:"high",categories:["Art/Sprites","UI/UX"]},
+{id:id(),title:"Title screen (stars, planets, satellites)",desc:"120 stars, 5 satellites, comet, 4 procedural planets, 1 sprite planet",priority:"high",categories:["Art/Sprites","UI/UX"]},
 {id:id(),title:"Screen transitions (fade, neighbours)",desc:"",priority:"medium",categories:["Systems"]},
 {id:id(),title:"Save/Load system (3 slots)",desc:"",priority:"high",categories:["Systems"]},
-{id:id(),title:"Enemy dialogue system",desc:"",priority:"medium",categories:["Content","Systems"]},
+{id:id(),title:"Enemy dialogue system",desc:"Cycling conversations, 5 encounters",priority:"medium",categories:["Content","Systems"]},
 {id:id(),title:"Chest entity system",desc:"",priority:"medium",categories:["Systems"]},
-{id:id(),title:"Combat hit effects",desc:"",priority:"medium",categories:["Combat","Art/Sprites"]},
+{id:id(),title:"Combat hit effects",desc:"Hitstop, block sheen, HP flash, animated drain",priority:"medium",categories:["Combat","Art/Sprites"]},
 {id:id(),title:"Battle + title music",desc:"",priority:"medium",categories:["Audio"]},
 {id:id(),title:"Crisp pixel text (RM2000Alt)",desc:"",priority:"medium",categories:["UI/UX"]},
-{id:id(),title:"Game data editor",desc:"",priority:"high",categories:["Tools"]},
-{id:id(),title:"Editor ↔ Game bridge",desc:"",priority:"high",categories:["Tools","Systems"]},
+{id:id(),title:"Game data editor",desc:"editor.html",priority:"high",categories:["Tools"]},
+{id:id(),title:"Editor ↔ Game bridge",desc:"localStorage overrides live",priority:"high",categories:["Tools","Systems"]},
+{id:id(),title:"Interactive project board",desc:"todo.html",priority:"medium",categories:["Tools"]},
 ]},
 decisions:{decided:[
 {id:id(),title:"Engine: JavaScript/Canvas",desc:"Dad clicks a link, no install",notes:""},
-{id:id(),title:"Combat: Wait-based (Helen's MC)",desc:"Staggered resolve",notes:""},
+{id:id(),title:"Combat: Wait-based (Helen's MC)",desc:"Damage = max(0, eff-def). Staggered resolve. 300ms/tick.",notes:"Three numbers are enough for deep combat."},
 {id:id(),title:"Font: RM2000Alt, 32px, threshold 220",desc:"",notes:""},
 {id:id(),title:"Resolution: 640×480, 1.4× CSS",desc:"",notes:""},
 {id:id(),title:"Controls: Arrows/Z/X/Shift",desc:"",notes:""},
-{id:id(),title:"Damage: max(0, eff - def), full block possible",desc:"",notes:""},
-{id:id(),title:"Defense timing: Active during YOUR countdown only",desc:"",notes:""},
-{id:id(),title:"Enemy visibility: Hidden first exchange, visible after",desc:"",notes:""},
+{id:id(),title:"Damage: max(0, eff-def), full block possible",desc:"If def >= eff, zero damage.",notes:""},
+{id:id(),title:"Defense: Active during YOUR countdown only",desc:"Once action fires, def = 0 until next round",notes:""},
+{id:id(),title:"Enemy action: Hidden first, visible after",desc:"",notes:""},
 {id:id(),title:"Player wins ties",desc:"",notes:""},
-{id:id(),title:"No character levels, weapon upgrades only",desc:"",notes:""},
-{id:id(),title:"Anti-grind: Boss gates on upgrade caps",desc:"",notes:""},
+{id:id(),title:"No character levels, weapon upgrades only",desc:"Horizontal progression — more options, not bigger numbers",notes:"A +3 Shortbow gains pierce, not 2× damage."},
+{id:id(),title:"Anti-grind: Boss gates on upgrade caps",desc:"",notes:"500 fire elementals gains nothing over 20."},
+{id:id(),title:"Dramatization over exposition",desc:"Show honest natural scenes. Robert McKee, Story. Grim Fandango.",notes:""},
+{id:id(),title:"Nothing is evil",desc:"Creatures hunger for connection. Combat = failed matrimony.",notes:""},
+{id:id(),title:"Combos discovered, not taught",desc:"No combo list. Learn by doing.",notes:""},
 ],discussing:[
-{id:id(),title:"Transformations (Vampire/Werewolf/Lich)",desc:"Metamorphosis not menu choice",notes:""},
-{id:id(),title:"Weapon Awakening (animism)",desc:"Weapons evolve from experience",notes:""},
-{id:id(),title:"Combos as discovery",desc:"No combo list, learn by doing",notes:""},
-{id:id(),title:'"Clash!" on simultaneous zero',desc:"Timed input minigame",notes:""},
-{id:id(),title:"Companion anti-grind",desc:"Powerful ally prevents grinding",notes:""},
-{id:id(),title:"Equipment menu design",desc:"How many slots? Separate from actions?",notes:""},
-{id:id(),title:"Diminishing respawns (KOTOR-style)",desc:"",notes:""},
+{id:id(),title:"Transformations as metamorphosis",desc:"Not power-ups. Things that happen TO you. 6 types designed: Vampire, Werewolf, Lich, Revenant, Chronomancer, Berserker.",notes:"Each changes UI. Corruption/resonance meter. Cutscene trigger, not menu."},
+{id:id(),title:"Weapon Awakening (animism)",desc:"Objects have souls. Different histories = different awakenings.",notes:"Like Beet's Saiga. Not loot — extensions of soul."},
+{id:id(),title:'"Clash!" on simultaneous zero',desc:"Both attacking = +50% Eff. Attack vs Shield = half Def ignored. Both shielding = nothing.",notes:"Engineered by counting WAIT."},
+{id:id(),title:"Companion anti-grind via Evanui",desc:"Narrative pressure to move forward, not gamey enemy fleeing.",notes:""},
+{id:id(),title:"Equipment: 4 slots separate from 8 actions",desc:"Weapon, Armor, Cloak, Accessory",notes:"Menu: Actions, Equipment, Activities, Transform, Status"},
+{id:id(),title:"Diminishing respawns (KOTOR)",desc:"",notes:""},
+{id:id(),title:"The Divorce as core lore",desc:"Everything once joined. Cosmic severing. World = ruins of connections.",notes:"Villain wants forced reunion = obliteration of self."},
+{id:id(),title:"The Bonding Rush",desc:"People can Soul Bond with ancient relics. Gold rush: Hunters, Factions, Unbonded.",notes:""},
+{id:id(),title:"Villain: Forced Matrimony",desc:"Assembling relics for complete reunion. Noble goal, terrifying method.",notes:"Same wound as hero, different response."},
+{id:id(),title:"World name",desc:"Vael? Tessera? Lethara? Auros?",notes:"Should evoke deep time."},
+{id:id(),title:"The ending",desc:"Complete Matrimony (lose self) vs stay human (stay with Evanui) vs third option?",notes:"Is separation its own kind of sacred?"},
 ]},
+lore:`# WORLD: MATRIMONY BEYOND SPACE AND TIME
+
+## The Premise
+A long time ago — so long no one remembers — everything was joined. Matter and spirit. Living and dead. Space and time. Then something severed. A Divorce on a cosmic scale.
+
+Nobody knows what caused it. The sky has rings, debris, something that might be a station. Trees grow through ancient reactors. Fossilized machines in canyon walls. Technology and nature merged. The planet grew around its own ruins.
+
+## The Title
+"Matrimony" from Latin: mater (mother) + monium (state). Union that creates.
+
+In this world, matrimony is the fundamental force:
+- Human bonds with weapon → Awakening = matrimony of will and matter
+- Transformation = matrimony of consciousness and something older
+- Combos = two actions becoming something neither could be alone
+- Combat itself: Eff/Def/Wait = reaching out, holding yourself, the space between
+
+## The Aesthetic: Deep Time
+Layers of time collapsed into a single moment. A sword forged from a meteorite that was a satellite that was a seed. Reactor-trees humming. Nautilus shells that might be natural or engineered.
+
+Space is present but unreachable — like the ocean in ancient mythology.
+
+References: Nausicaa, Angel's Egg, Moebius, BoF Dragon Quarter.
+
+## The Tone
+NOT grimdark. Nausicaa meets Beet the Vandel Buster.
+
+People argue about cooking. Fall in love badly. Name weapons embarrassing things. Make poop jokes after eating glowing mushrooms. The adventure is fun. The depth is there for those who look.
+
+Mono no aware — things are beautiful because they end.
+
+## The Lonesome People
+Small fragile clusters. Groups larger than dozens feel the Drift — people scatter. Connection at scale doesn't hold.
+
+Individual NPCs carry personal philosophies:
+- God is dreaming and the world is the dream
+- Collecting fragments, convinced patience can repair the Divorce
+- Stopped hoping, just lives — the happiest person you'll meet
+- The Divorce was a birth, not a death — separation is growth
+
+## The Bonding Rush
+Recently, some individuals can Soul Bond with ancient relics. Gold rush:
+- Relic Hunters (noble, idiots, both) — this is you
+- Bonded Factions controlling ruin sites
+- The Unbonded Majority — awed, resentful, or selling fakes
+
+## The Player
+Silent protagonist. Relic hunter hearing old frequencies. Didn't ask for this. Looking for people. Wanting a friend.
+
+Can't learn what caused the Divorce. Like Bastion — piece together fragments, feel the shape. The full truth is beyond reach.
+
+## Evanui
+Goes by Evan. Later: Evanui. (Évanouir — to vanish, to disappear.)
+
+Can't bond. Can't transform. But doesn't Drift. He stays.
+
+Rates weapons /10. Ranking of creatures by "how bad it smelled." Falls asleep during awakenings. Thinks Drain Touch is "nasty but cool."
+
+The proof that some bonds hold without ancient power. Just stubbornness.
+
+The Beet connection: Poala has no Saiga. She's there because she cares about Beet, not the mission.
+
+## Creatures
+Nothing is evil. Creatures hunger for connection. Slime engulfs to merge. Dragon's fire is reaching out. The more warped, the more lonely.
+
+Dark Knight = person who forgot themselves inside bonded armor. Skeleton = body-soul bond that partially worked but didn't hold.
+
+Every fight is a failed matrimony — two beings reaching through the only language the broken world left them.
+
+## The Villain
+Systematically acquiring the most powerful relics. Trade, persuasion, theft, charm. Building toward forced complete Matrimony.
+
+Sounds noble — world IS broken. But: forced union = obliteration of individuality. No more self. No more choice. No more campfire.
+
+Great villain test: someone the hero could have become.
+
+## Searching for the Mystery
+Like Nausicaa and Yupa searching for the forest's mystery — it's inside Nausicaa the whole time.
+
+"You are still alive because you tried to save a helpless creature and that creature remembered."
+
+## Design Pillars
+- Fights that MEAN something
+- Power that costs something
+- Bonds that grow and strain
+- A villain you understand
+- Humor that's real
+- Moments of absolute coolness
+- Depth that rewards attention
+- Something REAL underneath
+
+## Open Questions
+- Regional conflict structure
+- Escalation mechanic (Surges?)
+- Villain identity — who? what did they lose?
+- Secondary cast beyond Evanui
+- The ending
+`,
 ideas:`## Quick Ideas
 - Enemies that only appear at certain times?
 - Weather system affecting combat?
 - Secret rooms behind breakable walls
 - Boss that learns your patterns
-- Musical cue when combo is available`
+- Musical cue when combo is available
+- Gambling minigame?
+
+## Nausicaa / Ohm Connection
+- Hive mind race that remembers everything
+- Saved a helpless creature → it remembered → gave life force to continue
+
+## Combat Design Notes (Helen's MC)
+- No single strategy dominates: shields get pierced, slow spells get stunned, heals get rushed, turtling gets sealed
+- Metronome (Wait 1) = scout tool. Peek for almost no commitment.
+
+## Transformation Combo Secrets
+- Vampire + Drain Touch → any = "Blood Frenzy" (Eff scales with Blood)
+- Werewolf + Claw → Bite = "Savage" (Bite doubled)
+- Lich + Thunder × 2 = "Chain Lightning" (0 Def, 1.5×)
+- Revenant + any at 1 HP = "Defiance" (Eff doubled)
+- Berserker + 5-streak + Broadsword = "Deathblow" (3× Eff, 10 self-dmg)
+- Chronomancer + Seal predicted action = "Paradox" (seal lasts 3 cycles)
+
+## Name Candidates
+- Vael — veil + vale
+- Tessera — fragment of mosaic
+- Lethara — Lethe + earth
+- Auros — aura + ouroboros + gold
+`
 }}
 
 let _id=0;function id(){return'id_'+Date.now()+'_'+(++_id)}
@@ -381,8 +548,18 @@ function doImport(){
   catch(e){alert('Invalid JSON: '+e.message)}
 }
 
+// LORE
+function renderLore(){
+  const ta=document.getElementById('lore-text');ta.value=data.lore||'';
+  let timer;ta.addEventListener('input',()=>{
+    data.lore=ta.value;clearTimeout(timer);
+    document.getElementById('lore-status').textContent='Saving...';
+    timer=setTimeout(()=>{save();document.getElementById('lore-status').textContent='Saved ✓'},400);
+  });
+}
+
 // INIT
-load();renderKanban();renderDecisions();renderIdeas();
+load();renderKanban();renderDecisions();renderIdeas();renderLore();
 </script>
 </body>
 </html>
