@@ -681,18 +681,20 @@ document.addEventListener('keydown', (e) => {
       playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
-      // Start game — game emerges over title
+      // Start game — apply save immediately, then fade game in over title
       playHit(true);
       const slot = state.titleSelection || 0;
       const hasSave = loadGame(slot) !== null;
-      state.titleToGame = { startTime: performance.now(), duration: 1200, slot, hasSave };
-      setTimeout(async () => {
+      (async () => {
         if (hasSave) await applySave(slot);
-        state.screen = 'game';
-        state.titleToGame = null;
-        titleMusic.pause();
-        titleMusic.currentTime = 0;
-      }, 1200);
+        state.titleToGame = { startTime: performance.now(), duration: 1200 };
+        setTimeout(() => {
+          state.screen = 'game';
+          state.titleToGame = null;
+          titleMusic.pause();
+          titleMusic.currentTime = 0;
+        }, 1200);
+      })();
       e.preventDefault();
     }
     return;
@@ -1935,7 +1937,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.17', W - 8, H - 8);
+  ctx.fillText('v1.18', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2726,7 +2728,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.17', canvas.width - 8, 14);
+  ctx.fillText('v1.18', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {

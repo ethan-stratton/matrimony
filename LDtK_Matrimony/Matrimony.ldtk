@@ -335,7 +335,7 @@
 	], "enums": [], "externalEnums": [], "levelFields": [] },
 	"levels": [
 		{
-			"identifier": "Level_0",
+			"identifier": "Forgotten_Plains_I",
 			"iid": "56698e71-21a0-11f1-92ef-db898767b70b",
 			"uid": 0,
 			"worldX": -16,
@@ -345,7 +345,7 @@
 			"pxHei": 256,
 			"__bgColor": "#696A79",
 			"bgColor": null,
-			"useAutoIdentifier": true,
+			"useAutoIdentifier": false,
 			"bgRelPath": null,
 			"bgPos": null,
 			"bgPivotX": 0.5,
@@ -1187,7 +1187,7 @@
 			"__neighbours": [{ "levelIid": "0b636270-21a0-11f1-95c8-8328fb3d24f3", "dir": "w" }]
 		},
 		{
-			"identifier": "Level_1",
+			"identifier": "Forgotten_Plains_II",
 			"iid": "0b636270-21a0-11f1-95c8-8328fb3d24f3",
 			"uid": 16,
 			"worldX": -272,
@@ -1197,7 +1197,7 @@
 			"pxHei": 256,
 			"__bgColor": "#696A79",
 			"bgColor": null,
-			"useAutoIdentifier": true,
+			"useAutoIdentifier": false,
 			"bgRelPath": null,
 			"bgPos": null,
 			"bgPivotX": 0.5,
