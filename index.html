@@ -100,33 +100,30 @@ let audioCtx = null;
 function getAudioCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    console.log('AudioContext created, state:', audioCtx.state);
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
-    console.log('AudioContext resuming...');
   }
   return audioCtx;
 }
 let footstepAlt = false;
 function playFootstep() {
   const ac = getAudioCtx();
-  console.log('playFootstep, ac.state:', ac.state);
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.type = 'square';
-  // Randomize pitch and volume for natural variation
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  const vol = 0.15;
-  const dur = 0.08;
-  gain.gain.setValueAtTime(vol, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+  gain.gain.value = 0.12;
   osc.connect(gain);
   gain.connect(ac.destination);
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + dur);
+  const t = ac.currentTime;
+  osc.start(t);
+  osc.stop(t + 0.07);
+  // Fade out manually
+  gain.gain.setValueAtTime(0.12, t);
+  gain.gain.linearRampToValueAtTime(0, t + 0.07);
 }
 function playTick() {
   const ac = getAudioCtx();
@@ -134,33 +131,35 @@ function playTick() {
   const gain = ac.createGain();
   osc.type = 'square';
   osc.frequency.value = 600;
-  gain.gain.setValueAtTime(0.15, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
+  gain.gain.value = 0.12;
   osc.connect(gain);
   gain.connect(ac.destination);
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + 0.05);
+  const t = ac.currentTime;
+  osc.start(t);
+  osc.stop(t + 0.05);
+  gain.gain.setValueAtTime(0.12, t);
+  gain.gain.linearRampToValueAtTime(0, t + 0.05);
 }
 function playHit(isEnemy) {
   const ac = getAudioCtx();
-  // White noise burst for impact
-  const bufferSize = ac.sampleRate * 0.08;
+  const bufferSize = Math.floor(ac.sampleRate * 0.1);
   const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
   const src = ac.createBufferSource();
   src.buffer = buffer;
   const gain = ac.createGain();
-  gain.gain.setValueAtTime(isEnemy ? 0.12 : 0.08, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
-  // Low-pass for thud feel
+  const t = ac.currentTime;
+  gain.gain.value = isEnemy ? 0.2 : 0.15;
+  gain.gain.setValueAtTime(gain.gain.value, t);
+  gain.gain.linearRampToValueAtTime(0, t + 0.1);
   const filter = ac.createBiquadFilter();
   filter.type = 'lowpass';
   filter.frequency.value = isEnemy ? 800 : 1200;
   src.connect(filter);
   filter.connect(gain);
   gain.connect(ac.destination);
-  src.start(ac.currentTime);
+  src.start(t);
 }
 // ── Earthbound-style battle backgrounds ──
 const EB_PALETTES = {
@@ -1718,7 +1717,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.70', canvas.width - 8, 14);
+  ctx.fillText('v0.71', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
