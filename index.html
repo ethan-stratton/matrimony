@@ -1535,20 +1535,31 @@ function drawTitle() {
       });
     }
     drawTitle._sats = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       drawTitle._sats.push({
-        x: Math.random() * W,
-        y: 20 + Math.random() * (H * 0.3),
-        speed: 8 + Math.random() * 15,
-        blinkRate: 2 + Math.random() * 3,
+        x: Math.random() * W * 1.5 - W * 0.25,
+        y: 10 + Math.random() * (H * 0.85),
+        speed: 4 + Math.random() * 25,
+        blinkRate: 1 + Math.random() * 6,
         phase: Math.random() * Math.PI * 2,
+        dir: Math.random() < 0.3 ? -1 : 1, // some go right to left
+        size: Math.random() < 0.2 ? 2 : 1,
       });
     }
+    // Comet — rare, dramatic
+    drawTitle._comet = {
+      x: -50, y: H * 0.15,
+      speed: 60 + Math.random() * 40,
+      angle: 0.15 + Math.random() * 0.1, // slight downward
+      tailLen: 20 + Math.random() * 15,
+      active: false, nextTime: 3 + Math.random() * 8, // seconds until first appearance
+    };
     drawTitle._planets = [];
     const planetDefs = [
-      { cx: W * 0.12, cy: H * 0.25, r: 18, palette: ['#2a1a3a', '#4a2868', '#6a3890', '#8850b0'], rotSpeed: 0.02 },
-      { cx: W * 0.88, cy: H * 0.35, r: 12, palette: ['#1a2a1a', '#2a5030', '#408048', '#60b060'], rotSpeed: -0.03 },
-      { cx: W * 0.75, cy: H * 0.12, r: 8, palette: ['#3a2010', '#6a4020', '#a06030', '#d08840'], rotSpeed: 0.04 },
+      { cx: W * 0.10, cy: H * 0.28, r: 20, palette: ['#1a0a2a', '#3a1858', '#5a2880', '#7a40a8', '#9060c0'], noiseA: [2,5], noiseB: [3,8], noiseC: [7,13], rotSpeed: 0.015, hasRing: false },
+      { cx: W * 0.90, cy: H * 0.38, r: 14, palette: ['#0a1a0a', '#1a3820', '#2a5838', '#409050', '#58c068'], noiseA: [4,3], noiseB: [9,6], noiseC: [15,9], rotSpeed: -0.025, hasRing: false },
+      { cx: W * 0.78, cy: H * 0.10, r: 9, palette: ['#2a1808', '#4a3018', '#6a4828', '#906838', '#b88848'], noiseA: [6,1], noiseB: [11,4], noiseC: [3,17], rotSpeed: 0.035, hasRing: false },
+      { cx: W * 0.22, cy: H * 0.70, r: 11, palette: ['#0a1020', '#182840', '#284060', '#386088', '#5080b0'], noiseA: [3,7], noiseB: [8,2], noiseC: [14,11], rotSpeed: 0.02, hasRing: true },
     ];
     for (const def of planetDefs) {
       const frames = [];
@@ -1556,10 +1567,22 @@ function drawTitle() {
       const size = def.r * 2 + 2;
       for (let f = 0; f < frameCount; f++) {
         const pc = document.createElement('canvas');
-        pc.width = size; pc.height = size;
+        pc.width = size + (def.hasRing ? 8 : 0);
+        pc.height = size + (def.hasRing ? 8 : 0);
         const pctx = pc.getContext('2d');
-        const ccx = def.r + 1, ccy = def.r + 1;
+        const ox = def.hasRing ? 4 : 0;
+        const ccx = def.r + 1 + ox, ccy = def.r + 1 + ox;
         const offset = (f / frameCount) * Math.PI * 2;
+        // Ring (drawn behind)
+        if (def.hasRing) {
+          pctx.globalAlpha = 0.3;
+          pctx.strokeStyle = def.palette[3];
+          pctx.lineWidth = 1;
+          pctx.beginPath();
+          pctx.ellipse(ccx, ccy + 1, def.r + 4, Math.round(def.r * 0.3), 0, 0, Math.PI * 2);
+          pctx.stroke();
+          pctx.globalAlpha = 1;
+        }
         for (let py = -def.r; py <= def.r; py++) {
           for (let px = -def.r; px <= def.r; px++) {
             const dist = Math.sqrt(px * px + py * py);
@@ -1569,19 +1592,26 @@ function drawTitle() {
             const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
             const u = Math.atan2(nx, nz) + offset;
             const v = Math.asin(ny);
-            const n = Math.sin(u * 3 + v * 2) * 0.5 + Math.sin(u * 7 - v * 5) * 0.25 + Math.sin(u * 13 + v * 11) * 0.125;
-            const norm = (n + 0.875) / 1.75;
+            // Varied noise using per-planet frequency multipliers
+            const n = Math.sin(u * def.noiseA[0] + v * def.noiseA[1]) * 0.5
+                    + Math.sin(u * def.noiseB[0] - v * def.noiseB[1]) * 0.3
+                    + Math.sin(u * def.noiseC[0] + v * def.noiseC[1]) * 0.15
+                    + Math.sin(u * 1.5 * v * 2) * 0.05; // adds swirls
+            const norm = Math.max(0, Math.min(1, (n + 1) / 2));
             const ci = Math.min(def.palette.length - 1, Math.floor(norm * def.palette.length));
-            const light = Math.max(0.3, nz * 0.5 + nx * -0.3 + ny * -0.3 + 0.5);
+            const light = Math.max(0.25, nz * 0.5 + nx * -0.3 + ny * -0.3 + 0.5);
+            // Atmosphere rim glow
+            const rim = 1 - nz;
+            const rimBoost = rim > 0.7 ? (rim - 0.7) * 1.5 : 0;
             pctx.fillStyle = def.palette[ci];
-            pctx.globalAlpha = light;
+            pctx.globalAlpha = Math.min(1, light + rimBoost * 0.3);
             pctx.fillRect(ccx + px, ccy + py, 1, 1);
           }
         }
         pctx.globalAlpha = 1;
         frames.push(pc);
       }
-      drawTitle._planets.push({ ...def, frames, frameCount: frames.length });
+      drawTitle._planets.push({ ...def, frames, frameCount: frames.length, drawOx: def.hasRing ? 4 : 0 });
     }
   }
   
@@ -1613,16 +1643,52 @@ function drawTitle() {
   
   // Draw satellites
   for (const sat of drawTitle._sats) {
-    sat.x += sat.speed * (1/60);
-    if (sat.x > W + 5) { sat.x = -5; sat.y = 20 + Math.random() * (H * 0.3); }
+    sat.x += sat.speed * sat.dir * (1/60);
+    if (sat.dir > 0 && sat.x > W + 10) { sat.x = -10; sat.y = 10 + Math.random() * (H * 0.85); }
+    if (sat.dir < 0 && sat.x < -10) { sat.x = W + 10; sat.y = 10 + Math.random() * (H * 0.85); }
     const blink = Math.sin(t * sat.blinkRate + sat.phase) > 0.3;
     if (blink) {
-      ctx.globalAlpha = 0.6;
+      ctx.globalAlpha = 0.5 + Math.random() * 0.2;
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(Math.round(sat.x), Math.round(sat.y), 1, 1);
-      ctx.globalAlpha = 0.15;
-      ctx.fillRect(Math.round(sat.x) - 1, Math.round(sat.y), 1, 1);
-      ctx.fillRect(Math.round(sat.x) - 2, Math.round(sat.y), 1, 1);
+      ctx.fillRect(Math.round(sat.x), Math.round(sat.y), sat.size, sat.size);
+      ctx.globalAlpha = 0.12;
+      for (let ti = 1; ti <= 3; ti++) {
+        ctx.fillRect(Math.round(sat.x - ti * sat.dir), Math.round(sat.y), 1, 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  
+  // Draw comet
+  const comet = drawTitle._comet;
+  comet.nextTime -= 1/60;
+  if (!comet.active && comet.nextTime <= 0) {
+    comet.active = true;
+    comet.x = -30;
+    comet.y = Math.random() * H * 0.4;
+    comet.speed = 80 + Math.random() * 60;
+    comet.angle = 0.1 + Math.random() * 0.2;
+  }
+  if (comet.active) {
+    comet.x += comet.speed * (1/60);
+    comet.y += comet.speed * comet.angle * (1/60);
+    if (comet.x > W + 50) {
+      comet.active = false;
+      comet.nextTime = 10 + Math.random() * 20;
+    }
+    // Head
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(Math.round(comet.x), Math.round(comet.y), 2, 2);
+    // Tail
+    for (let ti = 1; ti <= comet.tailLen; ti++) {
+      const tx = comet.x - ti * 1.2;
+      const ty = comet.y - ti * comet.angle * 0.3;
+      const a = 0.6 * (1 - ti / comet.tailLen);
+      if (a <= 0) break;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = ti < comet.tailLen * 0.3 ? '#ffe8c0' : '#a0b0d0';
+      ctx.fillRect(Math.round(tx), Math.round(ty), 1, 1);
     }
     ctx.globalAlpha = 1;
   }
@@ -1632,7 +1698,7 @@ function drawTitle() {
     const frameIdx = Math.floor((t * planet.rotSpeed * planet.frameCount + 1000) % planet.frameCount);
     const frame = planet.frames[Math.abs(frameIdx) % planet.frameCount];
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(frame, Math.round(planet.cx - planet.r - 1), Math.round(planet.cy - planet.r - 1));
+    ctx.drawImage(frame, Math.round(planet.cx - planet.r - 1 - planet.drawOx), Math.round(planet.cy - planet.r - 1 - planet.drawOx));
     ctx.imageSmoothingEnabled = true;
   }
   
@@ -1680,7 +1746,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.01', W - 8, H - 8);
+  ctx.fillText('v1.02', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2425,7 +2491,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.01', canvas.width - 8, 14);
+  ctx.fillText('v1.02', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
