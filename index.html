@@ -490,10 +490,20 @@ const state = {
 // ══════════════════════════════════
 // LOAD LEVEL
 // ══════════════════════════════════
-async function loadLevel() {
-  const resp = await fetch('LDtK_Matrimony/Matrimony.ldtk?v=' + Date.now());
-  const data = await resp.json();
-  const level = data.levels[0];
+let ldtkData = null;
+let currentLevelId = null;
+
+async function loadLevel(levelIdentifier) {
+  if (!ldtkData) {
+    const resp = await fetch('LDtK_Matrimony/Matrimony.ldtk?v=' + Date.now());
+    ldtkData = await resp.json();
+  }
+  const data = ldtkData;
+  const level = levelIdentifier
+    ? data.levels.find(l => l.identifier === levelIdentifier || l.iid === levelIdentifier)
+    : data.levels[0];
+  if (!level) { console.warn('Level not found:', levelIdentifier); return; }
+  currentLevelId = level.iid;
   
   // Load tileset image
   const tsDef = data.defs.tilesets[0];
@@ -810,6 +820,72 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
+// ══════════════════════════════════
+// SCREEN TRANSITIONS
+// ══════════════════════════════════
+async function doScreenTransition(targetLevelIid, fromDir) {
+  state.transitioning = true;
+  const fadeDuration = 300;
+  
+  // Fade out
+  state.screenFade = { type: 'out', startTime: performance.now(), duration: fadeDuration };
+  await new Promise(r => setTimeout(r, fadeDuration));
+  
+  // Save current player Y position relative to map height (for matching entry point)
+  const relY = state.player.y / state.mapH;
+  const relX = state.player.x / state.mapW;
+  
+  // Load new level
+  await loadLevel(targetLevelIid);
+  
+  // Place player at the opposite edge
+  if (fromDir === 'w') {
+    state.player.x = state.mapW - 1;
+    // Find walkable tile on right edge near matching Y
+    const targetY = Math.round(relY * state.mapH);
+    state.player.y = findNearestWalkable(state.mapW - 1, targetY, 'col');
+  } else if (fromDir === 'e') {
+    state.player.x = 0;
+    const targetY = Math.round(relY * state.mapH);
+    state.player.y = findNearestWalkable(0, targetY, 'col');
+  } else if (fromDir === 'n') {
+    state.player.y = state.mapH - 1;
+    const targetX = Math.round(relX * state.mapW);
+    state.player.x = findNearestWalkable(targetX, state.mapH - 1, 'row');
+  } else if (fromDir === 's') {
+    state.player.y = 0;
+    const targetX = Math.round(relX * state.mapW);
+    state.player.x = findNearestWalkable(targetX, 0, 'row');
+  }
+  
+  state.smoothX = state.player.x;
+  state.smoothY = state.player.y;
+  state.footsteps = [];
+  updateCamera();
+  
+  // Fade in
+  state.screenFade = { type: 'in', startTime: performance.now(), duration: fadeDuration };
+  await new Promise(r => setTimeout(r, fadeDuration));
+  
+  state.screenFade = null;
+  state.transitioning = false;
+}
+
+function findNearestWalkable(x, y, axis) {
+  // Search nearby tiles for a walkable one
+  if (state.collision[y] && state.collision[y][x] === 0) return axis === 'col' ? y : x;
+  for (let offset = 1; offset < 8; offset++) {
+    if (axis === 'col') {
+      if (y - offset >= 0 && state.collision[y - offset][x] === 0) return y - offset;
+      if (y + offset < state.mapH && state.collision[y + offset][x] === 0) return y + offset;
+    } else {
+      if (x - offset >= 0 && state.collision[y][x - offset] === 0) return x - offset;
+      if (x + offset < state.mapW && state.collision[y][x + offset] === 0) return x + offset;
+    }
+  }
+  return axis === 'col' ? y : x; // fallback
+}
+
 function tryMove(dx, dy) {
   if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen) return;
   
@@ -822,8 +898,27 @@ function tryMove(dx, dy) {
   const nx = state.player.x + dx;
   const ny = state.player.y + dy;
   
-  // Bounds check
-  if (nx < 0 || nx >= state.mapW || ny < 0 || ny >= state.mapH) return;
+  // Bounds check — trigger screen transition if neighbour exists
+  if (nx < 0 || nx >= state.mapW || ny < 0 || ny >= state.mapH) {
+    if (state.transitioning) return;
+    // Determine direction
+    let dir = null;
+    if (nx < 0) dir = 'w';
+    else if (nx >= state.mapW) dir = 'e';
+    else if (ny < 0) dir = 'n';
+    else if (ny >= state.mapH) dir = 's';
+    // Find neighbour
+    if (dir && ldtkData && currentLevelId) {
+      const curLevel = ldtkData.levels.find(l => l.iid === currentLevelId);
+      if (curLevel) {
+        const nb = (curLevel.__neighbours || []).find(n => n.dir === dir);
+        if (nb) {
+          doScreenTransition(nb.levelIid, dir);
+        }
+      }
+    }
+    return;
+  }
   // Collision check
   if (state.collision[ny][nx] !== 0) return;
   // Entity collision — block movement but don't auto-interact
@@ -1243,7 +1338,7 @@ function drawInventory() {
   
   // EXP display
   crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
-  crispText('Shift = Save', W - pad - 130, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
+  crispText('Shift = Save', W - pad - 150, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
   ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
@@ -1494,7 +1589,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.99', W - 8, H - 8);
+  ctx.fillText('v1.00', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2240,7 +2335,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.99', canvas.width - 8, 14);
+  ctx.fillText('v1.00', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2909,6 +3004,19 @@ function gameLoop(time) {
   }
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
+  }
+  // Screen transition fade
+  if (state.screenFade) {
+    const f = state.screenFade;
+    const elapsed = performance.now() - f.startTime;
+    let alpha = Math.min(1, elapsed / f.duration);
+    if (f.type === 'in') alpha = 1 - alpha;
+    if (alpha > 0) {
+      ctx.fillStyle = '#000000';
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
   }
   requestAnimationFrame(gameLoop);
 }
