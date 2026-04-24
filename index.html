@@ -119,7 +119,9 @@ function getAudioCtx() {
   }
   return audioCtx;
 }
-// Unlock audio on first interaction (silent buffer trick for Safari)
+// Unlock audio on first interaction (silent buffer trick for Safari).
+// Must be called synchronously inside the user-gesture handler so the
+// browser's autoplay policy treats titleMusic.play() as user-initiated.
 function unlockAudio() {
   const ac = getAudioCtx();
   const buf = ac.createBuffer(1, 1, ac.sampleRate);
@@ -128,9 +130,16 @@ function unlockAudio() {
   src.connect(ac.destination);
   src.start(0);
   if (ac.state !== 'running') ac.resume();
-  // Start title music if on title screen
-  if (state.screen === 'title' && !titleMusicStarted) {
-    titleMusic.play().then(() => { console.log('title music started via unlockAudio'); titleMusicStarted = true; }).catch(e => console.warn('title music unlock fail:', e));
+  // Always try to start title music on the first user gesture, regardless
+  // of which screen state we think we're on. The previous version only
+  // played on state.screen === 'title', which silently failed when the
+  // very first input came in on the splash screen (state hadn't flipped
+  // yet). Browsers only grant autoplay during the gesture itself, so
+  // missing this window means no music until the next interaction.
+  if (!titleMusicStarted) {
+    titleMusic.play()
+      .then(() => { titleMusicStarted = true; console.log('titleMusic started via unlockAudio'); })
+      .catch(e => console.warn('titleMusic.play() failed in unlockAudio:', e));
   }
   // Start ambient wind
   startAmbientWind();
@@ -663,7 +672,9 @@ document.addEventListener('keydown', (e) => {
     const actx = getAudioCtx();
     if (actx) actx.resume();
     if (!titleMusicStarted) {
-      titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
+      titleMusic.play()
+        .then(() => { titleMusicStarted = true; })
+        .catch(e => console.warn('titleMusic.play() failed on splash keydown:', e));
     }
     state.screen = 'title';
     e.preventDefault();
@@ -1137,18 +1148,20 @@ const ENEMY_DATA = {
 const battleMusic = new Audio('sounds/battle.mp3');
 battleMusic.loop = true;
 battleMusic.volume = 0.30;
+battleMusic.preload = 'auto';
 
 // Title music
 const titleMusic = new Audio('sounds/title.mp3');
 titleMusic.loop = true;
 titleMusic.volume = 0.7;
+titleMusic.preload = 'auto';
 let titleMusicStarted = false;
 
 function startCombat(entity, enemyStats) {
   playBattleStart();
   state.screenFlash = { startTime: performance.now(), duration: 300 };
   battleMusic.currentTime = 0;
-  battleMusic.play().catch(() => {});
+  battleMusic.play().catch(e => console.warn('battleMusic.play() failed:', e));
   state.combat = {
     enemy: entity,
     enemyName: enemyStats.name || entity.type,
@@ -1255,13 +1268,17 @@ canvas.addEventListener('click', (e) => {
     const actx = getAudioCtx();
     if (actx) actx.resume();
     if (!titleMusicStarted) {
-      titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
+      titleMusic.play()
+        .then(() => { titleMusicStarted = true; })
+        .catch(e => console.warn('titleMusic.play() failed on splash click:', e));
     }
     state.screen = 'title';
     return;
   }
   if (state.screen === 'title' && !titleMusicStarted) {
-    titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
+    titleMusic.play()
+      .then(() => { titleMusicStarted = true; })
+      .catch(e => console.warn('titleMusic.play() failed on title click:', e));
   }
   if (!state.combat) return;
   const c = state.combat;
@@ -3246,8 +3263,8 @@ function gameLoop(time) {
     const alpha = 0.4 + 0.3 * Math.sin(time / 600);
     ctx.globalAlpha = alpha;
     ctx.font = '32px "' + CRISP_FONT_ALT + '"';
-    const tw = ctx.measureText('Press any key').width;
-    crispText('Press any key', Math.round((W - tw) / 2), Math.round(H * 0.48), 32, '#a0a0c0', 0, CRISP_FONT_ALT);
+    const tw = ctx.measureText('Press any key for sound').width;
+    crispText('Press any key for sound', Math.round((W - tw) / 2), Math.round(H * 0.48), 32, '#a0a0c0', 0, CRISP_FONT_ALT);
     ctx.globalAlpha = 1;
     requestAnimationFrame(gameLoop);
     return;
