@@ -570,7 +570,9 @@ document.addEventListener('keydown', (e) => {
   // Title screen input
   if (state.screen === 'title') {
     if (!titleMusicStarted) {
-      titleMusic.play().catch(() => {});
+      const actx = getAudioCtx();
+      if (actx) actx.resume();
+      titleMusic.play().catch(e => console.warn('title music play failed:', e));
       titleMusicStarted = true;
     }
     if (e.key === 'ArrowUp') {
@@ -1333,13 +1335,17 @@ function drawTitle() {
   ctx.globalAlpha = 1;
   
   // Title text
+  // Title text — measure to center
   const titleY = Math.round(H * 0.18);
-  crispGradientText('Matrimony', Math.round(W / 2) - 120, titleY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
-  crispGradientText('Beyond Space and Time', Math.round(W / 2) - 160, titleY + 38, 32, [[0, '#a0a0c0'], [0.5, '#d0d0e8'], [1, '#a0a0c0']], 0, CRISP_FONT_ALT);
+  ctx.font = '32px "' + CRISP_FONT_ALT + '"';
+  const title1W = ctx.measureText('Matrimony').width;
+  const title2W = ctx.measureText('Beyond Space and Time').width;
+  crispGradientText('Matrimony', Math.round((W - title1W) / 2), titleY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+  crispGradientText('Beyond Space and Time', Math.round((W - title2W) / 2), titleY + 38, 32, [[0, '#a0a0c0'], [0.5, '#d0d0e8'], [1, '#a0a0c0']], 0, CRISP_FONT_ALT);
   
   // Save slots
   const slotW = 280;
-  const slotH = 52;
+  const slotH = 55;
   const slotX = Math.round((W - slotW) / 2);
   const startY = Math.round(H * 0.42);
   const slots = [
@@ -1385,7 +1391,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.90', W - 8, H - 8);
+  ctx.fillText('v0.91', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2131,7 +2137,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.90', canvas.width - 8, 14);
+  ctx.fillText('v0.91', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
