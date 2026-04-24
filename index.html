@@ -106,8 +106,22 @@ function getAudioCtx() {
   }
   return audioCtx;
 }
+
+// Debug: test beep on first click
+document.addEventListener('click', function testBeep() {
+  const ac = getAudioCtx();
+  console.log('TEST BEEP — ac.state:', ac.state, 'sampleRate:', ac.sampleRate);
+  const osc = ac.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 440;
+  osc.connect(ac.destination);
+  osc.start();
+  osc.stop(ac.currentTime + 0.3);
+  document.removeEventListener('click', testBeep);
+}, { once: true });
 let footstepAlt = false;
 function playFootstep() {
+  console.log('playFootstep called');
   const ac = getAudioCtx();
   const osc = ac.createOscillator();
   const gain = ac.createGain();
@@ -1717,7 +1731,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.71', canvas.width - 8, 14);
+  ctx.fillText('v0.72', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
