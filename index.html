@@ -1319,7 +1319,7 @@ function drawCombat() {
   const infoX = ePortraitX + portraitW + 16;
   const barW = Math.round(W * 0.22);
   const barH = Math.min(portraitH, 14);
-  const barY = ePortraitY;
+  const barY = ePortraitY + 2;
   // Animated HP bar — ease display toward actual, speed proportional to damage
   if (c.enemyDisplayHp > c.enemyHp) {
     const diff = c.enemyDisplayHp - c.enemyHp;
@@ -1921,7 +1921,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.83', canvas.width - 8, 14);
+  ctx.fillText('v0.84', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
