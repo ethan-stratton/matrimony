@@ -27,10 +27,20 @@
   canvas#game {
     image-rendering: pixelated;
     background: #0a0a0f;
-    border: 6px solid #0a0808;
-    outline: 1px solid #8a7030;
-    outline-offset: -7px;
-    box-shadow: 0 0 0 2px #0a0808, inset 0 0 0 1px #8a7030, 0 0 20px rgba(0,0,0,0.5);
+    border: 10px solid #0c0a08;
+    border-top-color: #14100c;
+    border-left-color: #14100c;
+    outline: 2px solid #b08830;
+    outline-offset: -12px;
+    box-shadow:
+      0 0 0 2px #0c0a08,
+      0 0 0 4px #6a5020,
+      0 0 0 5px #c8a040,
+      0 0 0 6px #6a5020,
+      inset 0 0 0 1px #604818,
+      inset 0 0 0 2px #b08830,
+      0 0 30px rgba(0,0,0,0.6),
+      0 0 8px rgba(180,140,60,0.15);
   }
   .info {
     font-size: 0.6rem; color: #484040; margin-top: 8px;
@@ -1330,7 +1340,7 @@ function drawInventory() {
   }
   
   // Hint
-  crispText('X = Close', W - pad - 110, botContentY + pad + 4, 32, '#8c828c');
+  crispText('Shift = Save', W - pad - 130, botContentY + pad + 4, 32, '#8c828c');
 }
 
 // ══════════════════════════════════
@@ -1422,11 +1432,6 @@ function drawTitle() {
     // Border
     if (selected) {
       drawGoldOutline(slotX, sy, slotW, slotH, 2);
-      // Pulsing cursor
-      const cursorAlpha = 0.6 + 0.4 * Math.sin(now / 300);
-      ctx.globalAlpha = cursorAlpha;
-      crispText('\u25B6', slotX - 24, sy + 10, 32, '#f0d060', 0, CRISP_FONT_ALT);
-      ctx.globalAlpha = 1;
     } else {
       ctx.strokeStyle = 'rgba(100, 90, 120, 0.5)';
       ctx.lineWidth = 1;
@@ -1441,14 +1446,16 @@ function drawTitle() {
   // Hint at bottom
   const hintAlpha = 0.4 + 0.2 * Math.sin(now / 600);
   ctx.globalAlpha = hintAlpha;
-  crispText('Press Z to select', Math.round(W / 2) - 80, Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
+  ctx.font = '32px "' + CRISP_FONT_ALT + '"';
+  const hintW = ctx.measureText('Press Z to select').width;
+  crispText('Press Z to select', Math.round((W - hintW) / 2), Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
   ctx.globalAlpha = 1;
   
   // Version
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.97', W - 8, H - 8);
+  ctx.fillText('v0.98', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2194,7 +2201,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.97', canvas.width - 8, 14);
+  ctx.fillText('v0.98', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
