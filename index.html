@@ -442,7 +442,7 @@ loadSprite('Enemy1', 'sprites/FireElemental.png');
 // GAME STATE
 // ══════════════════════════════════
 const state = {
-  screen: 'title', // 'title' | 'game'
+  screen: 'splash', // 'splash' | 'title' | 'game'
   titleSelection: 0, // 0=Slot 1, 1=Slot 2, 2=Slot 3
   player: { x: 0, y: 0 },  // grid coords (destination)
   entities: [],
@@ -571,26 +571,31 @@ const keys = {};
 document.addEventListener('keydown', (e) => {
   keys[e.key] = true;
   
+  // Splash screen — any key starts audio + transitions to title
+  if (state.screen === 'splash') {
+    const actx = getAudioCtx();
+    if (actx) actx.resume();
+    if (!titleMusicStarted) {
+      titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
+    }
+    state.screen = 'title';
+    e.preventDefault();
+    return;
+  }
+  
   // Title screen input
   if (state.screen === 'title') {
-    if (!titleMusicStarted) {
-      const actx = getAudioCtx();
-      if (actx) actx.resume();
-      titleMusic.play().then(() => { titleMusicStarted = true; console.log('title music playing'); }).catch(e => console.warn('title music fail:', e));
-    }
     if (e.key === 'ArrowUp') {
       state.titleSelection = (state.titleSelection + 2) % 3;
+      playTick();
       e.preventDefault();
     } else if (e.key === 'ArrowDown') {
       state.titleSelection = (state.titleSelection + 1) % 3;
+      playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
-      // Start game — small delay so music can start first time
-      if (!titleMusicStarted) {
-        const actx = getAudioCtx();
-        if (actx) actx.resume();
-        titleMusic.play().catch(() => {});
-      }
+      // Start game
+      playHit(true); // confirm SFX
       setTimeout(() => {
         state.screen = 'game';
         titleMusic.pause();
@@ -892,7 +897,7 @@ battleMusic.volume = 0.30;
 // Title music
 const titleMusic = new Audio('sounds/title.mp3');
 titleMusic.loop = true;
-titleMusic.volume = 0.8;
+titleMusic.volume = 0.7;
 let titleMusicStarted = false;
 
 function startCombat(entity, enemyStats) {
@@ -1002,6 +1007,15 @@ canvas.addEventListener('mousemove', (e) => {
   mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
 });
 canvas.addEventListener('click', (e) => {
+  if (state.screen === 'splash') {
+    const actx = getAudioCtx();
+    if (actx) actx.resume();
+    if (!titleMusicStarted) {
+      titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
+    }
+    state.screen = 'title';
+    return;
+  }
   if (state.screen === 'title' && !titleMusicStarted) {
     titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
   }
@@ -1321,6 +1335,37 @@ function drawInventory() {
 // ══════════════════════════════════
 let titleStartTime = performance.now();
 
+// ══════════════════════════════════
+// PIXEL FRAME BORDER
+// ══════════════════════════════════
+function drawPixelFrame() {
+  const W = canvas.width, H = canvas.height;
+  const borderW = 6; // outer solid border
+  const frayW = 8; // inner fray zone
+  
+  // Solid dark border
+  ctx.fillStyle = '#0a0808';
+  ctx.fillRect(0, 0, W, borderW); // top
+  ctx.fillRect(0, H - borderW, W, borderW); // bottom
+  ctx.fillRect(0, 0, borderW, H); // left
+  ctx.fillRect(W - borderW, 0, borderW, H); // right
+  
+  // Gold inner edge (1px line)
+  ctx.fillStyle = '#8a7030';
+  ctx.fillRect(borderW, borderW, W - borderW * 2, 1);
+  ctx.fillRect(borderW, H - borderW - 1, W - borderW * 2, 1);
+  ctx.fillRect(borderW, borderW, 1, H - borderW * 2);
+  ctx.fillRect(W - borderW - 1, borderW, 1, H - borderW * 2);
+  
+  // Corner accents (small gold squares)
+  const cs = 3;
+  ctx.fillStyle = '#c09840';
+  ctx.fillRect(borderW - cs, borderW - cs, cs * 2, cs * 2);
+  ctx.fillRect(W - borderW - cs, borderW - cs, cs * 2, cs * 2);
+  ctx.fillRect(borderW - cs, H - borderW - cs, cs * 2, cs * 2);
+  ctx.fillRect(W - borderW - cs, H - borderW - cs, cs * 2, cs * 2);
+}
+
 function drawTitle() {
   const W = canvas.width;
   const H = canvas.height;
@@ -1354,7 +1399,7 @@ function drawTitle() {
   
   // Save slots
   const slotW = 280;
-  const slotH = 55;
+  const slotH = 60;
   const slotX = Math.round((W - slotW) / 2);
   const startY = Math.round(H * 0.42);
   const slots = [
@@ -1400,7 +1445,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.95', W - 8, H - 8);
+  ctx.fillText('v0.96', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2146,7 +2191,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.95', canvas.width - 8, 14);
+  ctx.fillText('v0.96', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2650,11 +2695,28 @@ function drawEntity(ctx, entity, x, y) {
 let lastTime = 0;
 
 function gameLoop(time) {
+  // Splash screen
+  if (state.screen === 'splash') {
+    if (windNode) windNode.gain.gain.value = 0;
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, W, H);
+    const alpha = 0.4 + 0.3 * Math.sin(time / 600);
+    ctx.globalAlpha = alpha;
+    ctx.font = '32px "' + CRISP_FONT_ALT + '"';
+    const tw = ctx.measureText('Press any key').width;
+    crispText('Press any key', Math.round((W - tw) / 2), Math.round(H * 0.48), 32, '#a0a0c0', 0, CRISP_FONT_ALT);
+    ctx.globalAlpha = 1;
+    drawPixelFrame();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
   // Title screen
   if (state.screen === 'title') {
     // Mute wind on title
     if (windNode) windNode.gain.gain.value = 0;
     drawTitle();
+    drawPixelFrame();
     requestAnimationFrame(gameLoop);
     return;
   }
@@ -2801,6 +2863,7 @@ function gameLoop(time) {
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
   }
+  drawPixelFrame();
   requestAnimationFrame(gameLoop);
 }
 
