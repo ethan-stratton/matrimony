@@ -164,8 +164,17 @@ button{cursor:pointer;font-family:inherit}
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 const STORAGE_KEY='matrimony_todo_data';
+const firebaseConfig={apiKey:"AIzaSyCNouGxk2ANN0WQjUoV0onJIgJh2fEizEE",authDomain:"matrimony-gdd.firebaseapp.com",databaseURL:"https://matrimony-gdd-default-rtdb.firebaseio.com",projectId:"matrimony-gdd",storageBucket:"matrimony-gdd.firebasestorage.app",messagingSenderId:"325466988767",appId:"1:325466988767:web:0b1aa657719754f084496a"};
+firebase.initializeApp(firebaseConfig);
+const dbRef=firebase.database().ref('todo');
+let _localSaving=false;
+let _saveTimer=null;
+let _syncEl=null;
+function _setSyncStatus(ok){if(!_syncEl){_syncEl=document.createElement('span');_syncEl.style.cssText='margin-left:12px;font-size:12px';document.querySelector('.header-left').appendChild(_syncEl)}_syncEl.textContent=ok?'🟢 Synced':'🔴 Offline'}
 const CATEGORIES=["Combat","Art/Sprites","Audio","Level Design","UI/UX","Systems","Content","Polish","Tools"];
 const CAT_COLORS={"Combat":"#c0392b","Art/Sprites":"#8e44ad","Audio":"#2980b9","Level Design":"#27ae60","UI/UX":"#e67e22","Systems":"#16a085","Content":"#d35400","Polish":"#7f8c8d","Tools":"#2c3e50"};
 const COLUMNS=["backlog","inprogress","done"];
@@ -398,7 +407,14 @@ ideas:`## Quick Ideas
 let _id=0;function id(){return'id_'+Date.now()+'_'+(++_id)}
 let data;
 function load(){try{const s=localStorage.getItem(STORAGE_KEY);data=s?JSON.parse(s):defaultData()}catch(e){data=defaultData()}}
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
+function save(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    _localSaving=true;
+    dbRef.set(data).then(()=>{_setSyncStatus(true)}).catch(()=>{_setSyncStatus(false)});
+  },300);
+}
 
 // Tabs
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -560,6 +576,16 @@ function renderLore(){
 
 // INIT
 load();renderKanban();renderDecisions();renderIdeas();renderLore();
+// Firebase real-time listener
+dbRef.on('value',snap=>{
+  if(_localSaving){_localSaving=false;return}
+  const val=snap.val();
+  if(val){data=val;localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderKanban();renderDecisions();
+    document.getElementById('ideas-text').value=data.ideas||'';
+    document.getElementById('lore-text').value=data.lore||'';
+    _setSyncStatus(true);
+  }else{dbRef.set(data);_setSyncStatus(true)}
+},()=>{_setSyncStatus(false)});
 </script>
 </body>
 </html>
