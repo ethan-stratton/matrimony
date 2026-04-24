@@ -848,9 +848,16 @@ const ENEMY_DATA = {
   },
 };
 
+// Battle music
+const battleMusic = new Audio('sounds/Elijah_K%20-%20Deep%20Mind.mp3');
+battleMusic.loop = true;
+battleMusic.volume = 0.35;
+
 function startCombat(entity, enemyStats) {
   playBattleStart();
   state.screenFlash = { startTime: performance.now(), duration: 300 };
+  battleMusic.currentTime = 0;
+  battleMusic.play().catch(() => {});
   state.combat = {
     enemy: entity,
     enemyName: enemyStats.name || entity.type,
@@ -902,6 +909,8 @@ function startCombat(entity, enemyStats) {
 
 function exitCombat() {
   const enemy = state.combat.enemy;
+  battleMusic.pause();
+  battleMusic.currentTime = 0;
   // Don't permanently defeat for now — enemy respawns each fight
   state.combat = null;
 }
@@ -2004,7 +2013,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.86', canvas.width - 8, 14);
+  ctx.fillText('v0.87', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
