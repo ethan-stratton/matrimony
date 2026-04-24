@@ -97,26 +97,21 @@ canvas.height = CANVAS_H;
 // AUDIO
 // ══════════════════════════════════
 let audioCtx = null;
-let audioUnlocked = false;
 function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    console.log('AudioContext created, state:', audioCtx.state);
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+    console.log('AudioContext resuming...');
+  }
   return audioCtx;
 }
-// Unlock audio on first user interaction
-function unlockAudio() {
-  if (audioUnlocked) return;
-  const ac = getAudioCtx();
-  if (ac.state === 'suspended') {
-    ac.resume().then(() => { audioUnlocked = true; });
-  } else {
-    audioUnlocked = true;
-  }
-}
-document.addEventListener('click', unlockAudio, { once: false });
-document.addEventListener('keydown', unlockAudio, { once: false });
 let footstepAlt = false;
 function playFootstep() {
   const ac = getAudioCtx();
+  console.log('playFootstep, ac.state:', ac.state);
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.type = 'square';
@@ -124,8 +119,8 @@ function playFootstep() {
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  const vol = 0.03 + Math.random() * 0.04;
-  const dur = 0.06 + Math.random() * 0.04;
+  const vol = 0.15;
+  const dur = 0.08;
   gain.gain.setValueAtTime(vol, ac.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
   osc.connect(gain);
@@ -139,8 +134,8 @@ function playTick() {
   const gain = ac.createGain();
   osc.type = 'square';
   osc.frequency.value = 600;
-  gain.gain.setValueAtTime(0.04, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
+  gain.gain.setValueAtTime(0.15, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
   osc.connect(gain);
   gain.connect(ac.destination);
   osc.start(ac.currentTime);
@@ -1723,7 +1718,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.69', canvas.width - 8, 14);
+  ctx.fillText('v0.70', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
