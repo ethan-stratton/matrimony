@@ -108,8 +108,9 @@ function getAudioCtx() {
 }
 
 // Debug: test beep on first click
-document.addEventListener('click', function testBeep() {
+document.addEventListener('click', async function testBeep() {
   const ac = getAudioCtx();
+  if (ac.state === 'suspended') await ac.resume();
   console.log('TEST BEEP — ac.state:', ac.state, 'sampleRate:', ac.sampleRate);
   const osc = ac.createOscillator();
   osc.type = 'sine';
@@ -119,10 +120,13 @@ document.addEventListener('click', function testBeep() {
   osc.stop(ac.currentTime + 0.3);
   document.removeEventListener('click', testBeep);
 }, { once: true });
+
+console.log('=== MATRIMONY v0.72 LOADED ===');
 let footstepAlt = false;
 function playFootstep() {
-  console.log('playFootstep called');
+  console.log('playFootstep called, moving:', state.moving);
   const ac = getAudioCtx();
+  if (ac.state !== 'running') { console.log('ac not running:', ac.state); return; }
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.type = 'square';
@@ -1731,7 +1735,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.72', canvas.width - 8, 14);
+  ctx.fillText('v0.73', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
