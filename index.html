@@ -407,8 +407,8 @@ document.addEventListener('keydown', (e) => {
           c.attackText = action;
           // Enemy picks a new action if it doesn't have one active
           if (!c.enemyWaiting || c.enemyWaitCountdown <= 0) {
-            const enemyActions = ['Stand Still', 'Do Nothing'];
-            c.enemyAction = enemyActions[c.enemyActionIndex % 2];
+            const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still', 'Do Nothing'];
+            c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
             c.enemyActionIndex++;
             const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
             c.enemyWaitCountdown = enemyAct.wait || 0;
@@ -569,7 +569,9 @@ const ENEMY_DATA = {
   'Enemy1': {
     name: 'Fire Elemental',
     sprite: 'Enemy1',
-    maxHp: 200, eff: 8, def: 3, wait: 5,
+    maxHp: 220, eff: 10, def: 2, wait: 12,
+    actions: ['Charging...', 'Fire Punch'],
+    startsWithCharge: true,
   },
 };
 
@@ -606,11 +608,19 @@ function startCombat(entity, enemyStats) {
     enemyAction: null, // name of enemy's chosen action
     enemyWaitCountdown: -1,
     enemyWaiting: false,
-    enemyActionIndex: 0,
+    enemyActionIndex: 1, // start at 1 because we set initial action to index 0 (Charging)
     // Attack animation
     playerAttackAnim: null, // { startTime, duration, phase: 'rush'|'hit'|'return' }
     enemyReactAnim: null,  // { startTime, duration, type: 'flash'|'question' }
   };
+  // Enemy always starts with first action (Charging for Fire Elemental)
+  const c = state.combat;
+  const initialActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
+  c.enemyAction = initialActions[0];
+  const initAct = COMBAT_ACTIONS[c.enemyAction] || {};
+  c.enemyWaitCountdown = initAct.wait || 5;
+  c.enemyWaiting = true;
+  c.lastEnemyWaitTick = performance.now();
 }
 
 function exitCombat() {
@@ -625,6 +635,8 @@ const COMBAT_ACTIONS = {
   'Kick':  { eff: 12, def: 0, wait: 5 },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
+  'Charging...': { eff: 0, def: 4, wait: 6 },
+  'Fire Punch':  { eff: 10, def: 2, wait: 12 },
 };
 
 // Mouse state for combat menu
@@ -1346,7 +1358,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.54', canvas.width - 8, 14);
+  ctx.fillText('v0.55', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
