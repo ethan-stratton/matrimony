@@ -1318,7 +1318,7 @@ function drawCombat() {
   // Enemy HP bar
   const infoX = ePortraitX + portraitW + 16;
   const barW = Math.round(W * 0.22);
-  const barH = portraitH;
+  const barH = Math.min(portraitH, 14);
   const barY = ePortraitY;
   // Animated HP bar — ease display toward actual, speed proportional to damage
   if (c.enemyDisplayHp > c.enemyHp) {
@@ -1863,7 +1863,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.76', canvas.width - 8, 14);
+  ctx.fillText('v0.77', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2367,6 +2367,12 @@ function drawEntity(ctx, entity, x, y) {
 let lastTime = 0;
 
 function gameLoop(time) {
+  // Fade wind in/out based on combat
+  if (windNode) {
+    const target = state.combat ? 0 : 0.06;
+    const cur = windNode.gain.gain.value;
+    windNode.gain.gain.value += (target - cur) * 0.05;
+  }
   if (!state.combat) {
     handleMovement(time);
   }
