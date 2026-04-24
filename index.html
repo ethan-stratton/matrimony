@@ -1819,30 +1819,88 @@ function draw() {
   const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
   drawPlayer(ctx, playerDrawX, playerDrawY);
   
-  // Wind particles
+  // Wind particles — simulate debris/leaves blown bottom-left to upper-right
   if (!state.windParticles) state.windParticles = [];
+  if (!state.windTime) state.windTime = 0;
   const now = performance.now();
-  // Spawn new particles
-  if (Math.random() < 0.15) {
+  state.windTime = now * 0.001; // seconds
+  const wt = state.windTime;
+  
+  // Global wind field — slowly varying base angle and strength
+  const windAngle = -0.45 + Math.sin(wt * 0.3) * 0.15 + Math.sin(wt * 0.7) * 0.08; // radians, ~-25° to -40° from horizontal
+  const windStrength = 50 + Math.sin(wt * 0.5) * 15 + Math.sin(wt * 1.3) * 10; // gusts
+  
+  // Spawn
+  if (Math.random() < 0.12) {
+    // Spawn from left edge or bottom edge
+    const fromBottom = Math.random() < 0.35;
     state.windParticles.push({
-      x: -10,
-      y: Math.random() * canvas.height,
-      speed: 40 + Math.random() * 30, // px/sec
+      x: fromBottom ? Math.random() * canvas.width * 0.6 : -5,
+      y: fromBottom ? canvas.height + 5 : Math.random() * canvas.height,
+      speed: 0.7 + Math.random() * 0.6, // multiplier on wind
       size: 1 + Math.random() * 2,
-      alpha: 0.08 + Math.random() * 0.12,
-      drift: (Math.random() - 0.5) * 8,
+      alpha: 0.06 + Math.random() * 0.14,
+      phase: Math.random() * Math.PI * 2, // unique oscillation phase
+      wobbleFreq: 1.5 + Math.random() * 2, // how fast it wobbles
+      wobbleAmp: 8 + Math.random() * 15, // wobble radius
       born: now,
+      trail: [], // position history for streaky look
     });
   }
+  
   for (let i = state.windParticles.length - 1; i >= 0; i--) {
     const p = state.windParticles[i];
     const age = (now - p.born) / 1000;
-    p.x += p.speed * (1/60); // approx per frame
-    p.y += p.drift * (1/60);
-    if (p.x > canvas.width + 10) { state.windParticles.splice(i, 1); continue; }
-    ctx.globalAlpha = p.alpha * (1 - Math.max(0, (p.x - canvas.width + 40)) / 40);
-    ctx.fillStyle = '#d0c8c0';
-    ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.round(p.size * 3), 1);
+    
+    // Base wind velocity
+    const baseVx = Math.cos(windAngle) * windStrength * p.speed;
+    const baseVy = Math.sin(windAngle) * windStrength * p.speed;
+    
+    // Perpendicular wobble (simulates tumbling/swirling)
+    const perpAngle = windAngle + Math.PI * 0.5;
+    const wobble = Math.sin(age * p.wobbleFreq + p.phase) * p.wobbleAmp;
+    const wobbleVx = Math.cos(perpAngle) * wobble;
+    const wobbleVy = Math.sin(perpAngle) * wobble;
+    
+    // Local turbulence — Perlin-like using sin
+    const turbX = Math.sin(p.y * 0.02 + wt * 2) * 12 + Math.sin(p.x * 0.015 + wt * 1.3) * 8;
+    const turbY = Math.cos(p.x * 0.02 + wt * 1.7) * 6;
+    
+    const dt = 1 / 60;
+    p.x += (baseVx + wobbleVx + turbX) * dt;
+    p.y += (baseVy + wobbleVy + turbY) * dt;
+    
+    // Store trail
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 4) p.trail.shift();
+    
+    // Remove if off screen
+    if (p.x > canvas.width + 20 || p.y < -20 || p.x < -40 || p.y > canvas.height + 20) {
+      state.windParticles.splice(i, 1); continue;
+    }
+    
+    // Fade in/out
+    const fadeIn = Math.min(1, age * 3);
+    const fadeOut = 1 - Math.max(0, (p.x - canvas.width + 60)) / 60;
+    const fadeTop = 1 - Math.max(0, (-p.y + 20)) / 40;
+    const a = p.alpha * fadeIn * Math.max(0, fadeOut) * Math.max(0, fadeTop);
+    
+    // Draw trail (streaky look)
+    ctx.strokeStyle = '#d0c8c0';
+    ctx.lineWidth = p.size * 0.8;
+    ctx.globalAlpha = a * 0.4;
+    if (p.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(p.trail[0].x), Math.round(p.trail[0].y));
+      for (let j = 1; j < p.trail.length; j++) {
+        ctx.lineTo(Math.round(p.trail[j].x), Math.round(p.trail[j].y));
+      }
+      ctx.stroke();
+    }
+    // Draw particle head
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#d8d0c8';
+    ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y), Math.round(p.size * 2), Math.round(p.size));
     ctx.globalAlpha = 1;
   }
   
@@ -1863,7 +1921,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.78', canvas.width - 8, 14);
+  ctx.fillText('v0.79', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
