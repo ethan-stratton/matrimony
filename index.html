@@ -1130,6 +1130,7 @@ const ENEMY_DIALOGUE = {
 if (!state.encounterCounts) state.encounterCounts = {};
 
 function handleEntityContact(entity) {
+  console.log('handleEntityContact', entity.type, entity.id);
   if (entity.type === 'Enemy1') {
     const data = ENEMY_DATA['Enemy1'];
     const dialogues = ENEMY_DIALOGUE['Enemy1'];
