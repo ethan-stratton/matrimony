@@ -552,7 +552,7 @@ function handleEntityContact(entity) {
       showDialogue('', 'Found ' + item + '!');
       // Add Shortbow as combat action
       if (item === 'Shortbow' && !COMBAT_ACTIONS['Shortbow']) {
-        COMBAT_ACTIONS['Shortbow'] = { eff: 10, def: 0, wait: 3 };
+        COMBAT_ACTIONS['Shortbow'] = { eff: 10, def: 2, wait: 3 };
       }
     } else {
       showDialogue('', 'The chest is empty.');
@@ -631,8 +631,8 @@ function exitCombat() {
 
 // Combat action data
 const COMBAT_ACTIONS = {
-  'Punch': { eff: 8, def: 0, wait: 2 },
-  'Kick':  { eff: 12, def: 0, wait: 5 },
+  'Punch':    { eff: 8, def: 4, wait: 4 },
+  'Kick':     { eff: 12, def: 1, wait: 5 },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 4, wait: 6 },
@@ -897,8 +897,8 @@ function drawCombat() {
   ctx.fillRect(infoX, barY, Math.round(barW * hpRatio), barH);
   drawGoldOutline(infoX - 2, barY - 2, barW + 4, barH + 4, 4);
   
-  // Enemy action display — name right of HP bar, stats below
-  if (c.enemyAction) {
+  // Enemy action display — only shown after player commits (waiting)
+  if (c.enemyAction && (c.waiting || c.playerAttackAnim || c.enemyReactAnim)) {
     const act = COMBAT_ACTIONS[c.enemyAction] || {};
     crispText(c.enemyAction, infoX + barW + 12, barY - 8, 32, '#d0c0a0');
     const statY = barY + barH + 11;
@@ -1358,7 +1358,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.55', canvas.width - 8, 14);
+  ctx.fillText('v0.56', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -1878,7 +1878,9 @@ function gameLoop(time) {
         // Apply damage to enemy
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
-          c.enemyHp = Math.max(0, c.enemyHp - (act.eff || 0));
+          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          const dmg = Math.max(1, (act.eff || 0) - (enemyAct.def || 0));
+          c.enemyHp = Math.max(0, c.enemyHp - dmg);
           // Trigger win state when enemy dies (after HP bar drains)
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
@@ -1896,7 +1898,14 @@ function gameLoop(time) {
       const t = time - c.enemyReactAnim.startTime;
       if (t >= c.enemyReactAnim.duration) {
         c.enemyReactAnim = null;
-        // Enemy's action resolved — clear it. New action picked when player next attacks.
+        // Enemy's attack resolves — apply damage to player
+        const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+        const playerAct = COMBAT_ACTIONS[c.attackText] || {};
+        const enemyDmg = Math.max(1, (enemyAct.eff || 0) - (playerAct.def || 0));
+        if (enemyAct.eff > 0) {
+          c.playerHp = Math.max(0, c.playerHp - enemyDmg);
+        }
+        // Clear enemy action. New action picked when player next attacks.
         c.enemyAction = null;
         c.enemyWaiting = false;
       }
