@@ -1108,10 +1108,6 @@ function handleEntityContact(entity) {
       state.inventory.push(item);
       playChestOpen();
       showDialogue('', 'Found ' + item + '!');
-      // Add Shortbow as combat action
-      if (item === 'Shortbow' && !COMBAT_ACTIONS['Shortbow']) {
-        COMBAT_ACTIONS['Shortbow'] = { eff: 10, def: 2, wait: 3 };
-      }
     } else {
       showDialogue('', 'The chest is empty.');
     }
@@ -1210,6 +1206,7 @@ function exitCombat() {
 const COMBAT_ACTIONS = {
   'Punch':    { eff: 8, def: 4, wait: 4 },
   'Kick':     { eff: 12, def: 1, wait: 5 },
+  'Shortbow': { eff: 10, def: 2, wait: 3 },
   'Defend':   { eff: 0, def: 10, wait: 9 },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
@@ -1937,7 +1934,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.19', W - 8, H - 8);
+  ctx.fillText('v1.20', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2728,7 +2725,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.19', canvas.width - 8, 14);
+  ctx.fillText('v1.20', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
