@@ -106,8 +106,7 @@ function getAudioCtx() {
   }
   return audioCtx;
 }
-
-// Unlock audio — play a silent buffer on first interaction
+// Unlock audio on first interaction (silent buffer trick for Safari)
 function unlockAudio() {
   const ac = getAudioCtx();
   const buf = ac.createBuffer(1, 1, ac.sampleRate);
@@ -115,39 +114,15 @@ function unlockAudio() {
   src.buffer = buf;
   src.connect(ac.destination);
   src.start(0);
-  console.log('Audio unlock attempted, state:', ac.state);
-  // Also try resume
-  if (ac.state !== 'running') {
-    ac.resume().then(() => console.log('Audio resumed to:', ac.state));
-  }
+  if (ac.state !== 'running') ac.resume();
 }
 document.addEventListener('touchstart', unlockAudio, { once: true });
-document.addEventListener('touchend', unlockAudio, { once: true });
 document.addEventListener('mousedown', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
-
-// Test beep 1 second after any click (gives time for unlock)
-document.addEventListener('click', function() {
-  setTimeout(() => {
-    const ac = getAudioCtx();
-    console.log('Delayed beep — ac.state:', ac.state);
-    if (ac.state !== 'running') { console.log('STILL NOT RUNNING'); return; }
-    const osc = ac.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = 440;
-    osc.connect(ac.destination);
-    osc.start();
-    osc.stop(ac.currentTime + 0.5);
-    console.log('Beep scheduled at', ac.currentTime);
-  }, 1000);
-}, { once: true });
-
-console.log('=== MATRIMONY v0.73b LOADED ===');
 let footstepAlt = false;
 function playFootstep() {
-  console.log('playFootstep called, moving:', state.moving);
   const ac = getAudioCtx();
-  if (ac.state !== 'running') { console.log('ac not running:', ac.state); return; }
+  if (ac.state !== 'running') return;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.type = 'square';
@@ -1756,7 +1731,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.73', canvas.width - 8, 14);
+  ctx.fillText('v0.74', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
