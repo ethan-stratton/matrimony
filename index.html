@@ -25,9 +25,12 @@
     text-shadow: 0 0 30px rgba(180, 140, 255, 0.3);
   }
   canvas#game {
-    border: 2px solid #2a2530;
     image-rendering: pixelated;
     background: #0a0a0f;
+    border: 6px solid #0a0808;
+    outline: 1px solid #8a7030;
+    outline-offset: -7px;
+    box-shadow: 0 0 0 2px #0a0808, inset 0 0 0 1px #8a7030, 0 0 20px rgba(0,0,0,0.5);
   }
   .info {
     font-size: 0.6rem; color: #484040; margin-top: 8px;
@@ -1445,7 +1448,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.96', W - 8, H - 8);
+  ctx.fillText('v0.97', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2191,7 +2194,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.96', canvas.width - 8, 14);
+  ctx.fillText('v0.97', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2707,7 +2710,6 @@ function gameLoop(time) {
     const tw = ctx.measureText('Press any key').width;
     crispText('Press any key', Math.round((W - tw) / 2), Math.round(H * 0.48), 32, '#a0a0c0', 0, CRISP_FONT_ALT);
     ctx.globalAlpha = 1;
-    drawPixelFrame();
     requestAnimationFrame(gameLoop);
     return;
   }
@@ -2716,7 +2718,6 @@ function gameLoop(time) {
     // Mute wind on title
     if (windNode) windNode.gain.gain.value = 0;
     drawTitle();
-    drawPixelFrame();
     requestAnimationFrame(gameLoop);
     return;
   }
@@ -2863,7 +2864,6 @@ function gameLoop(time) {
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
   }
-  drawPixelFrame();
   requestAnimationFrame(gameLoop);
 }
 
