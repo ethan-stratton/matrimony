@@ -466,16 +466,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'x' || e.key === 'X') {
     e.preventDefault();
     if (state.combat) {
-      const c = state.combat;
-      if (c.phase === 'action') {
-        if (c.waiting) {
-          // Cancel wait, go back to action select
-          c.waiting = false;
-          c.waitCountdown = -1;
-        } else {
-          // No target phase to go back to — do nothing
-        }
-      }
+      // No cancelling once committed — you're locked in
     } else if (state.inventoryOpen) {
       // Close inventory or back out of sub-menu
       if (state.inventorySubMenu) {
@@ -663,6 +654,8 @@ function startCombat(entity, enemyStats) {
     playerAttackAnim: null, // { startTime, duration, phase: 'rush'|'hit'|'return' }
     enemyAttackAnim: null, // enemy rush toward player animation
     enemyActionRevealed: false, // enemy action visible after first exchange
+    playerResolved: false, // player's attack has fired this round
+    enemyResolved: false, // enemy's attack has fired this round
   };
   // Enemy always starts with first action (Charging for Fire Elemental)
   const c = state.combat;
@@ -1416,10 +1409,7 @@ function drawCombat() {
     crispText('' + waitVal, sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
   }
   
-  // Hints
-  if (c.waiting) {
-    crispText('X = Cancel', W - pad - 110, H - pad - 14, 32, '#8c828c');
-  }
+  // Hints removed — no cancelling once committed
   
   // Win state overlay
   if (c.winState && c.enemyDisplayHp <= 0.5) {
@@ -1598,7 +1588,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.64', canvas.width - 8, 14);
+  ctx.fillText('v0.65', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2096,6 +2086,23 @@ function drawEntity(ctx, entity, x, y) {
   drawSprite(ctx, entity.type, x, y, performance.now());
 }
 
+function startNewRound(c, time) {
+  // Both have resolved — new round
+  c.phase = 'action';
+  c.waiting = false;
+  c.enemyWaiting = false;
+  c.waitCountdown = -1;
+  c.attackText = null;
+  c.playerResolved = false;
+  c.enemyResolved = false;
+  // Enemy picks next action (visible for next round)
+  const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
+  c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
+  c.enemyActionIndex++;
+  c.enemyActionRevealed = true;
+  c.enemyWaitCountdown = -1;
+}
+
 // ══════════════════════════════════
 // GAME LOOP
 // ══════════════════════════════════
@@ -2115,80 +2122,66 @@ function gameLoop(time) {
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.playerAttackAnim = null;
-        // Apply damage to enemy — enemy's def active while their countdown is still going
+        // Apply damage to enemy
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          const enemyDef = (c.enemyWaitCountdown > 0) ? (enemyAct.def || 0) : 0;
+          // Enemy has def while their countdown hasn't resolved yet
+          const enemyDef = !c.enemyResolved ? (enemyAct.def || 0) : 0;
           const dmg = Math.max(0, (act.eff || 0) - enemyDef);
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
           }
         }
-        // Player's action is spent — back to action select
-        // Enemy countdown + action are PRESERVED (frozen, visible)
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        c.playerResolved = true;
+        // If both resolved → new round
+        if (c.playerResolved && c.enemyResolved) {
+          startNewRound(c, time);
+        }
       }
     }
     
-    // Update enemy attack animation (enemy rushes toward player)
+    // Update enemy attack animation (damaging move — rush toward player)
     if (c.enemyAttackAnim) {
       const a = c.enemyAttackAnim;
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.enemyAttackAnim = null;
-        // Apply damage to player — player's def active while their countdown is still going
+        // Apply damage to player
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
-        const playerDef = (c.waitCountdown > 0) ? (playerAct.def || 0) : 0;
+        // Player has def while their countdown hasn't resolved yet
+        const playerDef = !c.playerResolved ? (playerAct.def || 0) : 0;
         const enemyDmg = Math.max(0, (enemyAct.eff || 0) - playerDef);
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
         }
-        // Enemy's action is spent — pick next action for next round
-        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
-        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
-        c.enemyActionIndex++;
-        c.enemyActionRevealed = true;
-        c.enemyWaiting = false;
-        c.enemyWaitCountdown = -1;
-        // PAUSE — back to action select
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        c.enemyResolved = true;
+        // If both resolved → new round
+        if (c.playerResolved && c.enemyResolved) {
+          startNewRound(c, time);
+        }
       }
     }
     
-    // Update enemy bark (non-damaging move like Charging — text only, no rush)
+    // Update enemy bark (non-damaging move like Charging — no rush, just text)
     if (c.enemyBark) {
       const t = time - c.enemyBark.startTime;
       if (t >= c.enemyBark.duration) {
         c.enemyBark = null;
-        // Enemy's action is spent (no damage) — pick next action
-        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
-        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
-        c.enemyActionIndex++;
-        c.enemyActionRevealed = true;
-        c.enemyWaiting = false;
-        c.enemyWaitCountdown = -1;
-        // PAUSE — back to action select
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        c.enemyResolved = true;
+        // If both resolved → new round
+        if (c.playerResolved && c.enemyResolved) {
+          startNewRound(c, time);
+        }
       }
     }
     
-    // Tick system — ONLY ticks when both sides are committed
-    const bothCommitted = c.waiting && c.enemyWaiting;
+    // Tick system — ticks when both committed, not during animations
     const anyCountdown = (c.waitCountdown > 0) || (c.enemyWaitCountdown > 0);
     const animPlaying = c.playerAttackAnim || c.enemyAttackAnim || c.enemyBark;
-    if (bothCommitted && anyCountdown && !animPlaying && !c.winState) {
+    if (c.waiting && c.enemyWaiting && anyCountdown && !animPlaying && !c.winState) {
       const dt = time - c.lastWaitTick;
       c.lastWaitTick = time;
       c.waitAccumulator += dt;
@@ -2198,24 +2191,22 @@ function gameLoop(time) {
         if (c.waitAccumulator > c.waitTickSpeed) c.waitAccumulator = 0;
         playTick();
         
-        // Tick both
         if (c.waitCountdown > 0) c.waitCountdown--;
         if (c.enemyWaitCountdown > 0) c.enemyWaitCountdown--;
         
-        // Player hit zero — attack (player goes first on tie)
-        if (c.waitCountdown <= 0 && !c.playerAttackAnim) {
+        // Player hit zero first (or tie — player priority)
+        if (c.waitCountdown <= 0 && !c.playerResolved && !c.playerAttackAnim) {
           c.waitAccumulator = 0;
           c.playerAttackAnim = {
             startTime: time,
             rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
           };
         }
-        // Enemy hit zero — attack (or bark for non-damaging moves like Charging)
-        else if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark) {
+        // Enemy hit zero
+        else if (c.enemyWaitCountdown <= 0 && !c.enemyResolved && !c.enemyAttackAnim && !c.enemyBark) {
           c.waitAccumulator = 0;
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
           if ((enemyAct.eff || 0) === 0) {
-            // Non-damaging move — show text bark instead of rush
             c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
           } else {
             c.enemyAttackAnim = {
@@ -2224,6 +2215,34 @@ function gameLoop(time) {
             };
           }
         }
+      }
+    }
+    
+    // After an animation finishes and one side resolved, keep ticking for the other
+    // (animations block ticking, but once done, the other countdown should resume)
+    if (c.waiting && c.enemyWaiting && !animPlaying && !c.winState) {
+      // If one resolved but other still counting, keep going
+      if ((c.playerResolved && c.enemyWaitCountdown > 0 && !c.enemyResolved) ||
+          (c.enemyResolved && c.waitCountdown > 0 && !c.playerResolved)) {
+        // Ticking continues in the block above — the anyCountdown check handles it
+      }
+      // If one resolved and other is at 0 but hasn't triggered anim yet, trigger it
+      if (c.playerResolved && c.enemyWaitCountdown <= 0 && !c.enemyResolved && !c.enemyAttackAnim && !c.enemyBark) {
+        const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+        if ((enemyAct.eff || 0) === 0) {
+          c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+        } else {
+          c.enemyAttackAnim = {
+            startTime: time,
+            rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+          };
+        }
+      }
+      if (c.enemyResolved && c.waitCountdown <= 0 && !c.playerResolved && !c.playerAttackAnim) {
+        c.playerAttackAnim = {
+          startTime: time,
+          rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+        };
       }
     }
   }
