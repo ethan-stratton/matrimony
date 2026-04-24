@@ -115,10 +115,43 @@ function unlockAudio() {
   src.connect(ac.destination);
   src.start(0);
   if (ac.state !== 'running') ac.resume();
+  // Start ambient wind
+  startAmbientWind();
 }
 document.addEventListener('touchstart', unlockAudio, { once: true });
 document.addEventListener('mousedown', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
+
+let windNode = null;
+function startAmbientWind() {
+  if (windNode) return;
+  const ac = getAudioCtx();
+  // Generate brown noise (low-freq wind)
+  const len = ac.sampleRate * 2;
+  const buf = ac.createBuffer(1, len, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    last = (last + 0.02 * white) / 1.02;
+    data[i] = last * 3.5;
+  }
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  // Low-pass for soft wind
+  const filter = ac.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 400;
+  // Very quiet
+  const gain = ac.createGain();
+  gain.gain.value = 0.06;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(ac.destination);
+  src.start(0);
+  windNode = { src, gain };
+}
 let footstepAlt = false;
 function playFootstep() {
   const ac = getAudioCtx();
@@ -783,7 +816,7 @@ function startCombat(entity, enemyStats) {
     actions: ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])],
     selectedAction: 0,
     waitCountdown: -1, // player wait: -1 = not counting, >=0 = ticking down
-    waitTickSpeed: 300, // ms per tick
+    waitTickSpeed: 240, // ms per tick
     lastWaitTick: 0,
     waitAccumulator: 0, // accumulator for precise ticking
     waiting: false, // true while player wait is counting down
@@ -878,7 +911,7 @@ canvas.addEventListener('click', (e) => {
     const botContentY = topH + arenaH;
     const botH = H - botContentY;
     const pad = 8;
-    const portraitH = Math.round(topH * 0.7);
+    const portraitH = Math.round(topH * 0.7) - 8;
     const portraitW = Math.round(portraitH * 2.5);
     const pPortraitY = botContentY + pad + 2;
     const portraitCenterY = pPortraitY + Math.round(portraitH / 2);
@@ -1191,7 +1224,7 @@ function drawCombat() {
   const botContentY = arenaY + arenaH;
   const botH = H - botContentY;
   
-  const portraitH = Math.round(topH * 0.42);
+  const portraitH = Math.round(topH * 0.42) - 8;
   const portraitW = Math.round(portraitH * 3.5);
   
   // ── TOP BAR ──
@@ -1226,8 +1259,8 @@ function drawCombat() {
   // Enemy HP bar
   const infoX = ePortraitX + portraitW + 16;
   const barW = Math.round(W * 0.22);
-  const barH = 10;
-  const barY = ePortraitY + 4;
+  const barH = portraitH;
+  const barY = ePortraitY;
   // Animated HP bar — ease display toward actual, speed proportional to damage
   if (c.enemyDisplayHp > c.enemyHp) {
     const diff = c.enemyDisplayHp - c.enemyHp;
@@ -1731,7 +1764,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.74', canvas.width - 8, 14);
+  ctx.fillText('v0.75', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
