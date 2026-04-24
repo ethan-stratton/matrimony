@@ -572,7 +572,7 @@ document.addEventListener('keydown', (e) => {
     if (!titleMusicStarted) {
       const actx = getAudioCtx();
       if (actx) actx.resume();
-      titleMusic.play().catch(e => console.warn('title music play failed:', e));
+      titleMusic.play().then(() => console.log('title music playing')).catch(e => console.warn('title music fail:', e));
       titleMusicStarted = true;
     }
     if (e.key === 'ArrowUp') {
@@ -582,10 +582,17 @@ document.addEventListener('keydown', (e) => {
       state.titleSelection = (state.titleSelection + 1) % 3;
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
-      // Start game
-      state.screen = 'game';
-      titleMusic.pause();
-      titleMusic.currentTime = 0;
+      // Start game — small delay so music can start first time
+      if (!titleMusicStarted) {
+        const actx = getAudioCtx();
+        if (actx) actx.resume();
+        titleMusic.play().catch(() => {});
+      }
+      setTimeout(() => {
+        state.screen = 'game';
+        titleMusic.pause();
+        titleMusic.currentTime = 0;
+      }, 50);
       e.preventDefault();
     }
     return;
@@ -1391,7 +1398,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.91', W - 8, H - 8);
+  ctx.fillText('v0.92', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2137,7 +2144,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.91', canvas.width - 8, 14);
+  ctx.fillText('v0.92', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
