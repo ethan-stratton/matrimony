@@ -112,7 +112,7 @@ function playFootstep() {
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  const vol = 0.03 + Math.random() * 0.04;
+  const vol = 0.08 + Math.random() * 0.06;
   const dur = 0.06 + Math.random() * 0.04;
   gain.gain.setValueAtTime(vol, ac.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
@@ -127,8 +127,8 @@ function playTick() {
   const gain = ac.createGain();
   osc.type = 'square';
   osc.frequency.value = 600;
-  gain.gain.setValueAtTime(0.04, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
+  gain.gain.setValueAtTime(0.10, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
   osc.connect(gain);
   gain.connect(ac.destination);
   osc.start(ac.currentTime);
@@ -155,6 +155,105 @@ function playHit(isEnemy) {
   gain.connect(ac.destination);
   src.start(ac.currentTime);
 }
+// ── Earthbound-style battle backgrounds ──
+const EB_PALETTES = {
+  fire: [[20,0,0],[80,0,0],[160,30,0],[220,80,0],[255,160,20],[255,220,80],[255,255,180],[255,220,80]],
+  void: [[0,0,0],[20,0,40],[50,0,80],[80,20,120],[50,0,80],[20,0,40],[5,0,10],[0,0,0]],
+  neon: [[255,0,100],[255,0,255],[100,0,255],[0,100,255],[0,255,200],[0,255,100],[255,255,0],[255,0,100]],
+  ocean: [[0,5,30],[0,20,80],[0,60,140],[0,120,180],[40,180,220],[120,220,255],[200,240,255],[40,180,220]],
+  psychedelic: [[148,0,211],[75,0,130],[0,0,255],[0,255,0],[255,255,0],[255,127,0],[255,0,0],[148,0,211]],
+  candy: [[255,100,150],[255,150,200],[200,150,255],[150,200,255],[150,255,200],[200,255,150],[255,255,150],[255,200,150]],
+  aurora: [[0,10,20],[0,40,40],[0,120,80],[0,200,100],[80,255,140],[0,200,180],[40,80,160],[0,20,60]],
+};
+
+const EB_PRESETS = {
+  'Giygas': {
+    l1: { palette: 'fire', distType: 2, amp: 12, freq: 0.04, speed: 0.06, scrollX: 0, scrollY: 1.5, palSpeed: 2.0, scale: 0.8 },
+    l2: { palette: 'void', distType: 1, amp: 8, freq: 0.03, speed: 0.04, scrollX: 0.5, scrollY: -0.5, palSpeed: 1.5, scale: 1.2, opacity: 0.6 }
+  },
+  'Moonside': {
+    l1: { palette: 'psychedelic', distType: 1, amp: 6, freq: 0.035, speed: 0.05, scrollX: 0.3, scrollY: 0.3, palSpeed: 2.5, scale: 0.6 },
+    l2: { palette: 'neon', distType: 2, amp: 10, freq: 0.02, speed: 0.03, scrollX: -0.8, scrollY: 1.0, palSpeed: 1.8, scale: 1.0, opacity: 0.55 }
+  },
+  'Deep Dark': {
+    l1: { palette: 'void', distType: 2, amp: 8, freq: 0.05, speed: 0.04, scrollX: 0, scrollY: 0.8, palSpeed: 0.5, scale: 1.0 },
+    l2: { palette: 'ocean', distType: 1, amp: 4, freq: 0.03, speed: 0.02, scrollX: 0.3, scrollY: -0.3, palSpeed: 0.8, scale: 1.8, opacity: 0.35 }
+  },
+};
+
+// Map enemy types to background presets
+const ENEMY_BG = { 'Enemy1': 'Giygas' };
+
+function ebSampleColors(colors, t) {
+  const n = colors.length;
+  const idx = ((t % 1) + 1) % 1 * n;
+  const i0 = Math.floor(idx) % n;
+  const i1 = (i0 + 1) % n;
+  const f = idx - Math.floor(idx);
+  return [
+    colors[i0][0] + (colors[i1][0] - colors[i0][0]) * f,
+    colors[i0][1] + (colors[i1][1] - colors[i0][1]) * f,
+    colors[i0][2] + (colors[i1][2] - colors[i0][2]) * f
+  ];
+}
+
+function ebBasePattern(x, y, scale) {
+  const sx = x / (32 * scale), sy = y / (32 * scale);
+  const v = (Math.sin(sx * 6.28) * Math.cos(sy * 6.28)
+           + Math.sin((sx + sy) * 4.5)
+           + Math.cos((sx - sy) * 3.7)) / 3;
+  return (v + 1) / 2;
+}
+
+// Offscreen canvas for EB background
+let ebCanvas = null, ebCtx = null, ebImgData = null, ebBuf = null;
+let ebTime = 0;
+
+function drawEBBackground(ctx, x, y, w, h, presetName) {
+  if (!ebCanvas) {
+    ebCanvas = document.createElement('canvas');
+    ebCanvas.width = 128; // low-res for performance
+    ebCanvas.height = 64;
+    ebCtx = ebCanvas.getContext('2d');
+    ebImgData = ebCtx.createImageData(128, 64);
+    ebBuf = ebImgData.data;
+  }
+  const preset = EB_PRESETS[presetName] || EB_PRESETS['Giygas'];
+  const RW = 128, RH = 64;
+  ebTime++;
+  const t = ebTime;
+  
+  // Render two layers and blend
+  for (let py = 0; py < RH; py++) {
+    for (let px = 0; px < RW; px++) {
+      let r = 0, g = 0, b = 0;
+      for (const [li, layer] of [preset.l1, preset.l2].entries()) {
+        if (!layer) continue;
+        const offset = layer.amp * Math.sin(layer.freq * py + layer.speed * t);
+        let sx = px, sy = py;
+        if (layer.distType === 0) sx = px + offset;
+        else if (layer.distType === 1) sx = px + (py % 2 === 0 ? offset : -offset);
+        else if (layer.distType === 2) sy = py + offset;
+        sx += layer.scrollX * t;
+        sy += layer.scrollY * t;
+        const v = ebBasePattern(sx, sy, layer.scale);
+        const palT = v + layer.palSpeed * t * 0.001;
+        const pal = EB_PALETTES[layer.palette] || EB_PALETTES['fire'];
+        const c = ebSampleColors(pal, palT);
+        const op = li === 1 ? (layer.opacity || 0.5) : 1;
+        if (li === 0) { r = c[0]; g = c[1]; b = c[2]; }
+        else { r = r * (1 - op) + c[0] * op; g = g * (1 - op) + c[1] * op; b = b * (1 - op) + c[2] * op; }
+      }
+      const bi = (py * RW + px) * 4;
+      ebBuf[bi] = r | 0; ebBuf[bi+1] = g | 0; ebBuf[bi+2] = b | 0; ebBuf[bi+3] = 255;
+    }
+  }
+  ebCtx.putImageData(ebImgData, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(ebCanvas, x, y, w, h);
+  ctx.imageSmoothingEnabled = false;
+}
+
 canvas.style.width = (CANVAS_W * DISPLAY_SCALE) + 'px';
 canvas.style.height = (CANVAS_H * DISPLAY_SCALE) + 'px';
 
@@ -1138,8 +1237,8 @@ function drawCombat() {
   }
   
   // ── ARENA ──
-  ctx.fillStyle = 'rgba(2, 2, 8, 0.97)';
-  ctx.fillRect(0, arenaY, W, arenaH);
+  const bgPreset = ENEMY_BG[c.enemy.type] || 'Giygas';
+  drawEBBackground(ctx, 0, arenaY, W, arenaH, bgPreset);
   
   const playerCombatSize = 64;
   const enemyCombatSize = 48;
@@ -1612,7 +1711,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.67', canvas.width - 8, 14);
+  ctx.fillText('v0.68', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
