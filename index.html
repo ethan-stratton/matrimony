@@ -825,7 +825,7 @@ document.addEventListener('keyup', (e) => {
 // ══════════════════════════════════
 async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = true;
-  const fadeDuration = 300;
+  const fadeDuration = 150;
   
   // Fade out
   state.screenFade = { type: 'out', startTime: performance.now(), duration: fadeDuration };
@@ -1519,24 +1519,124 @@ function drawTitle() {
   const now = performance.now();
   const t = (now - titleStartTime) / 1000;
   
-  // Dark background
-  ctx.fillStyle = '#0a0a12';
+  // Init persistent title state
+  if (!drawTitle._stars) {
+    drawTitle._stars = [];
+    for (let i = 0; i < 120; i++) {
+      const seed = i * 7919;
+      drawTitle._stars.push({
+        x: ((seed * 13 + seed * seed) % (W * 100)) / 100,
+        y: ((seed * 31 + seed * seed * 3) % (H * 100)) / 100,
+        size: Math.random() < 0.08 ? 2 : 1,
+        baseAlpha: 0.1 + Math.random() * 0.5,
+        flickerSpeed: 0.5 + Math.random() * 3,
+        flickerPhase: Math.random() * Math.PI * 2,
+        hue: Math.random() < 0.3 ? (Math.random() < 0.5 ? '#ffd0a0' : '#a0c0ff') : '#d0c8e0',
+      });
+    }
+    drawTitle._sats = [];
+    for (let i = 0; i < 3; i++) {
+      drawTitle._sats.push({
+        x: Math.random() * W,
+        y: 20 + Math.random() * (H * 0.3),
+        speed: 8 + Math.random() * 15,
+        blinkRate: 2 + Math.random() * 3,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+    drawTitle._planets = [];
+    const planetDefs = [
+      { cx: W * 0.12, cy: H * 0.25, r: 18, palette: ['#2a1a3a', '#4a2868', '#6a3890', '#8850b0'], rotSpeed: 0.02 },
+      { cx: W * 0.88, cy: H * 0.35, r: 12, palette: ['#1a2a1a', '#2a5030', '#408048', '#60b060'], rotSpeed: -0.03 },
+      { cx: W * 0.75, cy: H * 0.12, r: 8, palette: ['#3a2010', '#6a4020', '#a06030', '#d08840'], rotSpeed: 0.04 },
+    ];
+    for (const def of planetDefs) {
+      const frames = [];
+      const frameCount = 60;
+      const size = def.r * 2 + 2;
+      for (let f = 0; f < frameCount; f++) {
+        const pc = document.createElement('canvas');
+        pc.width = size; pc.height = size;
+        const pctx = pc.getContext('2d');
+        const ccx = def.r + 1, ccy = def.r + 1;
+        const offset = (f / frameCount) * Math.PI * 2;
+        for (let py = -def.r; py <= def.r; py++) {
+          for (let px = -def.r; px <= def.r; px++) {
+            const dist = Math.sqrt(px * px + py * py);
+            if (dist > def.r) continue;
+            const nx = px / def.r;
+            const ny = py / def.r;
+            const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+            const u = Math.atan2(nx, nz) + offset;
+            const v = Math.asin(ny);
+            const n = Math.sin(u * 3 + v * 2) * 0.5 + Math.sin(u * 7 - v * 5) * 0.25 + Math.sin(u * 13 + v * 11) * 0.125;
+            const norm = (n + 0.875) / 1.75;
+            const ci = Math.min(def.palette.length - 1, Math.floor(norm * def.palette.length));
+            const light = Math.max(0.3, nz * 0.5 + nx * -0.3 + ny * -0.3 + 0.5);
+            pctx.fillStyle = def.palette[ci];
+            pctx.globalAlpha = light;
+            pctx.fillRect(ccx + px, ccy + py, 1, 1);
+          }
+        }
+        pctx.globalAlpha = 1;
+        frames.push(pc);
+      }
+      drawTitle._planets.push({ ...def, frames, frameCount: frames.length });
+    }
+  }
+  
+  // Dark background with subtle gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#06060e');
+  bgGrad.addColorStop(0.5, '#0a0a16');
+  bgGrad.addColorStop(1, '#08081a');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
   
-  // Subtle animated stars
-  for (let i = 0; i < 40; i++) {
-    const seed = i * 7919;
-    const sx = ((seed * 13) % W);
-    const sy = ((seed * 31) % H);
-    const flicker = 0.3 + 0.7 * Math.sin(t * (1 + (i % 5) * 0.3) + seed);
-    ctx.globalAlpha = 0.15 + 0.15 * flicker;
-    ctx.fillStyle = '#c0b8d0';
-    ctx.fillRect(Math.round(sx), Math.round(sy), 1, 1);
+  // Draw stars
+  for (const star of drawTitle._stars) {
+    const flicker = Math.sin(t * star.flickerSpeed + star.flickerPhase);
+    const alpha = star.baseAlpha * (0.5 + 0.5 * flicker);
+    if (alpha < 0.02) continue;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = star.hue;
+    ctx.fillRect(Math.round(star.x), Math.round(star.y), star.size, star.size);
+    if (alpha > 0.35) {
+      ctx.globalAlpha = alpha * 0.2;
+      ctx.fillRect(Math.round(star.x) - 1, Math.round(star.y), 1, 1);
+      ctx.fillRect(Math.round(star.x) + star.size, Math.round(star.y), 1, 1);
+      ctx.fillRect(Math.round(star.x), Math.round(star.y) - 1, 1, 1);
+      ctx.fillRect(Math.round(star.x), Math.round(star.y) + star.size, 1, 1);
+    }
   }
   ctx.globalAlpha = 1;
   
+  // Draw satellites
+  for (const sat of drawTitle._sats) {
+    sat.x += sat.speed * (1/60);
+    if (sat.x > W + 5) { sat.x = -5; sat.y = 20 + Math.random() * (H * 0.3); }
+    const blink = Math.sin(t * sat.blinkRate + sat.phase) > 0.3;
+    if (blink) {
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(Math.round(sat.x), Math.round(sat.y), 1, 1);
+      ctx.globalAlpha = 0.15;
+      ctx.fillRect(Math.round(sat.x) - 1, Math.round(sat.y), 1, 1);
+      ctx.fillRect(Math.round(sat.x) - 2, Math.round(sat.y), 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+  
+  // Draw pixel planets
+  for (const planet of drawTitle._planets) {
+    const frameIdx = Math.floor((t * planet.rotSpeed * planet.frameCount + 1000) % planet.frameCount);
+    const frame = planet.frames[Math.abs(frameIdx) % planet.frameCount];
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(frame, Math.round(planet.cx - planet.r - 1), Math.round(planet.cy - planet.r - 1));
+    ctx.imageSmoothingEnabled = true;
+  }
+  
   // Title text
-  // Title text — measure to center
   const titleY = Math.round(H * 0.18);
   ctx.font = '32px "' + CRISP_FONT_ALT + '"';
   const title1W = ctx.measureText('Matrimony').width;
@@ -1554,16 +1654,11 @@ function drawTitle() {
     { label: 'Slot 2', sub: 'Empty' },
     { label: 'Slot 3', sub: 'Empty' },
   ];
-  
   for (let i = 0; i < slots.length; i++) {
     const sy = startY + i * (slotH + 12);
     const selected = state.titleSelection === i;
-    
-    // Slot background
     ctx.fillStyle = selected ? 'rgba(60, 50, 80, 0.8)' : 'rgba(20, 18, 30, 0.7)';
     ctx.fillRect(slotX, sy, slotW, slotH);
-    
-    // Border
     if (selected) {
       drawGoldOutline(slotX, sy, slotW, slotH, 2);
     } else {
@@ -1571,13 +1666,10 @@ function drawTitle() {
       ctx.lineWidth = 1;
       ctx.strokeRect(slotX + 0.5, sy + 0.5, slotW - 1, slotH - 1);
     }
-    
-    // Slot text
     crispText(slots[i].label, slotX + 16, sy + 6, 32, selected ? '#f0e8d0' : '#8a8090', 0, CRISP_FONT_ALT);
     crispText(slots[i].sub, slotX + 16, sy + 28, 32, selected ? '#a09888' : '#504858', 0, CRISP_FONT_ALT);
   }
   
-  // Hint at bottom
   const hintAlpha = 0.4 + 0.2 * Math.sin(now / 600);
   ctx.globalAlpha = hintAlpha;
   ctx.font = '32px "' + CRISP_FONT_ALT + '"';
@@ -1585,14 +1677,12 @@ function drawTitle() {
   crispText('Press Z to select', Math.round((W - hintW) / 2), Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
   ctx.globalAlpha = 1;
   
-  // Version
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.00', W - 8, H - 8);
+  ctx.fillText('v1.01', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
-
 function drawCombat() {
   const c = state.combat;
   const W = canvas.width;
@@ -2335,7 +2425,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.00', canvas.width - 8, 14);
+  ctx.fillText('v1.01', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
