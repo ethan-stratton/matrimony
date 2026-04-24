@@ -454,6 +454,67 @@ loadSprite('Enemy1', 'sprites/FireElemental.png');
 // ══════════════════════════════════
 // GAME STATE
 // ══════════════════════════════════
+// ══════════════════════════════════
+// SAVE SYSTEM
+// ══════════════════════════════════
+function saveGame(slot) {
+  if (state.combat || state.screen !== 'game') return false;
+  const data = {
+    version: 1,
+    levelId: currentLevelId,
+    playerX: state.player.x,
+    playerY: state.player.y,
+    facing: state.facing,
+    inventory: state.inventory,
+    actionOrder: state.actionOrder || null,
+    flags: state.flags,
+    openedChests: state.openedChests,
+    defeatedEnemies: state.defeatedEnemies,
+    playerHp: 30, // TODO: track persistent HP
+    timestamp: Date.now(),
+  };
+  try {
+    localStorage.setItem('matrimony_slot_' + slot, JSON.stringify(data));
+    return true;
+  } catch (e) { console.warn('Save failed:', e); return false; }
+}
+
+function loadGame(slot) {
+  try {
+    const raw = localStorage.getItem('matrimony_slot_' + slot);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { console.warn('Load failed:', e); return null; }
+}
+
+function getSaveInfo(slot) {
+  const data = loadGame(slot);
+  if (!data) return null;
+  const date = new Date(data.timestamp);
+  const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return { items: (data.inventory || []).length, flags: Object.keys(data.flags || {}).length, date: dateStr };
+}
+
+async function applySave(slot) {
+  const data = loadGame(slot);
+  if (!data) return false;
+  // Load the saved level
+  await loadLevel(data.levelId || null);
+  state.player.x = data.playerX;
+  state.player.y = data.playerY;
+  state.facing = data.facing || 'down';
+  state.inventory = data.inventory || [];
+  state.actionOrder = data.actionOrder || null;
+  state.flags = data.flags || {};
+  state.openedChests = data.openedChests || {};
+  state.defeatedEnemies = data.defeatedEnemies || {};
+  state.smoothX = state.player.x;
+  state.smoothY = state.player.y;
+  state.footsteps = [];
+  updateCamera();
+  return true;
+}
+
 const state = {
   screen: 'splash', // 'splash' | 'title' | 'game'
   titleSelection: 0, // 0=Slot 1, 1=Slot 2, 2=Slot 3
@@ -619,8 +680,11 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'z' || e.key === 'Z') {
       // Start game — game emerges over title
       playHit(true);
-      state.titleToGame = { startTime: performance.now(), duration: 1200 };
-      setTimeout(() => {
+      const slot = state.titleSelection || 0;
+      const hasSave = loadGame(slot) !== null;
+      state.titleToGame = { startTime: performance.now(), duration: 1200, slot, hasSave };
+      setTimeout(async () => {
+        if (hasSave) await applySave(slot);
         state.screen = 'game';
         state.titleToGame = null;
         titleMusic.pause();
@@ -779,6 +843,16 @@ document.addEventListener('keydown', (e) => {
       closeDialogue();
     } else {
       interact();
+    }
+    return;
+  }
+  
+  // Shift = Save (overworld only, not in combat)
+  if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue) {
+    e.preventDefault();
+    if (saveGame(state.titleSelection || 0)) {
+      state.saveFeedback = { text: 'Game Saved!', startTime: performance.now(), duration: 1500 };
+      playHit(false);
     }
     return;
   }
@@ -1773,11 +1847,12 @@ function drawTitle() {
   const slotH = 60;
   const slotX = Math.round((W - slotW) / 2);
   const startY = Math.round(H * 0.42);
-  const slots = [
-    { label: 'Slot 1', sub: 'Empty' },
-    { label: 'Slot 2', sub: 'Empty' },
-    { label: 'Slot 3', sub: 'Empty' },
-  ];
+  const slots = [0, 1, 2].map(i => {
+    const info = getSaveInfo(i);
+    return info
+      ? { label: 'Slot ' + (i + 1), sub: info.date + '  Items: ' + info.items }
+      : { label: 'Slot ' + (i + 1), sub: 'Empty' };
+  });
   for (let i = 0; i < slots.length; i++) {
     const sy = startY + i * (slotH + 12);
     const selected = state.titleSelection === i;
@@ -1804,7 +1879,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.13', W - 8, H - 8);
+  ctx.fillText('v1.14', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2595,7 +2670,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.13', canvas.width - 8, 14);
+  ctx.fillText('v1.14', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3300,6 +3375,21 @@ function gameLoop(time) {
       ctx.globalAlpha = alpha;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
+    }
+  }
+  // Save feedback toast
+  if (state.saveFeedback) {
+    const sf = state.saveFeedback;
+    const elapsed = performance.now() - sf.startTime;
+    if (elapsed < sf.duration) {
+      const fadeIn = Math.min(1, elapsed / 200);
+      const fadeOut = Math.max(0, 1 - (elapsed - sf.duration + 400) / 400);
+      const alpha = Math.min(fadeIn, fadeOut);
+      ctx.globalAlpha = alpha;
+      crispText(sf.text, canvas.width / 2 - 60, 20, 32, '#f0d060', 0, CRISP_FONT_ALT);
+      ctx.globalAlpha = 1;
+    } else {
+      state.saveFeedback = null;
     }
   }
   requestAnimationFrame(gameLoop);
