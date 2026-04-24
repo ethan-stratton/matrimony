@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrimony Beyond Space and Time — Data Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#1a1a2e;--card:#16213e;--gold:#d4a830;--text:#e0e0e0;--border:#2a2a4e;--input-bg:#0f0f23;--danger:#c0392b;--success:#27ae60}
+body{font:14px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer;font:inherit}
+input,textarea,select{font:inherit;background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 10px;width:100%}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,168,48,.25)}
+textarea{resize:vertical;min-height:60px}
+label{display:block;font-size:12px;color:#999;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+
+/* Header */
+header{background:#0f0f23;border-bottom:2px solid var(--gold);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;color:var(--gold);letter-spacing:1px}
+header h1 span{color:var(--text);font-weight:400;font-size:13px;margin-left:8px}
+.header-actions{display:flex;gap:8px}
+.header-actions button{background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 14px;border-radius:4px;font-size:13px;transition:.15s}
+.header-actions button:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Tabs */
+.tabs{display:flex;background:#0f0f23;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto}
+.tab{padding:10px 20px;color:#888;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:.15s;font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* Content */
+.content{max-width:1200px;margin:0 auto;padding:20px}
+.section{display:none}
+.section.active{display:block}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-header h2{font-size:20px;color:var(--gold)}
+
+/* Buttons */
+.btn{padding:8px 16px;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);transition:.15s}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn-gold{background:var(--gold);color:#0f0f23;border-color:var(--gold);font-weight:600}
+.btn-gold:hover{background:#c49a20;border-color:#c49a20}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:4px 10px;font-size:12px}
+
+/* Cards grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px;cursor:pointer;transition:.15s;position:relative}
+.card:hover{border-color:var(--gold);transform:translateY(-1px)}
+.card h3{color:var(--gold);font-size:15px;margin-bottom:6px}
+.card .stat{font-size:12px;color:#999;margin-right:12px}
+.card .stat b{color:var(--text)}
+.card .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.card .tag{background:rgba(212,168,48,.15);color:var(--gold);font-size:11px;padding:2px 6px;border-radius:3px}
+.card .delete-btn{position:absolute;top:8px;right:8px;background:none;border:none;color:#555;font-size:16px;padding:2px 6px;border-radius:3px;transition:.15s}
+.card .delete-btn:hover{color:var(--danger);background:rgba(192,57,43,.15)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--bg);border:1px solid var(--gold);border-radius:8px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:24px}
+.modal h3{color:var(--gold);margin-bottom:16px;font-size:18px}
+.form-row{margin-bottom:12px}
+.form-row-inline{display:flex;gap:12px}
+.form-row-inline .form-row{flex:1}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* Combo visuals */
+.combo-sequence{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:8px 0}
+.combo-step{background:rgba(212,168,48,.2);color:var(--gold);padding:4px 10px;border-radius:4px;font-weight:600;font-size:13px;border:1px solid rgba(212,168,48,.3)}
+.combo-arrow{color:#555;font-size:18px}
+
+/* Checkbox */
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.checkbox-row input[type=checkbox]{width:auto}
+.checkbox-row label{margin:0;text-transform:none;font-size:14px;color:var(--text)}
+
+/* Array editor */
+.array-editor{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.array-editor .tag{background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:3px;font-size:12px;display:flex;align-items:center;gap:4px}
+.array-editor .tag button{background:none;border:none;color:#888;font-size:14px;padding:0 2px;cursor:pointer}
+.array-editor .tag button:hover{color:var(--danger)}
+.array-add{display:flex;gap:4px;margin-top:4px}
+.array-add input{flex:1;font-size:12px;padding:4px 8px}
+.array-add button{flex-shrink:0;font-size:12px;padding:4px 8px}
+
+/* Transformation actions list */
+.action-list{margin-top:4px}
+.action-item{display:flex;gap:8px;align-items:center;margin-bottom:4px;background:var(--input-bg);padding:4px 8px;border-radius:3px;font-size:12px}
+.action-item button{background:none;border:none;color:#888;cursor:pointer;font-size:14px}
+.action-item button:hover{color:var(--danger)}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--success);color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* Import modal */
+#importArea{min-height:120px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ MATRIMONY <span>Data Editor</span></h1>
+  <div class="header-actions">
+    <button onclick="doImport()">📥 Import</button>
+    <button onclick="doExport()">📤 Export</button>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="enemies">Enemies</div>
+  <div class="tab" data-tab="weapons">Weapons / Actions</div>
+  <div class="tab" data-tab="combos">Combos</div>
+  <div class="tab" data-tab="items">Items / Equipment</div>
+  <div class="tab" data-tab="transformations">Transformations</div>
+</div>
+
+<div class="content">
+  <!-- ENEMIES -->
+  <div class="section active" id="sec-enemies">
+    <div class="section-header">
+      <h2>Enemies</h2>
+      <button class="btn btn-gold" onclick="editEnemy()">+ Add Enemy</button>
+    </div>
+    <div class="cards" id="enemy-cards"></div>
+  </div>
+
+  <!-- WEAPONS -->
+  <div class="section" id="sec-weapons">
+    <div class="section-header">
+      <h2>Weapons / Actions</h2>
+      <button class="btn btn-gold" onclick="editWeapon()">+ Add Weapon</button>
+    </div>
+    <div class="cards" id="weapon-cards"></div>
+  </div>
+
+  <!-- COMBOS -->
+  <div class="section" id="sec-combos">
+    <div class="section-header">
+      <h2>Combos</h2>
+      <button class="btn btn-gold" onclick="editCombo()">+ Add Combo</button>
+    </div>
+    <div class="cards" id="combo-cards"></div>
+  </div>
+
+  <!-- ITEMS -->
+  <div class="section" id="sec-items">
+    <div class="section-header">
+      <h2>Items / Equipment</h2>
+      <button class="btn btn-gold" onclick="editItem()">+ Add Item</button>
+    </div>
+    <div class="cards" id="item-cards"></div>
+  </div>
+
+  <!-- TRANSFORMATIONS -->
+  <div class="section" id="sec-transformations">
+    <div class="section-header">
+      <h2>Transformations</h2>
+      <button class="btn btn-gold" onclick="editTransformation()">+ Add Transformation</button>
+    </div>
+    <div class="cards" id="transformation-cards"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Data ──
+const STORAGE_KEY = 'matrimony_editor_data';
+let data = load();
+
+function defaults() {
+  return { enemies: [], weapons: [], combos: [], items: [], transformations: [] };
+}
+function load() {
+  try { return Object.assign(defaults(), JSON.parse(localStorage.getItem(STORAGE_KEY))); }
+  catch { return defaults(); }
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+// ── Tabs ──
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('sec-' + t.dataset.tab).classList.add('active');
+}));
+
+// ── Toast ──
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ── Modal helper ──
+function openModal(title, html, onSave) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div id="modal-body">${html}</div><div class="form-actions"><button class="btn" id="modal-cancel">Cancel</button><button class="btn btn-gold" id="modal-save">Save</button></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modal-cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#modal-save').onclick = () => { onSave(overlay); overlay.remove(); };
+  return overlay;
+}
+
+// ── Array tag widget ──
+function arrayWidget(id, initial = []) {
+  const items = [...initial];
+  function render() {
+    const c = document.getElementById(id);
+    if (!c) return;
+    c.innerHTML = `<div class="array-editor">${items.map((v,i) => `<span class="tag">${esc(v)}<button data-i="${i}">&times;</button></span>`).join('')}</div><div class="array-add"><input placeholder="Add..." id="${id}-input"><button class="btn btn-sm" id="${id}-add">+</button></div>`;
+    c.querySelectorAll('.tag button').forEach(b => b.onclick = () => { items.splice(+b.dataset.i, 1); render(); });
+    const addBtn = c.querySelector(`#${id}-add`);
+    const inp = c.querySelector(`#${id}-input`);
+    const doAdd = () => { const v = inp.value.trim(); if (v) { items.push(v); render(); } };
+    addBtn.onclick = doAdd;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
+  }
+  render();
+  return () => [...items];
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── Render all ──
+function renderAll() { renderEnemies(); renderWeapons(); renderCombos(); renderItems(); renderTransformations(); }
+
+// ── ENEMIES ──
+function renderEnemies() {
+  document.getElementById('enemy-cards').innerHTML = data.enemies.map((e, i) => `
+    <div class="card" onclick="editEnemy(${i})">
+      <button class="delete-btn" onclick="event.stopPropagation();delEnemy(${i})">&times;</button>
+      <h3>${esc(e.name || 'Unnamed')}</h3>
+      <div><span class="stat">HP: <b>${e.maxHp||0}</b></span><span class="stat">Sprite: <b>${esc(e.sprite||'—')}</b></span>${e.startsWithCharge?'<span class="tag">⚡ Charged</span>':''}</div>
+      <div class="tags">${(e.actions||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('')}</div>
+      ${e.dialogue?`<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">"${esc((e.dialogue||[])[0]||'')}"${(e.dialogue||[]).length>1?' ...':''}</div>`:''}
+    </div>`).join('');
+}
+function editEnemy(idx) {
+  const e = idx != null ? {...data.enemies[idx]} : { name:'',sprite:'',maxHp:100,actions:[],startsWithCharge:false,dialogue:[] };
+  const ol = openModal(idx!=null?'Edit Enemy':'New Enemy', `
+    <div class="form-row"><label>Name</label><input id="e-name" value="${esc(e.name)}"></div>
+    <div class="form-row-inline"><div class="form-row"><label>Sprite</label><input id="e-sprite" value="${esc(e.sprite)}"></div><div class="form-row"><label>Max HP</label><input id="e-hp" type="number" value="${e.maxHp}"></div></div>
+    <div class="checkbox-row"><input type="checkbox" id="e-charge" ${e.startsWithCharge?'checked':''}><label for="e-charge">Starts with Charge</label></div>
+    <div class="form-row"><label>Actions</label><div id="e-actions"></div></div>
+    <div class="form-row"><label>Dialogue Lines</label><div id="e-dialogue"></div></div>
+  `, ol => {
+    const obj = { name: ol.querySelector('#e-name').value, sprite: ol.querySelector('#e-sprite').value, maxHp: +ol.querySelector('#e-hp').value, startsWithCharge: ol.querySelector('#e-charge').checked, actions: getActions(), dialogue: getDialogue() };
+    if (idx != null) data.enemies[idx] = obj; else data.enemies.push(obj);
+    save(); renderEnemies();
+  });
+  const getActions = arrayWidget('e-actions', e.actions||[]);
+  const getDialogue = arrayWidget('e-dialogue', e.dialogue||[]);
+}
+function delEnemy(i) { if (confirm('Delete ' + (data.enemies[i].name||'this enemy') + '?')) { data.enemies.splice(i,1); save(); renderEnemies(); } }
+
+// ── WEAPONS ──
+function renderWeapons() {
+  document.getElementById('weapon-cards').innerHTML = data.weapons.map((w, i) => `
+    <div class="card" onclick="editWeapon(${i})">
+      <button class="delete-btn" onclick="event.stopPropagation();delWeapon(${i})">&times;</button>
+      <h3>${esc(w.name || 'Unnamed')}</h3>
+      <div><span class="stat">EFF: <b>${w.eff??0}</b></span><span class="stat">DEF: <b>${w.def??0}</b></span><span class="stat">WAIT: <b>${w.wait??0}</b></span></div>
+      <div class="tags">${(w.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+      ${w.upgradeCosts?.length?`<div style="margin-top:6px;font-size:11px;color:#888">Upgrades: ${w.upgradeCosts.join(' → ')}</div>`:''}
+      ${w.awakening?.becomes?`<div style="margin-top:4px;font-size:11px;color:var(--gold)">⚡ Awakens → ${esc(w.awakening.becomes)}</div>`:''}
+    </div>`).join('');
+}
+function editWeapon(idx) {
+  const w = idx != null ? JSON.parse(JSON.stringify(data.weapons[idx])) : { name:'',eff:0,def:0,wait:0,tags:[],upgradeCosts:[],awakening:{condition:'',becomes:'',bonus:''} };
+  w.awakening = w.awakening || {condition:'',becomes:'',bonus:''};
+  const ol = openModal(idx!=null?'Edit Weapon':'New Weapon', `
+    <div class="form-row"><label>Name</label><input id="w-name" value="${esc(w.name)}"></div>
+    <div class="form-row-inline"><div class="form-row"><label>EFF</label><input id="w-eff" type="number" value="${w.eff}"></div><div class="form-row"><label>DEF</label><input id="w-def" type="number" value="${w.def}"></div><div class="form-row"><label>WAIT</label><input id="w-wait" type="number" value="${w.wait}"></div></div>
+    <div class="form-row"><label>Tags</label><div id="w-tags"></div></div>
+    <div class="form-row"><label>Upgrade Costs (numbers)</label><div id="w-costs"></div></div>
+    <hr style="border-color:var(--border);margin:16px 0">
+    <div style="font-size:12px;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">⚡ Weapon Awakening</div>
+    <div class="form-row"><label>Condition</label><input id="w-awk-cond" value="${esc(w.awakening.condition)}"></div>
+    <div class="form-row-inline"><div class="form-row"><label>Becomes</label><input id="w-awk-becomes" value="${esc(w.awakening.becomes)}"></div><div class="form-row"><label>Bonus</label><input id="w-awk-bonus" value="${esc(w.awakening.bonus)}"></div></div>
+  `, ol => {
+    const obj = { name: ol.querySelector('#w-name').value, eff: +ol.querySelector('#w-eff').value, def: +ol.querySelector('#w-def').value, wait: +ol.querySelector('#w-wait').value, tags: getTags(), upgradeCosts: getCosts().map(Number), awakening: { condition: ol.querySelector('#w-awk-cond').value, becomes: ol.querySelector('#w-awk-becomes').value, bonus: ol.querySelector('#w-awk-bonus').value } };
+    if (idx != null) data.weapons[idx] = obj; else data.weapons.push(obj);
+    save(); renderWeapons();
+  });
+  const getTags = arrayWidget('w-tags', w.tags||[]);
+  const getCosts = arrayWidget('w-costs', (w.upgradeCosts||[]).map(String));
+}
+function delWeapon(i) { if (confirm('Delete ' + (data.weapons[i].name||'this weapon') + '?')) { data.weapons.splice(i,1); save(); renderWeapons(); } }
+
+// ── COMBOS ──
+function renderCombos() {
+  document.getElementById('combo-cards').innerHTML = data.combos.map((c, i) => `
+    <div class="card" onclick="editCombo(${i})">
+      <button class="delete-btn" onclick="event.stopPropagation();delCombo(${i})">&times;</button>
+      <div class="combo-sequence">${(c.sequence||[]).map((s,j)=> `${j?'<span class="combo-arrow">→</span>':''}<span class="combo-step">${esc(s)}</span>`).join('')}</div>
+      <h3>= ${esc(c.resultName||'?')}</h3>
+      ${c.resultEff!=null?`<div><span class="stat">EFF: <b>${c.resultEff}</b></span><span class="stat">DEF: <b>${c.resultDef||0}</b></span><span class="stat">WAIT: <b>${c.resultWait||0}</b></span></div>`:''}
+      ${c.effect?`<div style="margin-top:6px;font-size:12px;color:#999;font-style:italic">${esc(c.effect)}</div>`:''}
+    </div>`).join('');
+}
+function editCombo(idx) {
+  const c = idx != null ? JSON.parse(JSON.stringify(data.combos[idx])) : { sequence:[],resultName:'',resultEff:0,resultDef:0,resultWait:0,effect:'' };
+  const ol = openModal(idx!=null?'Edit Combo':'New Combo', `
+    <div class="form-row"><label>Sequence (action names in order)</label><div id="c-seq"></div></div>
+    <hr style="border-color:var(--border);margin:16px 0">
+    <div style="font-size:12px;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Result</div>
+    <div class="form-row"><label>Move Name</label><input id="c-rname" value="${esc(c.resultName)}"></div>
+    <div class="form-row-inline"><div class="form-row"><label>EFF</label><input id="c-reff" type="number" value="${c.resultEff||0}"></div><div class="form-row"><label>DEF</label><input id="c-rdef" type="number" value="${c.resultDef||0}"></div><div class="form-row"><label>WAIT</label><input id="c-rwait" type="number" value="${c.resultWait||0}"></div></div>
+    <div class="form-row"><label>Effect Description</label><textarea id="c-effect">${esc(c.effect||'')}</textarea></div>
+  `, ol => {
+    const obj = { sequence: getSeq(), resultName: ol.querySelector('#c-rname').value, resultEff: +ol.querySelector('#c-reff').value, resultDef: +ol.querySelector('#c-rdef').value, resultWait: +ol.querySelector('#c-rwait').value, effect: ol.querySelector('#c-effect').value };
+    if (idx != null) data.combos[idx] = obj; else data.combos.push(obj);
+    save(); renderCombos();
+  });
+  const getSeq = arrayWidget('c-seq', c.sequence||[]);
+}
+function delCombo(i) { if (confirm('Delete this combo?')) { data.combos.splice(i,1); save(); renderCombos(); } }
+
+// ── ITEMS ──
+function renderItems() {
+  document.getElementById('item-cards').innerHTML = data.items.map((it, i) => `
+    <div class="card" onclick="editItem(${i})">
+      <button class="delete-btn" onclick="event.stopPropagation();delItem(${i})">&times;</button>
+      <h3>${esc(it.name || 'Unnamed')}</h3>
+      <div><span class="stat">Slot: <b>${esc(it.slot||'—')}</b></span></div>
+      ${it.bonuses?`<div class="tags">${it.bonuses.split(',').map(b=>`<span class="tag">${esc(b.trim())}</span>`).join('')}</div>`:''}
+      ${it.description?`<div style="margin-top:6px;font-size:12px;color:#888">${esc(it.description)}</div>`:''}
+    </div>`).join('');
+}
+function editItem(idx) {
+  const it = idx != null ? {...data.items[idx]} : { name:'',slot:'Weapon',bonuses:'',description:'' };
+  openModal(idx!=null?'Edit Item':'New Item', `
+    <div class="form-row"><label>Name</label><input id="i-name" value="${esc(it.name)}"></div>
+    <div class="form-row"><label>Slot</label><select id="i-slot">${['Weapon','Armor','Cloak','Accessory'].map(s=>`<option ${it.slot===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="form-row"><label>Stat Bonuses (comma-separated)</label><input id="i-bonuses" value="${esc(it.bonuses||'')}" placeholder="e.g. eff:+3, def:+2"></div>
+    <div class="form-row"><label>Description</label><textarea id="i-desc">${esc(it.description||'')}</textarea></div>
+  `, ol => {
+    const obj = { name: ol.querySelector('#i-name').value, slot: ol.querySelector('#i-slot').value, bonuses: ol.querySelector('#i-bonuses').value, description: ol.querySelector('#i-desc').value };
+    if (idx != null) data.items[idx] = obj; else data.items.push(obj);
+    save(); renderItems();
+  });
+}
+function delItem(i) { if (confirm('Delete ' + (data.items[i].name||'this item') + '?')) { data.items.splice(i,1); save(); renderItems(); } }
+
+// ── TRANSFORMATIONS ──
+function renderTransformations() {
+  document.getElementById('transformation-cards').innerHTML = data.transformations.map((t, i) => `
+    <div class="card" onclick="editTransformation(${i})">
+      <button class="delete-btn" onclick="event.stopPropagation();delTransformation(${i})">&times;</button>
+      <h3>${esc(t.name || 'Unnamed')}</h3>
+      <div><span class="stat">Sprite: <b>${esc(t.sprite||'—')}</b></span></div>
+      ${t.lockedActions?.length?`<div style="margin-top:4px;font-size:11px"><span style="color:var(--danger)">🔒</span> ${t.lockedActions.map(a=>esc(a)).join(', ')}</div>`:''}
+      ${t.unlockedActions?.length?`<div style="margin-top:4px;font-size:11px"><span style="color:var(--success)">🔓</span> ${t.unlockedActions.map(a=>esc(a.name||a)).join(', ')}</div>`:''}
+      <div class="tags" style="margin-top:6px">${(t.passives||[]).map(p=>`<span class="tag">${esc(p)}</span>`).join('')}</div>
+      ${t.description?`<div style="margin-top:6px;font-size:12px;color:#888">${esc(t.description)}</div>`:''}
+    </div>`).join('');
+}
+function editTransformation(idx) {
+  const t = idx != null ? JSON.parse(JSON.stringify(data.transformations[idx])) : { name:'',sprite:'',lockedActions:[],unlockedActions:[],passives:[],description:'' };
+  const ol = openModal(idx!=null?'Edit Transformation':'New Transformation', `
+    <div class="form-row"><label>Name</label><input id="t-name" value="${esc(t.name)}"></div>
+    <div class="form-row"><label>Sprite</label><input id="t-sprite" value="${esc(t.sprite)}"></div>
+    <div class="form-row"><label>Locked Actions</label><div id="t-locked"></div></div>
+    <div class="form-row"><label>Unlocked Actions (name:eff:def:wait)</label><div id="t-unlocked"></div></div>
+    <div class="form-row"><label>Passive Effects</label><div id="t-passives"></div></div>
+    <div class="form-row"><label>Description</label><textarea id="t-desc">${esc(t.description||'')}</textarea></div>
+  `, ol => {
+    const unlocked = getUnlocked().map(s => {
+      const p = s.split(':');
+      return p.length >= 4 ? { name:p[0], eff:+p[1], def:+p[2], wait:+p[3] } : { name:s, eff:0, def:0, wait:0 };
+    });
+    const obj = { name: ol.querySelector('#t-name').value, sprite: ol.querySelector('#t-sprite').value, lockedActions: getLocked(), unlockedActions: unlocked, passives: getPassives(), description: ol.querySelector('#t-desc').value };
+    if (idx != null) data.transformations[idx] = obj; else data.transformations.push(obj);
+    save(); renderTransformations();
+  });
+  const getLocked = arrayWidget('t-locked', t.lockedActions||[]);
+  const getUnlocked = arrayWidget('t-unlocked', (t.unlockedActions||[]).map(a => typeof a === 'string' ? a : `${a.name}:${a.eff}:${a.def}:${a.wait}`));
+  const getPassives = arrayWidget('t-passives', t.passives||[]);
+}
+function delTransformation(i) { if (confirm('Delete ' + (data.transformations[i].name||'this transformation') + '?')) { data.transformations.splice(i,1); save(); renderTransformations(); } }
+
+// ── Import / Export ──
+function doExport() {
+  navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => toast('Copied to clipboard!')).catch(() => {
+    const w = window.open(); w.document.write('<pre>' + esc(JSON.stringify(data, null, 2)) + '</pre>');
+  });
+}
+function doImport() {
+  openModal('Import Data', `<div class="form-row"><label>Paste JSON</label><textarea id="importArea" rows="10"></textarea></div>`, ol => {
+    try {
+      const d = JSON.parse(ol.querySelector('#importArea').value);
+      data = Object.assign(defaults(), d);
+      save(); renderAll(); toast('Imported!');
+    } catch (e) { alert('Invalid JSON: ' + e.message); }
+  });
+}
+
+// ── Init ──
+renderAll();
+</script>
+</body>
+</html>
