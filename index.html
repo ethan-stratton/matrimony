@@ -693,10 +693,34 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
     if (state.inventoryOpen && !state.combat) {
+      if (state.inventoryOrdering !== undefined) {
+        // In order mode — swap the two items
+        const items = getInventoryActions();
+        const from = state.inventoryOrdering;
+        const to = state.inventorySelected || 0;
+        if (from !== to && from < items.length && to < items.length) {
+          // Swap in the actual inventory/action list
+          const actionList = state.actionOrder || items.slice();
+          const tmp = actionList[from];
+          actionList[from] = actionList[to];
+          actionList[to] = tmp;
+          state.actionOrder = actionList;
+          playTick();
+        }
+        state.inventoryOrdering = undefined;
+        return;
+      }
       if (state.inventorySubMenu) {
-        // Sub-menu confirm — placeholder actions
-        // TODO: implement actual Lv Up / Order / Drop logic
-        state.inventorySubMenu = false;
+        const subSel = state.inventorySubSelected || 0;
+        if (subSel === 1) {
+          // Order — enter ordering mode
+          state.inventoryOrdering = state.inventorySelected || 0;
+          state.inventorySubMenu = false;
+          playTick();
+        } else {
+          // Lv Up / Drop — placeholder
+          state.inventorySubMenu = false;
+        }
       } else {
         const items = getInventoryActions();
         if (items.length > 0) {
@@ -753,8 +777,10 @@ document.addEventListener('keydown', (e) => {
     if (state.combat) {
       // No cancelling once committed — you're locked in
     } else if (state.inventoryOpen) {
-      // Close inventory or back out of sub-menu
-      if (state.inventorySubMenu) {
+      // Close inventory or back out of sub-menu/ordering
+      if (state.inventoryOrdering !== undefined) {
+        state.inventoryOrdering = undefined;
+      } else if (state.inventorySubMenu) {
         state.inventorySubMenu = false;
       } else {
         state.inventoryOpen = false;
@@ -1188,7 +1214,12 @@ function drawGoldOutline(x, y, w, h, thickness) {
 
 function getInventoryActions() {
   // All combat actions the player currently has
-  return ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])];
+  const base = ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])];
+  if (state.actionOrder) {
+    // Filter out any actions no longer available, preserve order
+    return state.actionOrder.filter(a => base.includes(a));
+  }
+  return base;
 }
 
 function drawInventory() {
@@ -1212,6 +1243,7 @@ function drawInventory() {
   
   // EXP display
   crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  crispText('Shift = Save', W - pad - 130, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
   ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
@@ -1273,8 +1305,13 @@ function drawInventory() {
     const ax = gridX + col * colW;
     const ay = gridY + row * gridRowH;
     const isSelected = !state.inventorySubMenu && i === (state.inventorySelected || 0);
+    const isOrderSource = state.inventoryOrdering !== undefined && i === state.inventoryOrdering;
     
-    if (isSelected) {
+    if (isOrderSource) {
+      // Highlight source item in gold
+      ctx.fillStyle = 'rgba(200, 160, 40, 0.25)';
+      ctx.fillRect(ax + 4, ay, colW - 4, gridRowH);
+    } else if (isSelected) {
       const hx = ax + 4;
       const hy = ay;
       const hw = colW - 4;
@@ -1339,8 +1376,10 @@ function drawInventory() {
     }
   }
   
-  // Hint
-  crispText('Shift = Save', W - pad - 130, botContentY + pad + 4, 32, '#8c828c');
+  // Order mode hint
+  if (state.inventoryOrdering !== undefined) {
+    crispText('Select swap target', pPortraitX, pPortraitY + portraitH + 26, 32, '#c8a040', 0, CRISP_FONT_ALT);
+  }
 }
 
 // ══════════════════════════════════
@@ -1455,7 +1494,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.98', W - 8, H - 8);
+  ctx.fillText('v0.99', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 
@@ -2201,7 +2240,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.98', canvas.width - 8, 14);
+  ctx.fillText('v0.99', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
