@@ -1130,7 +1130,6 @@ const ENEMY_DIALOGUE = {
 if (!state.encounterCounts) state.encounterCounts = {};
 
 function handleEntityContact(entity) {
-  console.log('handleEntityContact', entity.type, entity.id);
   if (entity.type === 'Enemy1') {
     const data = ENEMY_DATA['Enemy1'];
     const dialogues = ENEMY_DIALOGUE['Enemy1'];
@@ -1257,6 +1256,42 @@ const COMBAT_ACTIONS = {
   'Charging...': { eff: 0, def: 4, wait: 6 },
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
 };
+
+// ── Load editor overrides from localStorage ──
+(function loadEditorData() {
+  try {
+    const ed = JSON.parse(localStorage.getItem('matrimony_editor_data'));
+    if (!ed) return;
+    // Override weapons/actions
+    if (ed.weapons) {
+      for (const w of ed.weapons) {
+        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0 };
+      }
+    }
+    // Override enemies
+    if (ed.enemies) {
+      for (const e of ed.enemies) {
+        if (!e.sprite) continue;
+        const actionNames = (e.actions||[]).map(a => {
+          const name = typeof a === 'string' ? a : a.name;
+          // Also register enemy action stats
+          if (typeof a === 'object' && a.name) {
+            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0 };
+          }
+          return name;
+        });
+        ENEMY_DATA[e.sprite] = {
+          name: e.name || e.sprite,
+          sprite: e.sprite,
+          maxHp: e.maxHp || 100,
+          actions: actionNames,
+          startsWithCharge: e.startsWithCharge || false,
+        };
+      }
+    }
+    console.log('[Editor] Loaded overrides:', ed.weapons?.length, 'weapons,', ed.enemies?.length, 'enemies');
+  } catch (e) { console.warn('[Editor] Failed to load:', e); }
+})();
 
 // Mouse state for combat menu
 const mouse = { x: 0, y: 0 };
@@ -1978,7 +2013,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.21', W - 8, H - 8);
+  ctx.fillText('v1.22', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2566,7 +2601,7 @@ function drawDialogue() {
   }
   
   // Text (word wrap) — use crisp text
-  const textY = state.dialogue.speaker ? boxY + 26 : boxY + 6;
+  const textY = state.dialogue.speaker ? boxY + 34 : boxY + 6;
   // We need to word-wrap with crisp text. Measure using an offscreen ctx.
   if (!drawDialogue._mc) {
     drawDialogue._mc = document.createElement('canvas').getContext('2d');
@@ -2782,7 +2817,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.21', canvas.width - 8, 14);
+  ctx.fillText('v1.22', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {

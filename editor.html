@@ -171,10 +171,41 @@ const STORAGE_KEY = 'matrimony_editor_data';
 let data = load();
 
 function defaults() {
-  return { enemies: [], weapons: [], combos: [], items: [], transformations: [] };
+  return {
+    enemies: [
+      { name: 'Fire Elemental', sprite: 'Enemy1', maxHp: 220, startsWithCharge: true,
+        actions: [
+          { name: 'Charging...', eff: 0, def: 4, wait: 6 },
+          { name: 'Fire Punch', eff: 10, def: 2, wait: 12 }
+        ],
+        dialogue: [
+          '...You dare approach me, mortal?|I\'m just passing through.|No one passes through. You burn or you leave.',
+          'You again. Did the burns not teach you?|I\'m a slow learner.|Then I\'ll teach you again.',
+          '...You keep coming back.|I keep getting stronger.|Hmph. Perhaps you do.',
+          'I remember when your kind feared fire.|I still fear it. I just don\'t run.|...Interesting.',
+          'No words this time. Just fight.'
+        ]
+      }
+    ],
+    weapons: [
+      { name: 'Punch', eff: 8, def: 4, wait: 4, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Kick', eff: 12, def: 1, wait: 5, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Shortbow', eff: 10, def: 2, wait: 3, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Defend', eff: 0, def: 10, wait: 9, tags: ['defensive'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+    ],
+    combos: [],
+    items: [],
+    transformations: []
+  };
 }
 function load() {
-  try { return Object.assign(defaults(), JSON.parse(localStorage.getItem(STORAGE_KEY))); }
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (stored && (stored.enemies?.length || stored.weapons?.length)) {
+      return Object.assign(defaults(), stored);
+    }
+    return defaults();
+  }
   catch { return defaults(); }
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
@@ -236,24 +267,65 @@ function renderEnemies() {
       <button class="delete-btn" onclick="event.stopPropagation();delEnemy(${i})">&times;</button>
       <h3>${esc(e.name || 'Unnamed')}</h3>
       <div><span class="stat">HP: <b>${e.maxHp||0}</b></span><span class="stat">Sprite: <b>${esc(e.sprite||'—')}</b></span>${e.startsWithCharge?'<span class="tag">⚡ Charged</span>':''}</div>
-      <div class="tags">${(e.actions||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('')}</div>
-      ${e.dialogue?`<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">"${esc((e.dialogue||[])[0]||'')}"${(e.dialogue||[]).length>1?' ...':''}</div>`:''}
+      <div class="tags">${(e.actions||[]).map(a=>{
+        const name = typeof a === 'string' ? a : a.name;
+        const eff = typeof a === 'object' ? a.eff : '?';
+        const def = typeof a === 'object' ? a.def : '?';
+        const wait = typeof a === 'object' ? a.wait : '?';
+        return `<span class="tag">${esc(name)} (${eff}/${def}/${wait})</span>`;
+      }).join('')}</div>
+      ${e.dialogue?.length?`<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">"${esc((e.dialogue[0]||'').split('|')[0])}"${e.dialogue.length>1?' ...':''}</div>`:''}
     </div>`).join('');
 }
 function editEnemy(idx) {
-  const e = idx != null ? {...data.enemies[idx]} : { name:'',sprite:'',maxHp:100,actions:[],startsWithCharge:false,dialogue:[] };
+  const e = idx != null ? JSON.parse(JSON.stringify(data.enemies[idx])) : { name:'',sprite:'',maxHp:100,actions:[],startsWithCharge:false,dialogue:[] };
+  // Build actions HTML
+  function actionsHtml(actions) {
+    return actions.map((a, i) => {
+      const name = typeof a === 'string' ? a : a.name||'';
+      const eff = typeof a === 'object' ? a.eff : 0;
+      const def = typeof a === 'object' ? a.def : 0;
+      const wait = typeof a === 'object' ? a.wait : 0;
+      return `<div class="action-item" data-i="${i}">
+        <input style="width:120px" placeholder="Name" value="${esc(name)}" class="ea-name">
+        <input style="width:50px" type="number" placeholder="EFF" value="${eff}" class="ea-eff">
+        <input style="width:50px" type="number" placeholder="DEF" value="${def}" class="ea-def">
+        <input style="width:50px" type="number" placeholder="WAIT" value="${wait}" class="ea-wait">
+        <button class="ea-del" data-i="${i}">&times;</button>
+      </div>`;
+    }).join('');
+  }
   const ol = openModal(idx!=null?'Edit Enemy':'New Enemy', `
     <div class="form-row"><label>Name</label><input id="e-name" value="${esc(e.name)}"></div>
     <div class="form-row-inline"><div class="form-row"><label>Sprite</label><input id="e-sprite" value="${esc(e.sprite)}"></div><div class="form-row"><label>Max HP</label><input id="e-hp" type="number" value="${e.maxHp}"></div></div>
     <div class="checkbox-row"><input type="checkbox" id="e-charge" ${e.startsWithCharge?'checked':''}><label for="e-charge">Starts with Charge</label></div>
-    <div class="form-row"><label>Actions</label><div id="e-actions"></div></div>
-    <div class="form-row"><label>Dialogue Lines</label><div id="e-dialogue"></div></div>
+    <div class="form-row"><label>Actions (Name / EFF / DEF / WAIT)</label><div id="e-actions">${actionsHtml(e.actions||[])}</div><button class="btn btn-sm" style="margin-top:4px" id="e-add-action">+ Add Action</button></div>
+    <div class="form-row"><label>Dialogue (lines separated by |)</label><div id="e-dialogue"></div></div>
   `, ol => {
-    const obj = { name: ol.querySelector('#e-name').value, sprite: ol.querySelector('#e-sprite').value, maxHp: +ol.querySelector('#e-hp').value, startsWithCharge: ol.querySelector('#e-charge').checked, actions: getActions(), dialogue: getDialogue() };
+    const actionEls = ol.querySelectorAll('#e-actions .action-item');
+    const actions = Array.from(actionEls).map(el => ({
+      name: el.querySelector('.ea-name').value,
+      eff: +el.querySelector('.ea-eff').value,
+      def: +el.querySelector('.ea-def').value,
+      wait: +el.querySelector('.ea-wait').value,
+    }));
+    const obj = { name: ol.querySelector('#e-name').value, sprite: ol.querySelector('#e-sprite').value, maxHp: +ol.querySelector('#e-hp').value, startsWithCharge: ol.querySelector('#e-charge').checked, actions, dialogue: getDialogue() };
     if (idx != null) data.enemies[idx] = obj; else data.enemies.push(obj);
     save(); renderEnemies();
   });
-  const getActions = arrayWidget('e-actions', e.actions||[]);
+  // Add action button
+  ol.querySelector('#e-add-action').onclick = () => {
+    const container = ol.querySelector('#e-actions');
+    const i = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'action-item';
+    div.dataset.i = i;
+    div.innerHTML = `<input style="width:120px" placeholder="Name" value="" class="ea-name"><input style="width:50px" type="number" placeholder="EFF" value="0" class="ea-eff"><input style="width:50px" type="number" placeholder="DEF" value="0" class="ea-def"><input style="width:50px" type="number" placeholder="WAIT" value="0" class="ea-wait"><button class="ea-del" data-i="${i}">&times;</button>`;
+    container.appendChild(div);
+    div.querySelector('.ea-del').onclick = () => div.remove();
+  };
+  // Wire delete buttons for existing actions
+  ol.querySelectorAll('.ea-del').forEach(b => b.onclick = () => b.closest('.action-item').remove());
   const getDialogue = arrayWidget('e-dialogue', e.dialogue||[]);
 }
 function delEnemy(i) { if (confirm('Delete ' + (data.enemies[i].name||'this enemy') + '?')) { data.enemies.splice(i,1); save(); renderEnemies(); } }
