@@ -536,7 +536,7 @@ function tryMove(dx, dy) {
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
   // Leave a footstep at the position we're leaving
-  state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now() });
+  state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now(), ox: Math.random() * 6 - 3, oy: Math.random() * 4 - 2 });
   if (state.footsteps.length > 12) state.footsteps.shift();
   state.player.x = nx;
   state.player.y = ny;
@@ -1249,6 +1249,16 @@ function drawCombat() {
     }
   }
   
+  // Enemy bark — text above enemy for non-damaging moves
+  if (c.enemyBark) {
+    const bt = (now - c.enemyBark.startTime) / c.enemyBark.duration;
+    const bAlpha = bt < 0.1 ? bt / 0.1 : bt > 0.7 ? (1 - bt) / 0.3 : 1;
+    const bobY = -Math.sin(bt * Math.PI) * 6;
+    ctx.globalAlpha = Math.max(0, bAlpha);
+    crispText(c.enemyBark.text, enemyArenaX + enemyCombatSize / 2 - 30, enemyArenaY - 20 + bobY, 32, '#ffdc50');
+    ctx.globalAlpha = 1;
+  }
+  
   // Draw player (facing left)
   if (PLAYER_SHEET.loaded) {
     const anim = PLAYER_SHEET.anims[playerAttacking ? 'walk_right' : 'idle_right'];
@@ -1563,8 +1573,8 @@ function draw() {
     const age = nowFoot - f.time;
     if (age > footFadeMs) { state.footsteps.splice(i, 1); continue; }
     const alpha = 0.25 * (1 - age / footFadeMs);
-    const fx = Math.round((f.x - camX) * TILE * SCALE);
-    const fy = Math.round((f.y - camY) * TILE * SCALE);
+    const fx = Math.round((f.x - camX) * TILE * SCALE + (f.ox || 0));
+    const fy = Math.round((f.y - camY) * TILE * SCALE + (f.oy || 0));
     // Two small dots for footprints
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#2a1a10';
@@ -1582,7 +1592,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.62', canvas.width - 8, 14);
+  ctx.fillText('v0.63', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2145,10 +2155,28 @@ function gameLoop(time) {
       }
     }
     
+    // Update enemy bark (non-damaging move text display)
+    if (c.enemyBark) {
+      const t = time - c.enemyBark.startTime;
+      if (t >= c.enemyBark.duration) {
+        c.enemyBark = null;
+        // Resolve same as attack but no damage
+        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
+        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
+        c.enemyActionIndex++;
+        c.enemyActionRevealed = true;
+        c.enemyWaiting = false;
+        c.enemyWaitCountdown = -1;
+        c.phase = 'action';
+        c.waiting = false;
+        c.attackText = null;
+      }
+    }
+    
     // Tick system — ONLY ticks when both sides are committed
     const bothCommitted = c.waiting && c.enemyWaiting;
     const anyCountdown = (c.waitCountdown > 0) || (c.enemyWaitCountdown > 0);
-    const animPlaying = c.playerAttackAnim || c.enemyAttackAnim;
+    const animPlaying = c.playerAttackAnim || c.enemyAttackAnim || c.enemyBark;
     if (bothCommitted && anyCountdown && !animPlaying && !c.winState) {
       const dt = time - c.lastWaitTick;
       c.lastWaitTick = time;
@@ -2171,13 +2199,19 @@ function gameLoop(time) {
             rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
           };
         }
-        // Enemy hit zero — attack
-        else if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim) {
+        // Enemy hit zero — attack (or bark for non-damaging moves like Charging)
+        else if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark) {
           c.waitAccumulator = 0;
-          c.enemyAttackAnim = {
-            startTime: time,
-            rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-          };
+          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          if ((enemyAct.eff || 0) === 0) {
+            // Non-damaging move — show text bark instead of rush
+            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+          } else {
+            c.enemyAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          }
         }
       }
     }
