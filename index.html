@@ -441,16 +441,17 @@ document.addEventListener('keydown', (e) => {
           c.waitAccumulator = 0;
           c.waiting = true;
           c.attackText = action;
-          // If enemy doesn't have an active countdown (fresh round or already resolved), pick new action
-          if (!c.enemyWaiting) {
+          // If enemy has NO remaining countdown (resolved or fresh start), pick new action
+          if (c.enemyWaitCountdown <= 0) {
             const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still', 'Do Nothing'];
             c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
             c.enemyActionIndex++;
             const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
             c.enemyWaitCountdown = enemyAct.wait || 0;
           }
-          // Enemy resumes/starts counting
+          // Enemy resumes counting (frozen countdown resumes, or fresh one starts)
           c.enemyWaiting = true;
+          c.enemyActionRevealed = true; // Always show enemy action after first commit
         }
       }
     } else if (state.dialogue) {
@@ -536,7 +537,7 @@ function tryMove(dx, dy) {
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
   // Leave a footstep at the position we're leaving
-  state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now(), ox: Math.random() * 6 - 3, oy: Math.random() * 4 - 2 });
+  state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now(), side: state.footsteps.length % 2 });
   if (state.footsteps.length > 12) state.footsteps.shift();
   state.player.x = nx;
   state.player.y = ny;
@@ -1106,7 +1107,7 @@ function drawCombat() {
   drawGoldOutline(infoX - 2, barY - 2, barW + 4, barH + 4, 4);
   
   // Enemy action display — hidden on first exchange until player commits, always visible after
-  const showEnemyAction = c.enemyAction && (c.enemyActionRevealed || c.waiting || c.playerAttackAnim || c.enemyAttackAnim);
+  const showEnemyAction = c.enemyAction && c.enemyActionRevealed;
   if (showEnemyAction) {
     const act = COMBAT_ACTIONS[c.enemyAction] || {};
     crispText(c.enemyAction, infoX + barW + 12, barY - 8, 32, '#d0c0a0');
@@ -1573,13 +1574,18 @@ function draw() {
     const age = nowFoot - f.time;
     if (age > footFadeMs) { state.footsteps.splice(i, 1); continue; }
     const alpha = 0.25 * (1 - age / footFadeMs);
-    const fx = Math.round((f.x - camX) * TILE * SCALE + (f.ox || 0));
-    const fy = Math.round((f.y - camY) * TILE * SCALE + (f.oy || 0));
-    // Two small dots for footprints
+    const fx = Math.round((f.x - camX) * TILE * SCALE);
+    const fy = Math.round((f.y - camY) * TILE * SCALE);
+    // Two dots at different heights — left foot higher, right foot lower
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#2a1a10';
-    ctx.fillRect(fx + 8, fy + 22, 4, 3);
-    ctx.fillRect(fx + 18, fy + 22, 4, 3);
+    if (f.side === 0) {
+      ctx.fillRect(fx + 8, fy + 19, 4, 3);
+      ctx.fillRect(fx + 18, fy + 24, 4, 3);
+    } else {
+      ctx.fillRect(fx + 8, fy + 24, 4, 3);
+      ctx.fillRect(fx + 18, fy + 19, 4, 3);
+    }
     ctx.globalAlpha = 1;
   }
   
@@ -1592,7 +1598,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.63', canvas.width - 8, 14);
+  ctx.fillText('v0.64', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2109,21 +2115,23 @@ function gameLoop(time) {
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.playerAttackAnim = null;
-        // Apply damage to enemy — enemy's def from their current action (still counting)
+        // Apply damage to enemy — enemy's def active while their countdown is still going
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          const enemyDef = c.enemyWaiting ? (enemyAct.def || 0) : 0;
+          const enemyDef = (c.enemyWaitCountdown > 0) ? (enemyAct.def || 0) : 0;
           const dmg = Math.max(0, (act.eff || 0) - enemyDef);
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
           }
         }
-        // PAUSE — back to action select. Enemy countdown preserved but frozen.
+        // Player's action is spent — back to action select
+        // Enemy countdown + action are PRESERVED (frozen, visible)
         c.phase = 'action';
         c.waiting = false;
         c.attackText = null;
+        c.waitCountdown = -1;
       }
     }
     
@@ -2133,43 +2141,46 @@ function gameLoop(time) {
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.enemyAttackAnim = null;
-        // Enemy's attack resolves — player's def from their current action (still counting)
+        // Apply damage to player — player's def active while their countdown is still going
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
-        const playerDef = c.waiting ? (playerAct.def || 0) : 0;
+        const playerDef = (c.waitCountdown > 0) ? (playerAct.def || 0) : 0;
         const enemyDmg = Math.max(0, (enemyAct.eff || 0) - playerDef);
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
         }
-        // Enemy's turn done — pick next action, countdown starts fresh next round
+        // Enemy's action is spent — pick next action for next round
         const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
         c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
         c.enemyActionIndex++;
         c.enemyActionRevealed = true;
         c.enemyWaiting = false;
         c.enemyWaitCountdown = -1;
-        // PAUSE — back to action select. Player countdown preserved but frozen.
+        // PAUSE — back to action select
         c.phase = 'action';
         c.waiting = false;
         c.attackText = null;
+        c.waitCountdown = -1;
       }
     }
     
-    // Update enemy bark (non-damaging move text display)
+    // Update enemy bark (non-damaging move like Charging — text only, no rush)
     if (c.enemyBark) {
       const t = time - c.enemyBark.startTime;
       if (t >= c.enemyBark.duration) {
         c.enemyBark = null;
-        // Resolve same as attack but no damage
+        // Enemy's action is spent (no damage) — pick next action
         const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
         c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
         c.enemyActionIndex++;
         c.enemyActionRevealed = true;
         c.enemyWaiting = false;
         c.enemyWaitCountdown = -1;
+        // PAUSE — back to action select
         c.phase = 'action';
         c.waiting = false;
         c.attackText = null;
+        c.waitCountdown = -1;
       }
     }
     
