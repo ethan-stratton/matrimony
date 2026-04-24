@@ -617,13 +617,16 @@ document.addEventListener('keydown', (e) => {
       playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
-      // Start game
-      playHit(true); // confirm SFX
+      // Start game with fade
+      playHit(true);
+      state.titleFade = { startTime: performance.now(), duration: 600 };
       setTimeout(() => {
         state.screen = 'game';
         titleMusic.pause();
         titleMusic.currentTime = 0;
-      }, 50);
+        state.titleFade = null;
+        state.screenFade = { type: 'in', startTime: performance.now(), duration: 600 };
+      }, 600);
       e.preventDefault();
     }
     return;
@@ -1560,7 +1563,7 @@ function drawTitle() {
       loaded: false,
       frameW: 100, frameH: 100, frameCount: 100,
       cx: W * 0.50, cy: H * 0.55, scale: 0.6, // centered, drawn behind save slots
-      rotSpeed: 2, // frames per second
+      rotSpeed: 1.538, // frames per second (~65 sec full rotation)
     };
     drawTitle._spritePlanet.img.onload = () => { drawTitle._spritePlanet.loaded = true; };
     drawTitle._spritePlanet.img.src = 'sprites/planet.png?v=' + Date.now();
@@ -1802,8 +1805,18 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.11', W - 8, H - 8);
+  ctx.fillText('v1.12', W - 8, H - 8);
   ctx.textAlign = 'left';
+  
+  // Fade out overlay when starting game
+  if (state.titleFade) {
+    const elapsed = now - state.titleFade.startTime;
+    const alpha = Math.min(1, elapsed / state.titleFade.duration);
+    ctx.fillStyle = '#000000';
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
 }
 function drawCombat() {
   const c = state.combat;
@@ -2593,7 +2606,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.11', canvas.width - 8, 14);
+  ctx.fillText('v1.12', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
