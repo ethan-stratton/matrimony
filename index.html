@@ -1736,12 +1736,20 @@ function drawTitle() {
   // Draw sprite planet (featured, behind UI)
   const sp = drawTitle._spritePlanet;
   if (sp && sp.loaded) {
-    const frameIdx = Math.floor(t * sp.rotSpeed) % sp.frameCount;
+    const rawFrame = (t * sp.rotSpeed) % sp.frameCount;
+    const frameA = Math.floor(rawFrame) % sp.frameCount;
+    const frameB = (frameA + 1) % sp.frameCount;
+    const blend = rawFrame - Math.floor(rawFrame); // 0-1 fraction between frames
     const drawSize = Math.round(sp.frameW * sp.scale);
+    const dx = Math.round(sp.cx - drawSize / 2);
+    const dy = Math.round(sp.cy - drawSize / 2);
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = 0.7;
-    ctx.drawImage(sp.img, frameIdx * sp.frameW, 0, sp.frameW, sp.frameH,
-      Math.round(sp.cx - drawSize / 2), Math.round(sp.cy - drawSize / 2), drawSize, drawSize);
+    // Draw frame A
+    ctx.globalAlpha = 0.7 * (1 - blend);
+    ctx.drawImage(sp.img, frameA * sp.frameW, 0, sp.frameW, sp.frameH, dx, dy, drawSize, drawSize);
+    // Draw frame B blended on top
+    ctx.globalAlpha = 0.7 * blend;
+    ctx.drawImage(sp.img, frameB * sp.frameW, 0, sp.frameW, sp.frameH, dx, dy, drawSize, drawSize);
     ctx.globalAlpha = 1;
     ctx.imageSmoothingEnabled = true;
   }
@@ -1801,7 +1809,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.06', W - 8, H - 8);
+  ctx.fillText('v1.07', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -1810,6 +1818,22 @@ function drawCombat() {
   const H = canvas.height;
   const now = performance.now();
   const elapsed = now - c.startTime;
+  
+  // Screen shake
+  let shakeX = 0, shakeY = 0;
+  if (c.screenShake) {
+    const st = now - c.screenShake.startTime;
+    if (st < c.screenShake.duration) {
+      const decay = 1 - st / c.screenShake.duration;
+      const intensity = c.screenShake.intensity * decay * decay;
+      shakeX = Math.round((Math.random() * 2 - 1) * intensity);
+      shakeY = Math.round((Math.random() * 2 - 1) * intensity);
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+    } else {
+      c.screenShake = null;
+    }
+  }
   
   const FONT = '"RM2000Alt", sans-serif';
   const spr = sprites[c.enemySprite];
@@ -2291,6 +2315,36 @@ function drawCombat() {
     const clampedStops = winStops.map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
     crispGradientText('You Win!', Math.round(W / 2) - 60, textY, 32, clampedStops, 0, 'Pixelify Sans');
   }
+  
+  // Explosion animation (over player portrait area)
+  if (c.explosionAnim && EXPLOSION_IMG.complete) {
+    const et = now - c.explosionAnim.startTime;
+    if (et < c.explosionAnim.duration) {
+      const frame = Math.min(EXPLOSION_FRAMES - 1, Math.floor(et / (1000 / EXPLOSION_FPS)));
+      const pad = 8;
+      const pPortraitX = pad + 20;
+      const botContentY = Math.round(H * 0.52);
+      const topH = Math.round(H * 0.16);
+      const portraitH = Math.round(topH * 0.42);
+      const portraitW = Math.round(portraitH * 3.5);
+      const pPortraitY = botContentY + pad + 2;
+      // Center explosion over player portrait
+      const exSize = Math.max(portraitW, portraitH) * 1.5;
+      const exX = pPortraitX + portraitW / 2 - exSize / 2;
+      const exY = pPortraitY + portraitH / 2 - exSize / 2;
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(EXPLOSION_IMG, frame * EXPLOSION_FRAME_W, 0, EXPLOSION_FRAME_W, EXPLOSION_FRAME_H,
+        Math.round(exX), Math.round(exY), Math.round(exSize), Math.round(exSize));
+      ctx.globalAlpha = 1;
+      ctx.imageSmoothingEnabled = true;
+    } else {
+      c.explosionAnim = null;
+    }
+  }
+  
+  // Restore screen shake
+  if (c.screenShake) ctx.restore();
 }
 
 function drawCombatTransition() {
@@ -2546,7 +2600,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.06', canvas.width - 8, 14);
+  ctx.fillText('v1.07', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3029,6 +3083,9 @@ function drawPlayer(ctx, x, y) {
 // Load chest sprites
 const CHEST_CLOSED = new Image(); CHEST_CLOSED.src = 'chest_closed.png';
 const CHEST_OPEN = new Image(); CHEST_OPEN.src = 'chest_open.png';
+// Explosion sprite sheet — 8x9 grid of 64x64, row 0 = fire, 7 frames
+const EXPLOSION_IMG = new Image(); EXPLOSION_IMG.src = 'sprites/explosion.png';
+const EXPLOSION_FRAME_W = 64, EXPLOSION_FRAME_H = 64, EXPLOSION_FRAMES = 7, EXPLOSION_FPS = 14;
 
 function drawEntity(ctx, entity, x, y) {
   if (entity.type === 'Chest') {
@@ -3121,6 +3178,12 @@ function gameLoop(time) {
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
         const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (playerAct.def || 0));
+        // Screen shake on ANY hit (stronger if damage, lighter if blocked)
+        c.screenShake = { startTime: time, duration: enemyDmg > 0 ? 400 : 200, intensity: enemyDmg > 0 ? 6 : 3 };
+        // Explosion effect for fire-type attacks
+        if (c.enemyAction === 'Fire Punch') {
+          c.explosionAnim = { startTime: time, duration: EXPLOSION_FRAMES / EXPLOSION_FPS * 1000 };
+        }
         // HP flash on any hit attempt
         c.hpFlash = { startTime: time, duration: 600, blocked: enemyDmg === 0, damage: enemyDmg };
         if (enemyDmg > 0) {
