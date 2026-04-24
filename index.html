@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE+ElEQVR4nO2X+09WdRzH/ROqdVkXrUm1ptW62GUZtVZrmiaZF7BBXvOOORGh1CmXRxF4gAdB4QEE5D4gAYWQuAgpMCEnlxGiYkk2uil5mVo/vPu+TmMxJzPrQL/03c6+OwfO5/K+fL7nGTPm//Uv1zt3bNWoJptxd5hm3ufQrPu3a/YDEZrz4A5r557n/N32oqbfFWISRMhnXLR8x8fKzyNWHz4apwWPu8wVb+3c+46P0byHo62i3rvXoWl32lAIif08XFr2lFv+z6dr7UuZWvtihla8sEern0vRKq5n3VrxTLL5n91aPCFB8x9z6YNHnBYyIPKPk899KFIfTUxS4OQ8hU7Zr8iZVYp+/wvt8PpcoVNLtOnNAgW/lqMNnllaP3mv1r1sCpuUZhWzZEKihYr32EiDRvjtFwGMS59M1sY3iuTyrlfWynYVrz+pzwJPKde/Xe6FjYqdW6XtM8oUMqVIW94uNAXlK/j1HAW8kin/SakWItDjMy7q9orwuifcvLhTQZ75ivdp0L7A0zoad1Xd6VJXqtToHNCBjb3KXtmqXX51ipldYdA5YIopVdjUYm1+q8C8m22o2qPlTydZRYDE36ID4XiPjTK8pskxrVy5qzvV4rqmXysltZnriHSuUGqJv6iKzacMGq1KWVSvRN9qU+xBOWeVa9u7JRYi0EMRIAEdaOKWwkS9fh5xhs8sxcypUWlQr3oyTeIO/bm+la7Wynp2OKpfZZ90mSKOKmPZEaUubjCI1BhqKhXhVWYVARLQgSYQJvGHTY5/4X7REwlGWLly+dRp/6dndCLDJG42V5+5uqXrh0wd+VLrzvOqDutVaXCHCtcdswpJX3pYSfNrrSJAAjrQBMLEHcQfdk7AET5eMjHRVJ5rglSrOOBrtcZf1g8l0m/10u8N0vly6UyudHz3gL6M6lNVSI/KN3Vp34Y25X/cYhUBEtCBJhAm7sCixB9WC0wyhgmcBXnmGGFVaO+KVlWH9qk9+Zq+yTP8F8lnC6Dgunk2YLTQb6g4q7ptvarc0m0VARLQgSYQJu7AosQlPnluWgDjFLEAV+CrWXJMLzVwNqgooEO1jj4D+QV1uC+rK+2KuS6pM3VA7e5fdGzXj2qOPWcVARLQgSYQJu5AC8wJ4hKfPDctAJViGSYbwyXUwBfvU6XM5U0qCeq0+G50fq+vEn5SR8oFo41LOpV9xdjzolUESBzcesLMiuNmbjRZWoAG5gTxiEt88gwrQGY74xX1UoDTeNy98JDy1rQYxXeqxnFaTTHfqS35Zyt5v9EGO/eNTqOH0B6LhuxVzUpeUGe9TxziEZf4wwrxRgSonA7ohI7ojA7plI7p3DYEbtQAnMEdHMIlnMItHMM1nJOUzm3TwFAXoFrUi4pRM6pG3cCL2klGx8BumwsG5wB+xbf4Fx8DI77G3/icJHQK3HDObsscGBQiEwu4mGBMMiYakw1OCU6HwAzXJGW3ZRKymNXMbGY3Mxz1wiGznaB0BrxwjNBQO7stZwGL0wqVIhY44zTjVCMYHQEr3CIwOsVq7LadhoNa4PzGMpznBKET4IRThIW6SYbP2W37HviLinDrS4aX6QAY4RJBoWo6xN8MGdu/iIYWQeXAB4cICTVjKXzNcKHTEfkmHFzABncICBVjJTojCZNtRL+KBxfCQb1YCB8zTEbtd8HQ9Z/9MrpVUaOWbCTWH7Tp/7Y27TfjAAAAAElFTkSuQmCC">
+<link rel="icon" type="image/png" href="favicon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matrimony Beyond Space and Time</title>
@@ -436,8 +436,7 @@ document.addEventListener('keydown', (e) => {
           c.waiting = false;
           c.waitCountdown = -1;
         } else {
-          // Cancel back to target selection
-          c.phase = 'target';
+          // No target phase to go back to — do nothing
         }
       }
     } else if (state.dialogue) {
@@ -593,8 +592,8 @@ function startCombat(entity, enemyStats) {
     attackText: '',
     startTime: performance.now(),
     slideInDuration: 500,
-    phase: 'target', // 'target' = select enemy/self, 'action' = select attack
-    targetSelf: false, // false = targeting enemy, true = targeting self
+    phase: 'action', // skip target phase — single enemy, go straight to action select
+    targetSelf: false,
     selectedEnemy: 0,
     actions: ['Punch', 'Kick', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])],
     selectedAction: 0,
@@ -889,8 +888,8 @@ function drawCombat() {
   // Enemy action display — name right of HP bar, stats below
   if (c.enemyAction) {
     const act = COMBAT_ACTIONS[c.enemyAction] || {};
-    crispText(c.enemyAction, infoX + barW + 8, barY - 4, 32, '#d0c0a0');
-    const statY = barY + barH + 12;
+    crispText(c.enemyAction, infoX + barW + 12, barY - 8, 32, '#d0c0a0');
+    const statY = barY + barH + 11;
     let sx = infoX;
     const waitVal = c.enemyWaitCountdown >= 0 ? c.enemyWaitCountdown : (act.wait || 0);
     sx += crispGradientText('Eff:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
@@ -1149,13 +1148,13 @@ function drawCombat() {
     const ax = gridX + col * colW;
     const ay = gridY + row * gridRowH;
     const isSelected = (c.phase === 'action') && i === (c.selectedAction || 0);
-    const dimmed = c.phase === 'target' || c.waiting;
+    const dimmed = c.waiting;
     
     // Highlight background — starts at first character pixel, rounded corners
     if (isSelected && !dimmed) {
-      const hx = ax + 3;  // align with text start
+      const hx = ax + 4;  // highlight start
       const hy = ay;
-      const hw = colW - 3;
+      const hw = colW - 4;
       const hh = gridRowH;
       ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
       ctx.fillRect(hx + 1, hy, hw - 2, 1);
@@ -1163,7 +1162,7 @@ function drawCombat() {
       ctx.fillRect(hx + 1, hy + hh - 1, hw - 2, 1);
     }
     
-    crispText(actions[i], ax + 3, ay + 2, 32, '#ffffff');
+    crispText(actions[i], ax + 2, ay + 2, 32, '#ffffff');
   }
   
   // Selected action stats — centered on screen, anchored positions for each stat
@@ -1347,7 +1346,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.53', canvas.width - 8, 14);
+  ctx.fillText('v0.54', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
