@@ -529,6 +529,8 @@ const state = {
   moveFrom: { x: 0, y: 0 },
   dialogue: null,
   flags: {},
+  canFly: false,
+  saveMenu: null,
   showFontTest: false,
   fontTestScroll: 0,
   fontTestScrollX: 0,
@@ -705,6 +707,21 @@ document.addEventListener('keydown', (e) => {
   
   // Inventory navigation
   if (state.inventoryOpen && !state.combat) {
+    // Save slot picker intercepts all input when open
+    if (state.saveMenu) {
+      if (e.key === 'ArrowUp') { state.saveMenu.selected = Math.max(0, state.saveMenu.selected - 1); playTick(); e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') { state.saveMenu.selected = Math.min(2, state.saveMenu.selected + 1); playTick(); e.preventDefault(); return; }
+      if (e.key === 'z' || e.key === 'Z') {
+        if (saveGame(state.saveMenu.selected)) {
+          state.saveFeedback = { text: 'Saved to Slot ' + (state.saveMenu.selected + 1) + '!', startTime: performance.now(), duration: 1500 };
+          playHit(false);
+        }
+        state.saveMenu = null;
+        e.preventDefault(); return;
+      }
+      if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') { state.saveMenu = null; e.preventDefault(); return; }
+      e.preventDefault(); return;
+    }
     const items = getInventoryActions();
     if (state.inventorySubMenu) {
       const subOpts = ['Lv Up', 'Order', 'Drop'];
@@ -850,9 +867,20 @@ document.addEventListener('keydown', (e) => {
   // Shift = Save (overworld only, not in combat)
   if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue) {
     e.preventDefault();
-    if (saveGame(state.titleSelection || 0)) {
-      state.saveFeedback = { text: 'Game Saved!', startTime: performance.now(), duration: 1500 };
-      playHit(false);
+    if (state.inventoryOpen) {
+      // Toggle save slot picker within inventory
+      if (state.saveMenu) {
+        state.saveMenu = null;
+      } else {
+        state.saveMenu = { selected: 0 };
+      }
+    } else {
+      // Open inventory with save menu
+      state.inventoryOpen = true;
+      state.inventorySelected = 0;
+      state.inventorySubMenu = false;
+      state.inventorySubSelected = 0;
+      state.saveMenu = { selected: 0 };
     }
     return;
   }
@@ -870,6 +898,7 @@ document.addEventListener('keydown', (e) => {
         state.inventorySubMenu = false;
       } else {
         state.inventoryOpen = false;
+        state.saveMenu = null;
       }
     } else if (state.dialogue) {
       closeDialogue();
@@ -949,14 +978,15 @@ async function doScreenTransition(targetLevelIid, fromDir) {
 
 function findNearestWalkable(x, y, axis) {
   // Search nearby tiles for a walkable one
-  if (state.collision[y] && state.collision[y][x] === 0) return axis === 'col' ? y : x;
+  const isWalkable = (r, c) => state.collision[r] && (state.collision[r][c] === 0 || state.collision[r][c] === 2);
+  if (isWalkable(y, x)) return axis === 'col' ? y : x;
   for (let offset = 1; offset < 8; offset++) {
     if (axis === 'col') {
-      if (y - offset >= 0 && state.collision[y - offset][x] === 0) return y - offset;
-      if (y + offset < state.mapH && state.collision[y + offset][x] === 0) return y + offset;
+      if (y - offset >= 0 && isWalkable(y - offset, x)) return y - offset;
+      if (y + offset < state.mapH && isWalkable(y + offset, x)) return y + offset;
     } else {
-      if (x - offset >= 0 && state.collision[y][x - offset] === 0) return x - offset;
-      if (x + offset < state.mapW && state.collision[y][x + offset] === 0) return x + offset;
+      if (x - offset >= 0 && isWalkable(y, x - offset)) return x - offset;
+      if (x + offset < state.mapW && isWalkable(y, x + offset)) return x + offset;
     }
   }
   return axis === 'col' ? y : x; // fallback
@@ -996,7 +1026,8 @@ function tryMove(dx, dy) {
     return;
   }
   // Collision check
-  if (state.collision[ny][nx] !== 0) return;
+  if (state.collision[ny][nx] === 1) return; // always blocked (walls)
+  if (state.collision[ny][nx] === 2 && !state.canFly) return; // blocked unless flying
   // Entity collision — block movement but don't auto-interact
   const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id]);
   if (blocking) {
@@ -1551,6 +1582,29 @@ function drawInventory() {
   if (state.inventoryOrdering !== undefined) {
     crispText('Select swap target', pPortraitX, pPortraitY + portraitH + 26, 32, '#c8a040', 0, CRISP_FONT_ALT);
   }
+  
+  // Save slot picker overlay
+  if (state.saveMenu) {
+    const boxW = 200, boxH = 130;
+    const boxX = Math.round((W - boxW) / 2);
+    const boxY = Math.round((H - boxH) / 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = '#d4a830';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    crispText('Save to:', boxX + 10, boxY + 8, 32, '#f0d060', 0, CRISP_FONT_ALT);
+    for (let i = 0; i < 3; i++) {
+      const sy = boxY + 32 + i * 30;
+      const info = getSaveInfo(i);
+      const label = info ? 'Slot ' + (i + 1) + ' - ' + info.date : 'Slot ' + (i + 1) + ' - Empty';
+      if (i === state.saveMenu.selected) {
+        ctx.fillStyle = 'rgba(208,168,48,0.25)';
+        ctx.fillRect(boxX + 4, sy - 2, boxW - 8, 26);
+      }
+      crispText(label, boxX + 14, sy, 32, i === state.saveMenu.selected ? '#ffffff' : '#a0a0a0', 0, CRISP_FONT_ALT);
+    }
+  }
 }
 
 // ══════════════════════════════════
@@ -1879,7 +1933,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.14', W - 8, H - 8);
+  ctx.fillText('v1.15', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2670,7 +2724,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.14', canvas.width - 8, 14);
+  ctx.fillText('v1.15', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
