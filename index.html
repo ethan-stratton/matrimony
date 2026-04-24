@@ -1532,6 +1532,32 @@ function drawCombat() {
     ctx.imageSmoothingEnabled = true;
   }
   
+  // Block sheen — white sweep across player on full block
+  if (c.blockSheen) {
+    const bt = now - c.blockSheen.startTime;
+    if (bt < c.blockSheen.duration) {
+      const progress = bt / c.blockSheen.duration;
+      // Diagonal white sweep
+      const sweepX = playerArenaX - playerCombatSize + progress * playerCombatSize * 3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(playerArenaX, playerArenaY, playerCombatSize, playerCombatSize);
+      ctx.clip();
+      const sheenAlpha = 0.6 * (1 - progress);
+      ctx.globalAlpha = sheenAlpha;
+      ctx.fillStyle = '#ffffff';
+      // Angled band
+      ctx.beginPath();
+      ctx.moveTo(sweepX, playerArenaY);
+      ctx.lineTo(sweepX + 16, playerArenaY);
+      ctx.lineTo(sweepX - playerCombatSize + 16, playerArenaY + playerCombatSize);
+      ctx.lineTo(sweepX - playerCombatSize, playerArenaY + playerCombatSize);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+  }
+  
   // ESC — after 5s idle
   if (elapsed > 9000) {
     const alpha = 0.3 + 0.3 * Math.sin(now / 800);
@@ -1573,7 +1599,18 @@ function drawCombat() {
   }
   
   // HP below portrait
-  crispText('HP ' + c.playerHp + '/' + c.playerMaxHp, pPortraitX + 12, pPortraitY + portraitH + 4, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  // HP text — flash on hit
+  let hpColor = '#e8e0d0';
+  if (c.hpFlash) {
+    const ht = now - c.hpFlash.startTime;
+    if (ht < c.hpFlash.duration) {
+      const pulse = Math.sin(ht / 50 * Math.PI);
+      hpColor = pulse > 0 ? '#ff6060' : '#ffffff';
+    } else {
+      c.hpFlash = null;
+    }
+  }
+  crispText('HP ' + c.playerHp + '/' + c.playerMaxHp, pPortraitX + 12, pPortraitY + portraitH + 4, 32, hpColor, 0, CRISP_FONT_ALT);
   
   // ── ACTION GRID: 2 columns × 4 rows, fill left-to-right then down ──
   const gridX = pPortraitX + portraitW + 48;
@@ -1921,7 +1958,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.84', canvas.width - 8, 14);
+  ctx.fillText('v0.85', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2473,9 +2510,16 @@ function gameLoop(time) {
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
         const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (playerAct.def || 0));
+        // HP flash on any hit attempt
+        c.hpFlash = { startTime: time, duration: 400 };
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
           playHit(true);
+        } else {
+          // Full block — hitstop + shield sheen
+          c.hitstop = { startTime: time, duration: 120 };
+          c.blockSheen = { startTime: time, duration: 350 };
+          playHit(false); // lighter hit sound for blocked
         }
         // Enemy immediately picks next action + starts new countdown — NO PAUSE
         const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
@@ -2505,6 +2549,11 @@ function gameLoop(time) {
       }
     }
     
+    // Hitstop — freeze everything briefly
+    if (c.hitstop && (time - c.hitstop.startTime < c.hitstop.duration)) {
+      // Skip all tick/anim updates during hitstop
+    } else {
+      c.hitstop = null;
     // Tick system — ticks when both committed, not during animations
     const anyCountdown = (c.waitCountdown > 0) || (c.enemyWaitCountdown > 0);
     const animPlaying = c.playerAttackAnim || c.enemyAttackAnim || c.enemyBark;
@@ -2544,6 +2593,7 @@ function gameLoop(time) {
         }
       }
     }
+    } // end hitstop else
   }
   draw(); // Always draw overworld
   if (state.inventoryOpen && !state.combat) {
