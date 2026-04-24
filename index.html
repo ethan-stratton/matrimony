@@ -1296,7 +1296,7 @@ function drawCombat() {
   // Enemy portrait
   const pad = 8; // padding from edges
   const ePortraitX = pad + 20;
-  const ePortraitY = Math.round((topH - portraitH) / 2) - 11;
+  const ePortraitY = Math.round((topH - portraitH) / 2) - 13;
   ctx.fillStyle = '#0c0c14';
   ctx.fillRect(ePortraitX, ePortraitY, portraitW, portraitH);
   drawGoldOutline(ePortraitX, ePortraitY, portraitW, portraitH, 3);
@@ -1921,7 +1921,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.82', canvas.width - 8, 14);
+  ctx.fillText('v0.83', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
