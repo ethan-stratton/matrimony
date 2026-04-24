@@ -97,11 +97,23 @@ canvas.height = CANVAS_H;
 // AUDIO
 // ══════════════════════════════════
 let audioCtx = null;
+let audioUnlocked = false;
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
+// Unlock audio on first user interaction
+function unlockAudio() {
+  if (audioUnlocked) return;
+  const ac = getAudioCtx();
+  if (ac.state === 'suspended') {
+    ac.resume().then(() => { audioUnlocked = true; });
+  } else {
+    audioUnlocked = true;
+  }
+}
+document.addEventListener('click', unlockAudio, { once: false });
+document.addEventListener('keydown', unlockAudio, { once: false });
 let footstepAlt = false;
 function playFootstep() {
   const ac = getAudioCtx();
@@ -112,7 +124,7 @@ function playFootstep() {
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  const vol = 0.08 + Math.random() * 0.06;
+  const vol = 0.03 + Math.random() * 0.04;
   const dur = 0.06 + Math.random() * 0.04;
   gain.gain.setValueAtTime(vol, ac.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
@@ -127,8 +139,8 @@ function playTick() {
   const gain = ac.createGain();
   osc.type = 'square';
   osc.frequency.value = 600;
-  gain.gain.setValueAtTime(0.10, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
+  gain.gain.setValueAtTime(0.04, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
   osc.connect(gain);
   gain.connect(ac.destination);
   osc.start(ac.currentTime);
@@ -168,8 +180,8 @@ const EB_PALETTES = {
 
 const EB_PRESETS = {
   'Giygas': {
-    l1: { palette: 'fire', distType: 2, amp: 12, freq: 0.04, speed: 0.06, scrollX: 0, scrollY: 1.5, palSpeed: 2.0, scale: 0.8 },
-    l2: { palette: 'void', distType: 1, amp: 8, freq: 0.03, speed: 0.04, scrollX: 0.5, scrollY: -0.5, palSpeed: 1.5, scale: 1.2, opacity: 0.6 }
+    l1: { palette: 'fire', distType: 2, amp: 12, freq: 0.04, speed: 0.015, scrollX: 0, scrollY: 0.4, palSpeed: 0.5, scale: 0.8 },
+    l2: { palette: 'void', distType: 1, amp: 8, freq: 0.03, speed: 0.01, scrollX: 0.1, scrollY: -0.1, palSpeed: 0.4, scale: 1.2, opacity: 0.6 }
   },
   'Moonside': {
     l1: { palette: 'psychedelic', distType: 1, amp: 6, freq: 0.035, speed: 0.05, scrollX: 0.3, scrollY: 0.3, palSpeed: 2.5, scale: 0.6 },
@@ -1711,7 +1723,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.68', canvas.width - 8, 14);
+  ctx.fillText('v0.69', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
