@@ -438,6 +438,8 @@ loadSprite('Enemy1', 'sprites/FireElemental.png');
 // GAME STATE
 // ══════════════════════════════════
 const state = {
+  screen: 'title', // 'title' | 'game'
+  titleSelection: 0, // 0=Slot 1, 1=Slot 2, 2=Slot 3
   player: { x: 0, y: 0 },  // grid coords (destination)
   entities: [],
   collision: [],  // 2D array: 0=walk, 1=wall
@@ -564,6 +566,24 @@ function getCameraOffset() {
 const keys = {};
 document.addEventListener('keydown', (e) => {
   keys[e.key] = true;
+  
+  // Title screen input
+  if (state.screen === 'title') {
+    if (e.key === 'ArrowUp') {
+      state.titleSelection = (state.titleSelection + 2) % 3;
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      state.titleSelection = (state.titleSelection + 1) % 3;
+      e.preventDefault();
+    } else if (e.key === 'z' || e.key === 'Z') {
+      // Start game
+      state.screen = 'game';
+      titleMusic.pause();
+      titleMusic.currentTime = 0;
+      e.preventDefault();
+    }
+    return;
+  }
   
   // ESC — exit combat after 5s
   if (e.key === 'Escape' && state.combat && !state.combatTransition) {
@@ -852,6 +872,11 @@ const ENEMY_DATA = {
 const battleMusic = new Audio('sounds/battle.mp3');
 battleMusic.loop = true;
 battleMusic.volume = 0.35;
+
+// Title music
+const titleMusic = new Audio('sounds/title.mp3');
+titleMusic.loop = true;
+titleMusic.volume = 0.3;
 
 function startCombat(entity, enemyStats) {
   playBattleStart();
@@ -1269,6 +1294,91 @@ function drawInventory() {
   
   // Hint
   crispText('X = Close', W - pad - 110, botContentY + pad + 4, 32, '#8c828c');
+}
+
+// ══════════════════════════════════
+// TITLE SCREEN
+// ══════════════════════════════════
+let titleStartTime = performance.now();
+let titleMusicStarted = false;
+
+function drawTitle() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const now = performance.now();
+  const t = (now - titleStartTime) / 1000;
+  
+  // Dark background
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Subtle animated stars
+  for (let i = 0; i < 40; i++) {
+    const seed = i * 7919;
+    const sx = ((seed * 13) % W);
+    const sy = ((seed * 31) % H);
+    const flicker = 0.3 + 0.7 * Math.sin(t * (1 + (i % 5) * 0.3) + seed);
+    ctx.globalAlpha = 0.15 + 0.15 * flicker;
+    ctx.fillStyle = '#c0b8d0';
+    ctx.fillRect(Math.round(sx), Math.round(sy), 1, 1);
+  }
+  ctx.globalAlpha = 1;
+  
+  // Title text
+  const titleY = Math.round(H * 0.18);
+  crispGradientText('Matrimony', Math.round(W / 2) - 120, titleY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+  crispGradientText('Beyond Space and Time', Math.round(W / 2) - 160, titleY + 38, 32, [[0, '#a0a0c0'], [0.5, '#d0d0e8'], [1, '#a0a0c0']], 0, CRISP_FONT_ALT);
+  
+  // Save slots
+  const slotW = 280;
+  const slotH = 52;
+  const slotX = Math.round((W - slotW) / 2);
+  const startY = Math.round(H * 0.42);
+  const slots = [
+    { label: 'Slot 1', sub: 'Empty' },
+    { label: 'Slot 2', sub: 'Empty' },
+    { label: 'Slot 3', sub: 'Empty' },
+  ];
+  
+  for (let i = 0; i < slots.length; i++) {
+    const sy = startY + i * (slotH + 12);
+    const selected = state.titleSelection === i;
+    
+    // Slot background
+    ctx.fillStyle = selected ? 'rgba(60, 50, 80, 0.8)' : 'rgba(20, 18, 30, 0.7)';
+    ctx.fillRect(slotX, sy, slotW, slotH);
+    
+    // Border
+    if (selected) {
+      drawGoldOutline(slotX, sy, slotW, slotH, 2);
+      // Pulsing cursor
+      const cursorAlpha = 0.6 + 0.4 * Math.sin(now / 300);
+      ctx.globalAlpha = cursorAlpha;
+      crispText('\u25B6', slotX - 24, sy + 10, 32, '#f0d060', 0, CRISP_FONT_ALT);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = 'rgba(100, 90, 120, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(slotX + 0.5, sy + 0.5, slotW - 1, slotH - 1);
+    }
+    
+    // Slot text
+    crispText(slots[i].label, slotX + 16, sy + 6, 32, selected ? '#f0e8d0' : '#8a8090', 0, CRISP_FONT_ALT);
+    crispText(slots[i].sub, slotX + 16, sy + 28, 32, selected ? '#a09888' : '#504858', 0, CRISP_FONT_ALT);
+  }
+  
+  // Hint at bottom
+  const hintAlpha = 0.4 + 0.2 * Math.sin(now / 600);
+  ctx.globalAlpha = hintAlpha;
+  crispText('Press Z to select', Math.round(W / 2) - 80, Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
+  ctx.globalAlpha = 1;
+  
+  // Version
+  ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
+  ctx.font = '10px "JetBrains Mono", monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('v0.89', W - 8, H - 8);
+  ctx.textAlign = 'left';
 }
 
 function drawCombat() {
@@ -2013,7 +2123,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.88', canvas.width - 8, 14);
+  ctx.fillText('v0.89', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -2517,6 +2627,18 @@ function drawEntity(ctx, entity, x, y) {
 let lastTime = 0;
 
 function gameLoop(time) {
+  // Title screen
+  if (state.screen === 'title') {
+    if (!titleMusicStarted) {
+      titleMusic.play().catch(() => {});
+      titleMusicStarted = true;
+    }
+    // Mute wind on title
+    if (windNode) windNode.gain.gain.value *= 0.95;
+    drawTitle();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
   // Fade wind in/out based on combat
   if (windNode) {
     const target = state.combat ? 0 : 0.06;
