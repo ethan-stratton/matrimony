@@ -1554,6 +1554,16 @@ function drawTitle() {
       tailLen: 20 + Math.random() * 15,
       active: false, nextTime: 3 + Math.random() * 8, // seconds until first appearance
     };
+    // Sprite-based planet
+    drawTitle._spritePlanet = {
+      img: new Image(),
+      loaded: false,
+      frameW: 100, frameH: 100, frameCount: 50,
+      cx: W * 0.50, cy: H * 0.55, scale: 0.6, // centered, drawn behind save slots
+      rotSpeed: 0.4, // frames per second
+    };
+    drawTitle._spritePlanet.img.onload = () => { drawTitle._spritePlanet.loaded = true; };
+    drawTitle._spritePlanet.img.src = 'sprites/planet.png';
     drawTitle._planets = [];
     const planetDefs = [
       { cx: W * 0.10, cy: H * 0.28, r: 20, palette: ['#1a0a2a', '#3a1858', '#5a2880', '#7a40a8', '#9060c0'], noiseA: [2,5], noiseB: [3,8], noiseC: [7,13], rotSpeed: 0.015, hasRing: false },
@@ -1693,7 +1703,20 @@ function drawTitle() {
     ctx.globalAlpha = 1;
   }
   
-  // Draw pixel planets
+  // Draw sprite planet (featured, behind UI)
+  const sp = drawTitle._spritePlanet;
+  if (sp && sp.loaded) {
+    const frameIdx = Math.floor(t * sp.rotSpeed) % sp.frameCount;
+    const drawSize = Math.round(sp.frameW * sp.scale);
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(sp.img, frameIdx * sp.frameW, 0, sp.frameW, sp.frameH,
+      Math.round(sp.cx - drawSize / 2), Math.round(sp.cy - drawSize / 2), drawSize, drawSize);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = true;
+  }
+  
+  // Draw procedural pixel planets
   for (const planet of drawTitle._planets) {
     const frameIdx = Math.floor((t * planet.rotSpeed * planet.frameCount + 1000) % planet.frameCount);
     const frame = planet.frames[Math.abs(frameIdx) % planet.frameCount];
@@ -1746,7 +1769,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.02', W - 8, H - 8);
+  ctx.fillText('v1.03', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2491,7 +2514,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.02', canvas.width - 8, 14);
+  ctx.fillText('v1.03', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
