@@ -1560,33 +1560,55 @@ function drawTitle() {
       loaded: false,
       frameW: 100, frameH: 100, frameCount: 50,
       cx: W * 0.50, cy: H * 0.55, scale: 0.6, // centered, drawn behind save slots
-      rotSpeed: 1, // frames per second
+      rotSpeed: 2.5, // frames per second (50 frames / 20 sec = 2.5)
     };
     drawTitle._spritePlanet.img.onload = () => { drawTitle._spritePlanet.loaded = true; };
     drawTitle._spritePlanet.img.src = 'sprites/planet.png';
     drawTitle._planets = [];
+    // Hash-based 2D noise for planet surfaces
+    function _hash(x, y, seed) {
+      let h = seed + x * 374761393 + y * 668265263;
+      h = (h ^ (h >> 13)) * 1274126177;
+      h = h ^ (h >> 16);
+      return (h & 0x7fffffff) / 0x7fffffff;
+    }
+    function _smooth(x, y, seed) {
+      const ix = Math.floor(x), iy = Math.floor(y);
+      const fx = x - ix, fy = y - iy;
+      const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+      const a = _hash(ix, iy, seed), b = _hash(ix + 1, iy, seed);
+      const c = _hash(ix, iy + 1, seed), d = _hash(ix + 1, iy + 1, seed);
+      return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+    }
+    function _fbm(x, y, seed, octaves) {
+      let v = 0, amp = 0.5, freq = 1;
+      for (let i = 0; i < octaves; i++) {
+        v += _smooth(x * freq, y * freq, seed + i * 77) * amp;
+        amp *= 0.5; freq *= 2;
+      }
+      return v;
+    }
     const planetDefs = [
-      { cx: W * 0.10, cy: H * 0.28, r: 20, palette: ['#1a0a2a', '#3a1858', '#5a2880', '#7a40a8', '#9060c0'], noiseA: [2,5], noiseB: [3,8], noiseC: [7,13], rotSpeed: 0.015, hasRing: false },
-      { cx: W * 0.90, cy: H * 0.38, r: 14, palette: ['#0a1a0a', '#1a3820', '#2a5838', '#409050', '#58c068'], noiseA: [4,3], noiseB: [9,6], noiseC: [15,9], rotSpeed: -0.025, hasRing: false },
-      { cx: W * 0.78, cy: H * 0.10, r: 9, palette: ['#2a1808', '#4a3018', '#6a4828', '#906838', '#b88848'], noiseA: [6,1], noiseB: [11,4], noiseC: [3,17], rotSpeed: 0.035, hasRing: false },
-      { cx: W * 0.22, cy: H * 0.70, r: 11, palette: ['#0a1020', '#182840', '#284060', '#386088', '#5080b0'], noiseA: [3,7], noiseB: [8,2], noiseC: [14,11], rotSpeed: 0.02, hasRing: true },
+      { cx: W * 0.10, cy: H * 0.28, r: 20, palette: ['#1a0a2a', '#301848', '#4a2870', '#6a3898', '#8a50b8', '#a068d0'], seed: 42, octaves: 5, scale: 4, rotSpeed: 0.015, hasRing: false, type: 'terr' },
+      { cx: W * 0.90, cy: H * 0.38, r: 14, palette: ['#0a180a', '#183818', '#285828', '#408840', '#58b058', '#70d070'], seed: 137, octaves: 4, scale: 3, rotSpeed: -0.025, hasRing: false, type: 'terr' },
+      { cx: W * 0.78, cy: H * 0.10, r: 9, palette: ['#2a1808', '#4a3018', '#6a4828', '#907040', '#b89058', '#d8b070'], seed: 271, octaves: 6, scale: 5, rotSpeed: 0.035, hasRing: false, type: 'terr' },
+      { cx: W * 0.22, cy: H * 0.70, r: 11, palette: ['#0a1020', '#182838', '#284858', '#387088', '#5090b0', '#68b0d0'], seed: 503, octaves: 4, scale: 3.5, rotSpeed: 0.02, hasRing: true, type: 'gas' },
     ];
     for (const def of planetDefs) {
       const frames = [];
       const frameCount = 60;
       const size = def.r * 2 + 2;
+      const extra = def.hasRing ? 8 : 0;
       for (let f = 0; f < frameCount; f++) {
         const pc = document.createElement('canvas');
-        pc.width = size + (def.hasRing ? 8 : 0);
-        pc.height = size + (def.hasRing ? 8 : 0);
+        pc.width = size + extra; pc.height = size + extra;
         const pctx = pc.getContext('2d');
         const ox = def.hasRing ? 4 : 0;
         const ccx = def.r + 1 + ox, ccy = def.r + 1 + ox;
-        const offset = (f / frameCount) * Math.PI * 2;
-        // Ring (drawn behind)
+        const timeOffset = (f / frameCount) * def.scale * 2;
         if (def.hasRing) {
           pctx.globalAlpha = 0.3;
-          pctx.strokeStyle = def.palette[3];
+          pctx.strokeStyle = def.palette[4] || def.palette[3];
           pctx.lineWidth = 1;
           pctx.beginPath();
           pctx.ellipse(ccx, ccy + 1, def.r + 4, Math.round(def.r * 0.3), 0, 0, Math.PI * 2);
@@ -1600,28 +1622,36 @@ function drawTitle() {
             const nx = px / def.r;
             const ny = py / def.r;
             const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
-            const u = Math.atan2(nx, nz) + offset;
-            const v = Math.asin(ny);
-            // Varied noise using per-planet frequency multipliers
-            const n = Math.sin(u * def.noiseA[0] + v * def.noiseA[1]) * 0.5
-                    + Math.sin(u * def.noiseB[0] - v * def.noiseB[1]) * 0.3
-                    + Math.sin(u * def.noiseC[0] + v * def.noiseC[1]) * 0.15
-                    + Math.sin(u * 1.5 * v * 2) * 0.05; // adds swirls
-            const norm = Math.max(0, Math.min(1, (n + 1) / 2));
-            const ci = Math.min(def.palette.length - 1, Math.floor(norm * def.palette.length));
-            const light = Math.max(0.25, nz * 0.5 + nx * -0.3 + ny * -0.3 + 0.5);
-            // Atmosphere rim glow
+            // Spherical UV
+            const u = (Math.atan2(nx, nz) / Math.PI) * def.scale + timeOffset;
+            const v = (Math.asin(ny) / (Math.PI * 0.5)) * def.scale;
+            // FBM noise
+            let n;
+            if (def.type === 'gas') {
+              // Gas giant — horizontal bands + turbulence
+              n = _fbm(u * 0.5, v * 3, def.seed, def.octaves) * 0.6
+                + _fbm(u * 2, v * 0.8, def.seed + 100, 3) * 0.4;
+            } else {
+              // Terrestrial — continent-like blobs
+              n = _fbm(u, v, def.seed, def.octaves);
+            }
+            n = Math.max(0, Math.min(1, n));
+            // Dither: quantize with slight noise to avoid banding
+            const dither = (_hash(px + def.r + f * 97, py + def.r, def.seed + 999) - 0.5) * 0.08;
+            const ci = Math.min(def.palette.length - 1, Math.max(0, Math.floor((n + dither) * def.palette.length)));
+            // Lighting
+            const light = Math.max(0.2, nz * 0.5 + nx * -0.35 + ny * -0.25 + 0.5);
             const rim = 1 - nz;
-            const rimBoost = rim > 0.7 ? (rim - 0.7) * 1.5 : 0;
+            const rimBoost = rim > 0.65 ? (rim - 0.65) * 2 : 0;
             pctx.fillStyle = def.palette[ci];
-            pctx.globalAlpha = Math.min(1, light + rimBoost * 0.3);
+            pctx.globalAlpha = Math.min(1, light + rimBoost * 0.25);
             pctx.fillRect(ccx + px, ccy + py, 1, 1);
           }
         }
         pctx.globalAlpha = 1;
         frames.push(pc);
       }
-      drawTitle._planets.push({ ...def, frames, frameCount: frames.length, drawOx: def.hasRing ? 4 : 0 });
+      drawTitle._planets.push({ ...def, frames, frameCount: frames.length, drawOx: extra / 2 });
     }
   }
   
@@ -1769,7 +1799,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.04', W - 8, H - 8);
+  ctx.fillText('v1.05', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2514,7 +2544,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.04', canvas.width - 8, 14);
+  ctx.fillText('v1.05', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
