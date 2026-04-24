@@ -1358,7 +1358,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.56', canvas.width - 8, 14);
+  ctx.fillText('v0.57', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -1879,7 +1879,7 @@ function gameLoop(time) {
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          const dmg = Math.max(1, (act.eff || 0) - (enemyAct.def || 0));
+          const dmg = Math.max(0, (act.eff || 0) - (enemyAct.def || 0));
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           // Trigger win state when enemy dies (after HP bar drains)
           if (c.enemyHp <= 0 && !c.winState) {
@@ -1901,8 +1901,8 @@ function gameLoop(time) {
         // Enemy's attack resolves — apply damage to player
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText] || {};
-        const enemyDmg = Math.max(1, (enemyAct.eff || 0) - (playerAct.def || 0));
-        if (enemyAct.eff > 0) {
+        const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (playerAct.def || 0));
+        if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
         }
         // Clear enemy action. New action picked when player next attacks.
