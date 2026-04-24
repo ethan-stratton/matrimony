@@ -343,6 +343,27 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
+  // Inventory navigation
+  if (state.inventoryOpen && !state.combat) {
+    const items = getInventoryActions();
+    if (state.inventorySubMenu) {
+      const subOpts = ['Lv Up', 'Order', 'Drop'];
+      if (e.key === 'ArrowUp') { state.inventorySubSelected = Math.max(0, (state.inventorySubSelected || 0) - 1); e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') { state.inventorySubSelected = Math.min(subOpts.length - 1, (state.inventorySubSelected || 0) + 1); e.preventDefault(); return; }
+    } else {
+      const numItems = Math.min(items.length, 8);
+      if (numItems > 0) {
+        const sel = state.inventorySelected || 0;
+        const col = sel % 2;
+        const row = Math.floor(sel / 2);
+        if (e.key === 'ArrowUp') { const nr = row - 1; if (nr >= 0) { const ni = nr * 2 + col; state.inventorySelected = ni < numItems ? ni : sel; } e.preventDefault(); return; }
+        if (e.key === 'ArrowDown') { const nr = row + 1; const ni = nr * 2 + col; state.inventorySelected = ni < numItems ? ni : sel; e.preventDefault(); return; }
+        if (e.key === 'ArrowLeft') { if (col === 1) { const ni = row * 2; state.inventorySelected = ni < numItems ? ni : sel; } e.preventDefault(); return; }
+        if (e.key === 'ArrowRight') { if (col === 0) { const ni = row * 2 + 1; state.inventorySelected = ni < numItems ? ni : sel; } e.preventDefault(); return; }
+      }
+    }
+  }
+
   // Combat input — depends on phase
   if (state.combat) {
     const c = state.combat;
@@ -386,6 +407,20 @@ document.addEventListener('keydown', (e) => {
   // Z = Confirm
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
+    if (state.inventoryOpen && !state.combat) {
+      if (state.inventorySubMenu) {
+        // Sub-menu confirm — placeholder actions
+        // TODO: implement actual Lv Up / Order / Drop logic
+        state.inventorySubMenu = false;
+      } else {
+        const items = getInventoryActions();
+        if (items.length > 0) {
+          state.inventorySubMenu = true;
+          state.inventorySubSelected = 0;
+        }
+      }
+      return;
+    }
     if (state.combat) {
       const c = state.combat;
       // Win state — Z exits immediately
@@ -440,8 +475,21 @@ document.addEventListener('keydown', (e) => {
           // No target phase to go back to — do nothing
         }
       }
+    } else if (state.inventoryOpen) {
+      // Close inventory or back out of sub-menu
+      if (state.inventorySubMenu) {
+        state.inventorySubMenu = false;
+      } else {
+        state.inventoryOpen = false;
+      }
     } else if (state.dialogue) {
       closeDialogue();
+    } else if (!state.moving && !state.combatTransition) {
+      // Open inventory
+      state.inventoryOpen = true;
+      state.inventorySelected = 0;
+      state.inventorySubMenu = false;
+      state.inventorySubSelected = 0;
     }
     return;
   }
@@ -460,7 +508,7 @@ document.addEventListener('keyup', (e) => {
 });
 
 function tryMove(dx, dy) {
-  if (state.moving || state.dialogue || state.combat || state.combatTransition) return;
+  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen) return;
   
   // Set facing
   if (dx < 0) state.facing = 'left';
@@ -828,6 +876,163 @@ function drawGoldOutline(x, y, w, h, thickness) {
   ctx.strokeStyle = grad;
   ctx.lineWidth = t;
   ctx.strokeRect(x, y, w, h);
+}
+
+function getInventoryActions() {
+  // All combat actions the player currently has
+  return ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])];
+}
+
+function drawInventory() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const now = performance.now();
+  
+  const topH = Math.round(H * 0.16);
+  const botContentY = Math.round(H * 0.52);
+  const botH = H - botContentY;
+  const portraitH = Math.round(topH * 0.42);
+  const portraitW = Math.round(portraitH * 3.5);
+  const pad = 8;
+  
+  // ── TOP BAR (semi-transparent, no opaque arena) ──
+  ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
+  ctx.fillRect(0, 0, W, topH);
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, topH - 0.5); ctx.lineTo(W, topH - 0.5); ctx.stroke();
+  
+  // EXP display
+  crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  
+  // ── BOTTOM BAR ──
+  ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
+  ctx.fillRect(0, botContentY, W, botH);
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, botContentY + 0.5); ctx.lineTo(W, botContentY + 0.5); ctx.stroke();
+  
+  // Player portrait
+  const pPortraitX = pad + 20;
+  const pPortraitY = botContentY + pad + 2;
+  ctx.fillStyle = '#0c0c14';
+  ctx.fillRect(pPortraitX, pPortraitY, portraitW, portraitH);
+  drawGoldOutline(pPortraitX, pPortraitY, portraitW, portraitH, 3);
+  if (PLAYER_SHEET.loaded) {
+    const anim = PLAYER_SHEET.anims['idle_down'];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pPortraitX + 1, pPortraitY + 1, portraitW - 2, portraitH - 2);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    const pDrawSize = Math.round(portraitW * 0.7);
+    const pdx = pPortraitX + 1 + Math.round((portraitW - 2 - pDrawSize) / 2);
+    const pdy = pPortraitY + 1 + Math.round((portraitH - 2 - pDrawSize) / 2);
+    ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+      pdx, pdy, pDrawSize, pDrawSize);
+    ctx.imageSmoothingEnabled = true;
+    ctx.restore();
+  }
+  
+  // HP below portrait
+  crispText('HP 30/30', pPortraitX + 12, pPortraitY + portraitH + 4, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  
+  // ── ACTION/ITEM GRID ──
+  const gridX = pPortraitX + portraitW + 48;
+  const gridRowH = 34;
+  const gridY = pPortraitY;
+  const colW = Math.round((W - gridX - 24) / 2);
+  const items = getInventoryActions();
+  
+  // Mouse hover
+  let hovered = -1;
+  if (!state.inventorySubMenu) {
+    for (let i = 0; i < items.length && i < 8; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const ax = gridX + col * colW;
+      const ay = gridY + row * gridRowH;
+      if (mouse.x >= ax && mouse.x <= ax + colW && mouse.y >= ay && mouse.y <= ay + gridRowH) {
+        hovered = i;
+      }
+    }
+    if (hovered >= 0) state.inventorySelected = hovered;
+  }
+  
+  for (let i = 0; i < items.length && i < 8; i++) {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const ax = gridX + col * colW;
+    const ay = gridY + row * gridRowH;
+    const isSelected = !state.inventorySubMenu && i === (state.inventorySelected || 0);
+    
+    if (isSelected) {
+      const hx = ax + 4;
+      const hy = ay;
+      const hw = colW - 4;
+      const hh = gridRowH;
+      ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
+      ctx.fillRect(hx + 1, hy, hw - 2, 1);
+      ctx.fillRect(hx, hy + 1, hw, hh - 2);
+      ctx.fillRect(hx + 1, hy + hh - 1, hw - 2, 1);
+    }
+    
+    crispText(items[i], ax + 2, ay + 2, 32, '#ffffff');
+  }
+  
+  // Selected item stats
+  const sel = state.inventorySelected || 0;
+  if (sel < items.length) {
+    const act = COMBAT_ACTIONS[items[sel]] || {};
+    const statsY = H - pad - 26;
+    const slotW = 120;
+    const totalW = slotW * 3;
+    const startX = Math.round((W - totalW) / 2);
+    let sx = startX;
+    crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + (act.eff || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += slotW;
+    crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + (act.def || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += slotW;
+    crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('' + (act.wait || 0), sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  }
+  
+  // ── SUB-MENU (Lv Up / Order / Drop) ──
+  if (state.inventorySubMenu) {
+    const subOpts = ['Lv Up', 'Order', 'Drop'];
+    const subX = pPortraitX;
+    const subY = pPortraitY + portraitH + 26;
+    const subW = portraitW + 40;
+    const subRowH = 28;
+    
+    // Background
+    ctx.fillStyle = 'rgba(8, 8, 14, 0.95)';
+    ctx.fillRect(subX, subY, subW, subRowH * subOpts.length + 8);
+    drawGoldOutline(subX, subY, subW, subRowH * subOpts.length + 8, 4);
+    
+    for (let i = 0; i < subOpts.length; i++) {
+      const sy = subY + 4 + i * subRowH;
+      const isSel = i === (state.inventorySubSelected || 0);
+      if (isSel) {
+        ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
+        ctx.fillRect(subX + 4, sy, subW - 8, subRowH);
+      }
+      crispText(subOpts[i], subX + 12, sy + 2, 32, isSel ? '#ffffff' : '#a0a0a0');
+    }
+    
+    // Mouse hover for sub-menu
+    for (let i = 0; i < subOpts.length; i++) {
+      const sy = subY + 4 + i * subRowH;
+      if (mouse.x >= subX && mouse.x <= subX + subW && mouse.y >= sy && mouse.y <= sy + subRowH) {
+        state.inventorySubSelected = i;
+      }
+    }
+  }
+  
+  // Hint
+  crispText('X = Close', W - pad - 110, botContentY + pad + 4, 32, '#8c828c');
 }
 
 function drawCombat() {
@@ -1377,7 +1582,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.61', canvas.width - 8, 14);
+  ctx.fillText('v0.62', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -1978,6 +2183,9 @@ function gameLoop(time) {
     }
   }
   draw(); // Always draw overworld
+  if (state.inventoryOpen && !state.combat) {
+    drawInventory(); // Inventory overlay
+  }
   if (state.combat) {
     drawCombat(); // Overlay combat on top
   }
