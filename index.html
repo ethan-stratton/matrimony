@@ -471,6 +471,7 @@ function saveGame(slot) {
     flags: state.flags,
     openedChests: state.openedChests,
     defeatedEnemies: state.defeatedEnemies,
+    encounterCounts: state.encounterCounts || {},
     playerHp: 30, // TODO: track persistent HP
     timestamp: Date.now(),
   };
@@ -508,6 +509,7 @@ async function applySave(slot) {
   state.flags = data.flags || {};
   state.openedChests = data.openedChests || {};
   state.defeatedEnemies = data.defeatedEnemies || {};
+  state.encounterCounts = data.encounterCounts || {};
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
   state.footsteps = [];
@@ -1097,10 +1099,51 @@ function interact() {
   }
 }
 
+// Enemy dialogue — cycles through on each encounter
+const ENEMY_DIALOGUE = {
+  'Enemy1': [
+    [
+      { speaker: 'Fire Elemental', text: '...You dare approach me, mortal?' },
+      { speaker: 'You', text: 'I\'m just passing through.' },
+      { speaker: 'Fire Elemental', text: 'No one passes through. You burn or you leave.' },
+    ],
+    [
+      { speaker: 'Fire Elemental', text: 'You again. Did the burns not teach you?' },
+      { speaker: 'You', text: 'I\'m a slow learner.' },
+      { speaker: 'Fire Elemental', text: 'Then I\'ll teach you again.' },
+    ],
+    [
+      { speaker: 'Fire Elemental', text: '...You keep coming back.' },
+      { speaker: 'You', text: 'I keep getting stronger.' },
+      { speaker: 'Fire Elemental', text: 'Hmph. Perhaps you do.' },
+    ],
+    [
+      { speaker: 'Fire Elemental', text: 'I remember when your kind feared fire.' },
+      { speaker: 'You', text: 'I still fear it. I just don\'t run.' },
+      { speaker: 'Fire Elemental', text: '...Interesting.' },
+    ],
+    [
+      { speaker: 'Fire Elemental', text: 'No words this time. Just fight.' },
+    ],
+  ],
+};
+if (!state.encounterCounts) state.encounterCounts = {};
+
 function handleEntityContact(entity) {
   if (entity.type === 'Enemy1') {
     const data = ENEMY_DATA['Enemy1'];
-    startCombat(entity, data);
+    const dialogues = ENEMY_DIALOGUE['Enemy1'];
+    if (dialogues) {
+      const count = state.encounterCounts['Enemy1'] || 0;
+      const lines = dialogues[Math.min(count, dialogues.length - 1)];
+      state.encounterCounts['Enemy1'] = count + 1;
+      // Queue dialogue lines, then start combat after last one
+      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text }));
+      state.pendingCombat = { entity, data };
+      showDialogue(lines[0].speaker, lines[0].text);
+    } else {
+      startCombat(entity, data);
+    }
   } else if (entity.type === 'Chest') {
     if (!state.openedChests[entity.id]) {
       state.openedChests[entity.id] = true;
@@ -1934,7 +1977,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.20', W - 8, H - 8);
+  ctx.fillText('v1.21', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2482,6 +2525,19 @@ function showDialogue(speaker, text) {
 
 function closeDialogue() {
   state.dialogue = null;
+  // Continue dialogue queue if present
+  if (state.dialogueQueue && state.dialogueQueue.length > 0) {
+    const next = state.dialogueQueue.shift();
+    showDialogue(next.speaker, next.text);
+    return;
+  }
+  state.dialogueQueue = null;
+  // Start pending combat after dialogue finishes
+  if (state.pendingCombat) {
+    const { entity, data } = state.pendingCombat;
+    state.pendingCombat = null;
+    startCombat(entity, data);
+  }
 }
 
 function drawDialogue() {
@@ -2725,7 +2781,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.20', canvas.width - 8, 14);
+  ctx.fillText('v1.21', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
