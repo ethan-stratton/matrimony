@@ -617,16 +617,15 @@ document.addEventListener('keydown', (e) => {
       playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
-      // Start game with fade
+      // Start game — game emerges over title
       playHit(true);
-      state.titleFade = { startTime: performance.now(), duration: 600 };
+      state.titleToGame = { startTime: performance.now(), duration: 1200 };
       setTimeout(() => {
         state.screen = 'game';
+        state.titleToGame = null;
         titleMusic.pause();
         titleMusic.currentTime = 0;
-        state.titleFade = null;
-        state.screenFade = { type: 'in', startTime: performance.now(), duration: 600 };
-      }, 600);
+      }, 1200);
       e.preventDefault();
     }
     return;
@@ -1563,7 +1562,7 @@ function drawTitle() {
       loaded: false,
       frameW: 100, frameH: 100, frameCount: 100,
       cx: W * 0.50, cy: H * 0.55, scale: 0.6, // centered, drawn behind save slots
-      rotSpeed: 1.538, // frames per second (~65 sec full rotation)
+      rotSpeed: 1.333, // frames per second (~75 sec full rotation)
     };
     drawTitle._spritePlanet.img.onload = () => { drawTitle._spritePlanet.loaded = true; };
     drawTitle._spritePlanet.img.src = 'sprites/planet.png?v=' + Date.now();
@@ -1805,18 +1804,8 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.12', W - 8, H - 8);
+  ctx.fillText('v1.13', W - 8, H - 8);
   ctx.textAlign = 'left';
-  
-  // Fade out overlay when starting game
-  if (state.titleFade) {
-    const elapsed = now - state.titleFade.startTime;
-    const alpha = Math.min(1, elapsed / state.titleFade.duration);
-    ctx.fillStyle = '#000000';
-    ctx.globalAlpha = alpha;
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 1;
-  }
 }
 function drawCombat() {
   const c = state.combat;
@@ -2606,7 +2595,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.12', canvas.width - 8, 14);
+  ctx.fillText('v1.13', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3133,6 +3122,21 @@ function gameLoop(time) {
     // Mute wind on title
     if (windNode) windNode.gain.gain.value = 0;
     drawTitle();
+    // If transitioning to game, draw game on top with increasing alpha
+    if (state.titleToGame) {
+      const elapsed = performance.now() - state.titleToGame.startTime;
+      const progress = Math.min(1, elapsed / state.titleToGame.duration);
+      // Ease in (SmoothStart)
+      const alpha = progress * progress;
+      // Draw game underneath at partial alpha
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      draw();
+      if (state.inventoryOpen && !state.combat) drawInventory();
+      if (state.combat) drawCombat();
+      if (state.dialogue) drawDialogue();
+      ctx.restore();
+    }
     requestAnimationFrame(gameLoop);
     return;
   }
