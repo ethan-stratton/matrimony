@@ -475,7 +475,7 @@ function tryMove(dx, dy) {
   // Collision check
   if (state.collision[ny][nx] !== 0) return;
   // Entity collision — block movement but don't auto-interact
-  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !state.openedChests[e.id]);
+  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id]);
   if (blocking) {
     state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
     return;
@@ -539,11 +539,8 @@ function interact() {
 
 function handleEntityContact(entity) {
   if (entity.type === 'Enemy1') {
-    startCombat(entity, {
-      name: 'Fire Elemental',
-      maxHp: 20, hp: 20,
-      eff: 8, def: 3, wait: 5,
-    });
+    const data = ENEMY_DATA['Enemy1'];
+    startCombat(entity, data);
   } else if (entity.type === 'Chest') {
     if (!state.openedChests[entity.id]) {
       state.openedChests[entity.id] = true;
@@ -897,8 +894,9 @@ function drawCombat() {
   ctx.fillRect(infoX, barY, Math.round(barW * hpRatio), barH);
   drawGoldOutline(infoX - 2, barY - 2, barW + 4, barH + 4, 4);
   
-  // Enemy action display — only shown after player commits (waiting)
-  if (c.enemyAction && (c.waiting || c.playerAttackAnim || c.enemyReactAnim)) {
+  // Enemy action display — hidden on first exchange until player commits, always visible after
+  const showEnemyAction = c.enemyAction && (c.enemyActionRevealed || c.waiting || c.playerAttackAnim || c.enemyReactAnim);
+  if (showEnemyAction) {
     const act = COMBAT_ACTIONS[c.enemyAction] || {};
     crispText(c.enemyAction, infoX + barW + 12, barY - 8, 32, '#d0c0a0');
     const statY = barY + barH + 11;
@@ -1358,7 +1356,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v0.57', canvas.width - 8, 14);
+  ctx.fillText('v0.58', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -1905,9 +1903,14 @@ function gameLoop(time) {
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
         }
-        // Clear enemy action. New action picked when player next attacks.
-        c.enemyAction = null;
-        c.enemyWaiting = false;
+        // Enemy immediately picks next action (always visible after first exchange)
+        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
+        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
+        c.enemyActionIndex++;
+        const nextAct = COMBAT_ACTIONS[c.enemyAction] || {};
+        c.enemyWaitCountdown = nextAct.wait || 5;
+        c.enemyWaiting = true;
+        c.enemyActionRevealed = true;
       }
     }
     
