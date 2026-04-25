@@ -554,6 +554,7 @@ const state = {
   burnParticles: [], // { x, y, vx, vy, life, size } — fire elemental particles
   wasWalking: false,
   justStartedRunning: false,
+  currentMoveDuration: 230, // smoothed move duration for momentum transitions
   // Smooth camera position (in tile coords, fractional)
   smoothX: 0,
   smoothY: 0,
@@ -1304,7 +1305,10 @@ function tryMove(dx, dy) {
   state.wasWalking = !keys['Shift'];
   state.moving = true;
   state.moveTimer = 0;
-  state.lockedMoveDuration = getMoveDuration(); // lock duration at start — prevents mid-step speed change
+  // Momentum: blend toward target duration instead of snapping (prevents Shift-spam jitter)
+  const targetDuration = getMoveDuration();
+  state.currentMoveDuration += (targetDuration - state.currentMoveDuration) * 0.4;
+  state.lockedMoveDuration = Math.round(state.currentMoveDuration);
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
   // Scale duration by step size (half step = half duration)
@@ -2297,7 +2301,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.54', W - 8, H - 8);
+  ctx.fillText('v1.55', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3304,7 +3308,7 @@ function draw() {
         const bounceY = barkAge < 200 ? -8 * (1 - (barkAge/200) * (barkAge/200)) : 0;
         ctx.globalAlpha = Math.max(0, barkAlpha);
         const barkGradient = [[0, '#f0d060'], [0.35, '#ffe8a0'], [0.5, '#fffff0'], [0.65, '#ffe8a0'], [1, '#c89830']];
-        crispGradientText('!', sx + TILE * SCALE / 2 - 4, sy - 28 + bounceY, 32, barkGradient, 0, CRISP_FONT);
+        crispGradientText('!', sx + TILE * SCALE / 2 - 5, sy - 29 + bounceY, 32, barkGradient, 0, CRISP_FONT);
         ctx.globalAlpha = 1;
       }
     }
@@ -3346,15 +3350,25 @@ function draw() {
       const fx = Math.round((f.x - camX) * TILE * SCALE);
       const fy = Math.round((f.y - camY) * TILE * SCALE);
       if (isFireElemental) {
-        // Orange glow
-        ctx.globalAlpha = alpha * 0.4;
+        // Scorched ground — dark charred patch under each footstep
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.fillStyle = '#0a0400';
+        if (f.side === 0) {
+          ctx.fillRect(fx + 6, fy + 18, 7, 5);
+          ctx.fillRect(fx + 15, fy + 22, 7, 5);
+        } else {
+          ctx.fillRect(fx + 6, fy + 22, 7, 5);
+          ctx.fillRect(fx + 15, fy + 18, 7, 5);
+        }
+        // Orange glow around scorch
+        ctx.globalAlpha = alpha * 0.3;
         ctx.fillStyle = '#ff6600';
         if (f.side === 0) {
-          ctx.fillRect(fx + 6, fy + 17, 8, 7);
-          ctx.fillRect(fx + 16, fy + 22, 8, 7);
+          ctx.fillRect(fx + 5, fy + 17, 9, 7);
+          ctx.fillRect(fx + 14, fy + 21, 9, 7);
         } else {
-          ctx.fillRect(fx + 6, fy + 22, 8, 7);
-          ctx.fillRect(fx + 16, fy + 17, 8, 7);
+          ctx.fillRect(fx + 5, fy + 21, 9, 7);
+          ctx.fillRect(fx + 14, fy + 17, 9, 7);
         }
         // Charred footprint
         ctx.globalAlpha = alpha;
@@ -3550,7 +3564,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.54', canvas.width - 8, 14);
+  ctx.fillText('v1.55', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
