@@ -1246,7 +1246,7 @@ function tryMove(dx, dy) {
   // Collision check with adaptive step
   let blocked = isTileBlocked(nx, ny, state.canFly);
   
-  if (blocked && isOnGrid && state.fineCollision) {
+  if (blocked && state.fineCollision) {
     // Full tile blocked — try half step
     const halfNx = px + dx * half, halfNy = py + dy * half;
     if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
@@ -1294,11 +1294,11 @@ function tryMove(dx, dy) {
   
   if (blocked) return;
   
-  // Entity collision — block movement but don't auto-interact
+  // Entity collision — check 1×1 box overlap
   const blocking = state.entities.find(e => {
     if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
-    // Check if entity tile overlaps with destination
-    return Math.floor(e.x) === Math.floor(nx) && Math.floor(e.y) === Math.floor(ny);
+    // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
+    return nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y;
   });
   if (blocking) {
     state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
@@ -2302,7 +2302,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.42', W - 8, H - 8);
+  ctx.fillText('v1.43', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3456,7 +3456,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.42', canvas.width - 8, 14);
+  ctx.fillText('v1.43', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
