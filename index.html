@@ -669,7 +669,7 @@ function updateCamera() {
 function getPlayerVisualPos() {
   if (!state.moving) return { x: state.player.x, y: state.player.y };
   const stepScale = state.moveStepScale || 1;
-  let t = Math.min(1, state.moveTimer / (getMoveDuration() * stepScale));
+  let t = Math.min(1, state.moveTimer / ((state.lockedMoveDuration || getMoveDuration()) * stepScale));
   // SmoothStart (t^2) easing when transitioning from walk to run
   if (state.justStartedRunning) t = t * t;
   // Linear interpolation for chained movement (no decel pulse between steps)
@@ -1301,6 +1301,7 @@ function tryMove(dx, dy) {
   state.wasWalking = !keys['Shift'];
   state.moving = true;
   state.moveTimer = 0;
+  state.lockedMoveDuration = getMoveDuration(); // lock duration at start — prevents mid-step speed change
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
   // Scale duration by step size (half step = half duration)
@@ -1329,7 +1330,7 @@ function handleMovement(now) {
   if (state.moving) {
     state.moveTimer += dt;
     const stepScale = state.moveStepScale || 1;
-    if (state.moveTimer >= getMoveDuration() * stepScale) {
+    if (state.moveTimer >= (state.lockedMoveDuration || getMoveDuration()) * stepScale) {
       state.moving = false;
       state.justStartedRunning = state.wasWalking && keys['Shift'];
       // Chain movement immediately if key held — no gap between steps
@@ -2293,7 +2294,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.50', W - 8, H - 8);
+  ctx.fillText('v1.51', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2402,8 +2403,8 @@ function drawCombat() {
   const bgPreset = ENEMY_BG[c.enemy.type] || 'Giygas';
   drawEBBackground(ctx, 0, arenaY, W, arenaH, bgPreset);
   
-  const playerCombatSize = 64;
-  const enemyCombatSize = 64;
+  const playerCombatSize = 80;
+  const enemyCombatSize = 48;
   const groundY = arenaY + Math.round(arenaH * 0.82);
   
   // Camera: smooth easing between positions
@@ -3164,10 +3165,19 @@ function updateEnemyAI(time) {
       if (!e.footsteps) e.footsteps = [];
       e.footsteps.push({ x: e.prevX, y: e.prevY, time: time, side: e.footsteps.length % 2 });
       if (e.footsteps.length > 8) e.footsteps.shift();
-      // Spawn burn particles for Fire Elemental
+      // Spawn burn particles for Fire Elemental — two footsteps + embers
       if (e.type === 'Enemy1') {
-        for (let bp = 0; bp < 3; bp++) {
-          state.burnParticles.push({ x: e.x + 0.5, y: e.y + 0.5, vx: (Math.random()-0.5)*0.3, vy: -Math.random()*0.5-0.2, life: 1.0, size: 2+Math.random()*2 });
+        // Left foot fire burst
+        for (let bp = 0; bp < 2; bp++) {
+          state.burnParticles.push({ x: e.x + 0.25, y: e.y + 0.7, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.0, size: 2+Math.random()*2 });
+        }
+        // Right foot fire burst
+        for (let bp = 0; bp < 2; bp++) {
+          state.burnParticles.push({ x: e.x + 0.75, y: e.y + 0.8, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.0, size: 2+Math.random()*2 });
+        }
+        // Embers floating with wind (rightward, matching ambient wind)
+        for (let bp = 0; bp < 2; bp++) {
+          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 1.5, size: 1+Math.random()*1.5, ember: true });
         }
       }
       e.x += bestDir.dx;
@@ -3333,12 +3343,16 @@ function draw() {
     const p = state.burnParticles[i];
     p.x += p.vx * 0.016;
     p.y += p.vy * 0.016;
-    p.life -= 0.02;
+    p.life -= p.ember ? 0.012 : 0.02;
     if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
     const px = Math.round((p.x - camX) * TILE * SCALE);
     const py = Math.round((p.y - camY) * TILE * SCALE);
-    ctx.globalAlpha = p.life * 0.7;
-    ctx.fillStyle = p.life > 0.5 ? '#ff4400' : '#ff8800';
+    ctx.globalAlpha = Math.min(p.life, 1.0) * 0.7;
+    if (p.ember) {
+      ctx.fillStyle = p.life > 0.7 ? '#ffcc00' : '#ff8800';
+    } else {
+      ctx.fillStyle = p.life > 0.5 ? '#ff4400' : '#ff8800';
+    }
     ctx.beginPath();
     ctx.arc(px, py, p.size, 0, Math.PI * 2);
     ctx.fill();
@@ -3487,7 +3501,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.50', canvas.width - 8, 14);
+  ctx.fillText('v1.51', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
