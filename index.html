@@ -847,8 +847,29 @@ document.addEventListener('keydown', (e) => {
           state.inventoryOrdering = state.inventorySelected || 0;
           state.inventorySubMenu = false;
           playTick();
+        } else if (subSel === 2) {
+          // Drop — remove item from inventory
+          const items = getInventoryActions();
+          const item = items[state.inventorySelected || 0];
+          if (item && item !== 'Punch' && item !== 'Kick' && item !== 'Defend') {
+            // Remove from inventory
+            const idx = state.inventory.indexOf(item);
+            if (idx !== -1) state.inventory.splice(idx, 1);
+            // Remove from actionOrder
+            if (state.actionOrder) {
+              const oi = state.actionOrder.indexOf(item);
+              if (oi !== -1) state.actionOrder.splice(oi, 1);
+            }
+            playHit(false);
+          }
+          state.inventorySubMenu = false;
+          // Clamp selection
+          const newItems = getInventoryActions();
+          if ((state.inventorySelected || 0) >= newItems.length) {
+            state.inventorySelected = Math.max(0, newItems.length - 1);
+          }
         } else {
-          // Lv Up / Drop — placeholder
+          // Lv Up — placeholder
           state.inventorySubMenu = false;
         }
       } else {
@@ -2100,7 +2121,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.28', W - 8, H - 8);
+  ctx.fillText('v1.29', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3195,7 +3216,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.28', canvas.width - 8, 14);
+  ctx.fillText('v1.29', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3645,7 +3666,7 @@ function drawPlayer(ctx, x, y) {
   const animName = (state.moving ? 'walk_' : 'idle_') + dir;
   const anim = PLAYER_SHEET.anims[animName];
   const isRunning = state.moving && keys['Shift'];
-  const speed = state.moving ? (isRunning ? 60 : 120) : 400;
+  const speed = state.moving ? (isRunning ? 100 : 120) : 400;
   const frame = Math.floor(performance.now() / speed) % anim.frames;
   
   const srcX = frame * PLAYER_SHEET.frameW;
