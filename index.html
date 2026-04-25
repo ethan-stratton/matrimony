@@ -288,6 +288,7 @@ const EB_PALETTES = {
   neon: [[255,0,100],[255,0,255],[100,0,255],[0,100,255],[0,255,200],[0,255,100],[255,255,0],[255,0,100]],
   ocean: [[0,5,30],[0,20,80],[0,60,140],[0,120,180],[40,180,220],[120,220,255],[200,240,255],[40,180,220]],
   psychedelic: [[148,0,211],[75,0,130],[0,0,255],[0,255,0],[255,255,0],[255,127,0],[255,0,0],[148,0,211]],
+  frost: [[10,20,40],[20,50,100],[40,100,160],[80,160,220],[140,210,250],[200,235,255],[240,248,255],[140,210,250]],
   candy: [[255,100,150],[255,150,200],[200,150,255],[150,200,255],[150,255,200],[200,255,150],[255,255,150],[255,200,150]],
   aurora: [[0,10,20],[0,40,40],[0,120,80],[0,200,100],[80,255,140],[0,200,180],[40,80,160],[0,20,60]],
 };
@@ -305,10 +306,14 @@ const EB_PRESETS = {
     l1: { palette: 'void', distType: 2, amp: 8, freq: 0.05, speed: 0.04, scrollX: 0, scrollY: 0.8, palSpeed: 0.5, scale: 1.0 },
     l2: { palette: 'ocean', distType: 1, amp: 4, freq: 0.03, speed: 0.02, scrollX: 0.3, scrollY: -0.3, palSpeed: 0.8, scale: 1.8, opacity: 0.35 }
   },
+  'Frozen': {
+    l1: { palette: 'frost', distType: 1, amp: 6, freq: 0.03, speed: 0.008, scrollX: -0.2, scrollY: 0.5, palSpeed: 0.3, scale: 1.0 },
+    l2: { palette: 'ocean', distType: 2, amp: 10, freq: 0.025, speed: 0.015, scrollX: 0.4, scrollY: -0.2, palSpeed: 0.6, scale: 1.5, opacity: 0.45 }
+  },
 };
 
 // Map enemy types to background presets
-const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Giygas' };
+const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Frozen' };
 
 function ebSampleColors(colors, t) {
   const n = colors.length;
@@ -474,6 +479,8 @@ function saveGame(slot) {
     defeatedEnemies: state.defeatedEnemies,
     encounterCounts: state.encounterCounts || {},
     playerHp: 30, // TODO: track persistent HP
+    playerExp: state.player.exp || 0,
+    playerSteps: state.player.totalSteps || 0,
     timestamp: Date.now(),
   };
   try {
@@ -511,6 +518,8 @@ async function applySave(slot) {
   state.openedChests = data.openedChests || {};
   state.defeatedEnemies = data.defeatedEnemies || {};
   state.encounterCounts = data.encounterCounts || {};
+  state.player.exp = data.playerExp || 0;
+  state.player.totalSteps = data.playerSteps || 0;
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
   state.footsteps = [];
@@ -1047,6 +1056,12 @@ document.addEventListener('keydown', (e) => {
       const c = state.combat;
       // Win state — Z exits immediately
       if (c.winState) {
+        // Award EXP
+        const expReward = ENEMY_DATA[c.enemy.type]?.exp || 0;
+        if (expReward > 0) {
+          if (!state.player.exp) state.player.exp = 0;
+          state.player.exp += expReward;
+        }
         // Start death animation on the enemy entity
         const ent = state.entities.find(en => en.id === c.enemy.id);
         if (ent) ent.deathAnim = { startTime: performance.now() };
@@ -1421,6 +1436,10 @@ function tryMove(dx, dy) {
   if (state.footsteps.length > 12) state.footsteps.shift();
   state.player.x = nx;
   state.player.y = ny;
+  // Track total steps for weapon transformations
+  if (!state.player.totalSteps) state.player.totalSteps = 0;
+  state.player.totalSteps++;
+  checkWeaponTransformations();
   // Only play footstep if a direction key is currently held
   if (keys['ArrowLeft'] || keys['ArrowRight'] || keys['ArrowUp'] || keys['ArrowDown']) {
     playFootstep();
@@ -1752,6 +1771,7 @@ const ENEMY_DATA = {
     name: 'Fire Elemental',
     sprite: 'Enemy1',
     maxHp: 220, eff: 10, def: 2, wait: 12,
+    exp: 10,
     actions: ['Charging...', 'Fire Punch'],
     startsWithCharge: true,
   },
@@ -1759,7 +1779,8 @@ const ENEMY_DATA = {
     name: 'Ice Golem',
     sprite: 'Enemy2',
     maxHp: 300, eff: 8, def: 5, wait: 16,
-    actions: ['Frost Guard', 'Ice Shard', 'Charging...', 'Frost Slam'],
+    exp: 15,
+    actions: ['Guard', 'Ice Shard', 'Charging...', 'Frost Slam'],
     startsWithCharge: true,
     ai: 'smart',
     patrolRange: 10,
@@ -1847,6 +1868,32 @@ function exitCombat(ranAway) {
   state.combat = null;
 }
 
+// Weapon transformations — conditions and effects
+const WEAPON_TRANSFORMATIONS = {
+  'Shortbow': { condition: 'steps', threshold: 10, newName: 'Shortbow ★', effect: 'pierce1', description: 'Walk 10 steps with Shortbow' },
+};
+
+function checkWeaponTransformations() {
+  if (!state.inventory) return;
+  for (let i = 0; i < state.inventory.length; i++) {
+    const item = state.inventory[i];
+    const tf = WEAPON_TRANSFORMATIONS[item];
+    if (!tf) continue;
+    if (tf.condition === 'steps' && (state.player.totalSteps || 0) >= tf.threshold) {
+      state.inventory[i] = tf.newName;
+      // Register the transformed weapon's combat action
+      const base = COMBAT_ACTIONS[item] || {};
+      COMBAT_ACTIONS[tf.newName] = { ...base, pierce: tf.effect === 'pierce1' ? 1 : base.pierce };
+      // Update action order if it references the old name
+      if (state.actionOrder) {
+        state.actionOrder = state.actionOrder.map(a => a === item ? tf.newName : a);
+      }
+      // Visual notification
+      state.saveFeedback = { text: item + ' → ' + tf.newName + '!', startTime: performance.now(), duration: 2500 };
+    }
+  }
+}
+
 // Combat action data
 const COMBAT_ACTIONS = {
   'Punch':    { eff: 8, def: 4, wait: 4 },
@@ -1857,7 +1904,7 @@ const COMBAT_ACTIONS = {
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 3, wait: 6 },
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
-  'Frost Guard': { eff: 0, def: 12, wait: 10 },
+  'Guard': { eff: 0, def: 12, wait: 10 },
   'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
   'Frost Slam':  { eff: 12, def: 3, wait: 10 },
 };
@@ -1870,7 +1917,7 @@ const COMBAT_ACTIONS = {
     // Override weapons/actions
     if (ed.weapons) {
       for (const w of ed.weapons) {
-        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0 };
+        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0, pierce: !!w.pierce };
       }
     }
     // Override enemies
@@ -1881,7 +1928,7 @@ const COMBAT_ACTIONS = {
           const name = typeof a === 'string' ? a : a.name;
           // Also register enemy action stats
           if (typeof a === 'object' && a.name) {
-            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0 };
+            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0, pierce: !!a.pierce };
           }
           return name;
         });
@@ -2711,7 +2758,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.84', W - 8, H - 8);
+  ctx.fillText('v1.85', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2973,6 +3020,16 @@ function drawCombat() {
     ctx.globalAlpha = 1;
   }
   
+  // Draw player bark (non-damaging move like Defend)
+  if (c.playerBark) {
+    const bt = (now - c.playerBark.startTime) / c.playerBark.duration;
+    const bAlpha = bt < 0.1 ? bt / 0.1 : bt > 0.7 ? (1 - bt) / 0.3 : 1;
+    const bobY = -Math.sin(bt * Math.PI) * 6;
+    ctx.globalAlpha = Math.max(0, bAlpha);
+    crispText(c.playerBark.text, playerArenaX + playerCombatSize / 2 - 30, playerArenaY - 20 + bobY, 32, '#80d0ff');
+    ctx.globalAlpha = 1;
+  }
+  
   // Draw player (facing left)
   if (PLAYER_SHEET.loaded) {
     const anim = PLAYER_SHEET.anims[playerAttacking ? 'walk_right' : 'idle_right'];
@@ -3216,6 +3273,15 @@ function drawCombat() {
     ];
     const clampedStops = winStops.map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
     crispGradientText('You Win!', Math.round(W / 2) - 60, textY, 32, clampedStops, 0, 'Pixelify Sans');
+    
+    // Show EXP gained
+    const expReward = ENEMY_DATA[c.enemy.type]?.exp || 0;
+    if (expReward > 0 && wt > 0.5) {
+      const expAlpha = Math.min(1, (wt - 0.5) * 3);
+      ctx.globalAlpha = expAlpha;
+      crispText('+' + expReward + ' EXP', Math.round(W / 2) - 40, textY + 36, 24, '#a0e0ff', 0, 'Pixelify Sans');
+      ctx.globalAlpha = 1;
+    }
   }
   
   // Explosion animation (over player portrait area)
@@ -4100,7 +4166,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.84', canvas.width - 8, 14);
+  ctx.fillText('v1.85', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4702,7 +4768,8 @@ function gameLoop(time) {
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          const dmg = Math.max(0, (act.eff || 0) - (act.pierce ? 0 : (enemyAct.def || 0)));
+          const pierceDmg = typeof act.pierce === 'number' ? act.pierce : 0;
+          const dmg = act.pierce === true ? (act.eff || 0) : Math.max(pierceDmg, (act.eff || 0) - (enemyAct.def || 0));
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           playHit(false);
           if (c.enemyHp <= 0 && !c.winState) {
@@ -4710,6 +4777,19 @@ function gameLoop(time) {
           }
         }
         // PAUSE — player picks new action. Enemy keeps their countdown (frozen during pause).
+        c.phase = 'action';
+        c.waiting = false;
+        c.attackText = null;
+        c.waitCountdown = -1;
+      }
+    }
+    
+    // Update player bark (non-damaging move like Defend — no rush, just text)
+    if (c.playerBark) {
+      const t = time - c.playerBark.startTime;
+      if (t >= c.playerBark.duration) {
+        c.playerBark = null;
+        // No damage — just return to action select
         c.phase = 'action';
         c.waiting = false;
         c.attackText = null;
@@ -4726,7 +4806,8 @@ function gameLoop(time) {
         // Apply damage to player — player ALWAYS has def from their queued action
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
-        const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (enemyAct.pierce ? 0 : (playerAct.def || 0)));
+        const ePierceDmg = typeof enemyAct.pierce === 'number' ? enemyAct.pierce : 0;
+        const enemyDmg = enemyAct.pierce === true ? (enemyAct.eff || 0) : Math.max(ePierceDmg, (enemyAct.eff || 0) - (playerAct.def || 0));
         // Screen shake on ANY hit (stronger if damage, lighter if blocked)
         c.screenShake = { startTime: time, duration: enemyDmg > 0 ? 400 : 200, intensity: enemyDmg > 0 ? 6 : 3 };
         // Explosion effect for fire-type attacks
@@ -4775,7 +4856,7 @@ function gameLoop(time) {
       c.hitstop = null;
     // Tick system — ticks when both committed, not during animations
     const anyCountdown = (c.waitCountdown > 0) || (c.enemyWaitCountdown > 0);
-    const animPlaying = c.playerAttackAnim || c.enemyAttackAnim || c.enemyBark;
+    const animPlaying = c.playerAttackAnim || c.playerBark || c.enemyAttackAnim || c.enemyBark;
     if (c.waiting && c.enemyWaiting && anyCountdown && !animPlaying && !c.winState) {
       const dt = time - c.lastWaitTick;
       c.lastWaitTick = time;
@@ -4790,12 +4871,18 @@ function gameLoop(time) {
         if (c.enemyWaitCountdown > 0) c.enemyWaitCountdown--;
         
         // Player hit zero first (or tie — player priority)
-        if (c.waitCountdown <= 0 && !c.playerAttackAnim) {
+        if (c.waitCountdown <= 0 && !c.playerAttackAnim && !c.playerBark) {
           c.waitAccumulator = 0;
-          c.playerAttackAnim = {
-            startTime: time,
-            rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-          };
+          const pAct = COMBAT_ACTIONS[c.attackText || ''] || {};
+          if ((pAct.eff || 0) === 0) {
+            // Non-damaging move (Defend, etc.) — bark instead of rushing
+            c.playerBark = { text: c.attackText, startTime: time, duration: 800 };
+          } else {
+            c.playerAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          }
         }
         // Enemy hit zero
         else if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark) {
