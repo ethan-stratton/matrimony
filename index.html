@@ -179,14 +179,14 @@ function playFootstep() {
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  gain.gain.value = 0.12;
+  gain.gain.value = 0.114;
   osc.connect(gain);
   gain.connect(ac.destination);
   const t = ac.currentTime;
   osc.start(t);
   osc.stop(t + 0.07);
   // Fade out manually
-  gain.gain.setValueAtTime(0.12, t);
+  gain.gain.setValueAtTime(0.114, t);
   gain.gain.linearRampToValueAtTime(0, t + 0.07);
 }
 function playTick() {
@@ -2643,7 +2643,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.80', W - 8, H - 8);
+  ctx.fillText('v1.81', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3468,6 +3468,18 @@ function updateEnemyAI(time) {
         state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: (Math.random()-0.5)*0.15, vy: Math.random()*0.2+0.05, life: 1.8, initialLife: 1.8, size: 1, ice: true });
       }
     }
+    // Ice golem: periodic steam breath
+    if (e.type === 'Enemy2') {
+      if (!e._lastBreathTime) e._lastBreathTime = time;
+      if (time - e._lastBreathTime > 2500 + Math.random() * 1500) {
+        e._lastBreathTime = time;
+        for (let bp = 0; bp < 3; bp++) {
+          const bx = e.facing === 'left' ? -0.15 : e.facing === 'right' ? 1.15 : 0.5;
+          const by = 0.15 + bp * 0.05;
+          state.burnParticles.push({ x: e.x + bx + (Math.random()-0.5)*0.1, y: e.y + by, vx: (e.facing === 'left' ? -0.3 : e.facing === 'right' ? 0.3 : (Math.random()-0.5)*0.2), vy: -Math.random()*0.2-0.1, life: 1.0 + Math.random()*0.5, initialLife: 1.5, size: 1, steam: true });
+        }
+      }
+    }
 
     const px = state.player.x;
     const py = state.player.y;
@@ -3567,16 +3579,13 @@ function updateEnemyAI(time) {
       if (!e.footsteps) e.footsteps = [];
       e.footsteps.push({ x: e.prevX, y: e.prevY, time: time, side: e.footsteps.length % 2 });
       if (e.footsteps.length > 8) e.footsteps.shift();
-      // Spawn burn particles for Fire Elemental — two footsteps + embers
+      // Spawn burn particles for Fire Elemental — alternating footstep + embers
       if (e.type === 'Enemy1') {
-        // Left foot fire burst
-        for (let bp = 0; bp < 1; bp++) {
-          state.burnParticles.push({ x: e.x + 0.25, y: e.y + 0.7, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
-        }
-        // Right foot fire burst
-        for (let bp = 0; bp < 1; bp++) {
-          state.burnParticles.push({ x: e.x + 0.75, y: e.y + 0.8, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
-        }
+        const side = e.footsteps ? e.footsteps.length % 2 : 0;
+        // Active foot fire burst (alternates left/right)
+        const footX = side === 0 ? 0.25 : 0.75;
+        const footY = side === 0 ? 0.7 : 0.8;
+        state.burnParticles.push({ x: e.x + footX, y: e.y + footY, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
         // Big random fire chunks on movement
         state.burnParticles.push({ x: e.x + Math.random(), y: e.y + 0.5 + Math.random()*0.3, vx: (Math.random()-0.5)*0.5, vy: -Math.random()*0.6-0.3, life: 2.0, initialLife: 2.0, size: 1 });
         // Embers floating with wind (rightward, matching ambient wind)
@@ -3584,12 +3593,12 @@ function updateEnemyAI(time) {
           state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, initialLife: 2.5, size: 1+Math.random()*1.5, ember: true });
         }
       }
-      // Spawn ice particles for Ice Golem — snow flakes falling off
+      // Spawn ice particles for Ice Golem — alternating snow puffs
       if (e.type === 'Enemy2') {
-        // Snow puff from each step
-        for (let bp = 0; bp < 2; bp++) {
-          state.burnParticles.push({ x: e.x + 0.2 + Math.random()*0.6, y: e.y + 0.6 + Math.random()*0.2, vx: (Math.random()-0.5)*0.3, vy: Math.random()*0.15+0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), ice: true });
-        }
+        const side = e.footsteps ? e.footsteps.length % 2 : 0;
+        // Active foot snow puff (alternates)
+        const footX = side === 0 ? 0.25 : 0.65;
+        state.burnParticles.push({ x: e.x + footX, y: e.y + 0.6 + Math.random()*0.2, vx: (Math.random()-0.5)*0.3, vy: Math.random()*0.15+0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), ice: true });
         // Snow flakes drifting off body
         for (let bp = 0; bp < 2; bp++) {
           state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: (Math.random()-0.5)*0.2, vy: Math.random()*0.3+0.1, life: 1.8, initialLife: 1.8, size: 1, ice: true });
@@ -3812,6 +3821,12 @@ function draw() {
       p.x += (p.vx + Math.sin(p.life * 8) * 0.1) * 1.5 * fdt;
       p.y += p.vy * 1.5 * fdt;
       p.life -= 1.2 * fdt;
+    } else if (p.steam) {
+      // Steam: float up slowly, spread out
+      p.x += p.vx * 1.0 * fdt;
+      p.y += p.vy * 1.0 * fdt;
+      p.vx *= (1 - 0.5 * fdt); // slow horizontal drift
+      p.life -= 1.0 * fdt;
     } else if (p.life > p.initialLife * 0.6) {
       p.x += p.vx * 1.44 * fdt;
       p.y += p.vy * 2.88 * fdt;
@@ -3835,6 +3850,10 @@ function draw() {
       if (lifeRatio > 0.8) color = '#eef8ff';
       else if (lifeRatio > 0.4) color = '#a0d8f0';
       else color = '#60a8c8';
+    } else if (p.steam) {
+      if (lifeRatio > 0.6) color = '#e0e8f0';
+      else if (lifeRatio > 0.3) color = '#a0a8b0';
+      else color = '#707880';
     } else if (lifeRatio > 0.95) color = '#ffeecc';
     else if (lifeRatio > 0.5) color = '#ff6600';
     else if (lifeRatio > 0.2) color = '#cc2200';
@@ -4013,7 +4032,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.80', canvas.width - 8, 14);
+  ctx.fillText('v1.81', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {

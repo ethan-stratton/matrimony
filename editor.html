@@ -196,6 +196,17 @@ function defaults() {
           'I remember when your kind feared fire.|I still fear it. I just don\'t run.|...Interesting.',
           'No words this time. Just fight.'
         ]
+      },
+      { name: 'Ice Golem', sprite: 'Enemy2', maxHp: 300, startsWithCharge: true,
+        actions: [
+          { name: 'Charging...', eff: 0, def: 6, wait: 8 },
+          { name: 'Frost Slam', eff: 8, def: 5, wait: 16 }
+        ],
+        dialogue: [
+          '...The cold... consumes.|What are you?|I am what remains... when warmth dies.',
+          'You return... to the frost.|I can handle the cold.|Cold does not care... what you can handle.',
+          '...Still warm... still alive.|For now.|...For now.'
+        ]
       }
     ],
     weapons: [
