@@ -2856,7 +2856,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.07', W - 8, H - 8);
+  ctx.fillText('v2.08', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3757,8 +3757,9 @@ function updateFishStream(time) {
   if (!state.fishSpawnTimer) state.fishSpawnTimer = time;
   if (time - state.fishSpawnTimer > 100) {
     state.fishSpawnTimer = time;
-    const camY = state.cameraY || 0;
-    const viewH = (CANVAS_H / (TILE * SCALE)) || 10;
+    const cam = getCameraOffset();
+    const camY = cam.y;
+    const viewH = CANVAS_H / (TILE * SCALE);
     for (const s of streams) {
       const sw = s.widthTiles || 1;
       const sh = s.heightTiles || 1;
@@ -3823,8 +3824,9 @@ function updateFishStream(time) {
 
 function drawFishStream(ctx) {
   if (!state.fishParticles || state.fishParticles.length === 0) return;
-  const camX = state.cameraX;
-  const camY = state.cameraY;
+  const cam = getCameraOffset();
+  const camX = cam.x;
+  const camY = cam.y;
   const ts = TILE * SCALE;
   
   for (const f of state.fishParticles) {
@@ -4487,7 +4489,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.07', canvas.width - 8, 14);
+  ctx.fillText('v2.08', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
