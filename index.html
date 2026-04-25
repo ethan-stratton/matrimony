@@ -2643,7 +2643,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.79', W - 8, H - 8);
+  ctx.fillText('v1.80', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3460,6 +3460,14 @@ function updateEnemyAI(time) {
         state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, initialLife: 2.0, size: 1, ember: true });
       }
     }
+    // Ice golem: periodic idle snow drift
+    if (e.type === 'Enemy2' && !e.aiMoving) {
+      if (!e._lastSnowTime) e._lastSnowTime = time;
+      if (time - e._lastSnowTime > 500) {
+        e._lastSnowTime = time;
+        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: (Math.random()-0.5)*0.15, vy: Math.random()*0.2+0.05, life: 1.8, initialLife: 1.8, size: 1, ice: true });
+      }
+    }
 
     const px = state.player.x;
     const py = state.player.y;
@@ -3574,6 +3582,17 @@ function updateEnemyAI(time) {
         // Embers floating with wind (rightward, matching ambient wind)
         for (let bp = 0; bp < 1; bp++) {
           state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, initialLife: 2.5, size: 1+Math.random()*1.5, ember: true });
+        }
+      }
+      // Spawn ice particles for Ice Golem — snow flakes falling off
+      if (e.type === 'Enemy2') {
+        // Snow puff from each step
+        for (let bp = 0; bp < 2; bp++) {
+          state.burnParticles.push({ x: e.x + 0.2 + Math.random()*0.6, y: e.y + 0.6 + Math.random()*0.2, vx: (Math.random()-0.5)*0.3, vy: Math.random()*0.15+0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), ice: true });
+        }
+        // Snow flakes drifting off body
+        for (let bp = 0; bp < 2; bp++) {
+          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: (Math.random()-0.5)*0.2, vy: Math.random()*0.3+0.1, life: 1.8, initialLife: 1.8, size: 1, ice: true });
         }
       }
       e.x += bestDir.dx;
@@ -3722,7 +3741,8 @@ function draw() {
   for (const e of state.entities) {
     if (!e.footsteps || state.defeatedEnemies[e.id]) continue;
     const isFireElemental = e.type === 'Enemy1';
-    const fadeMs = isFireElemental ? 6000 : footFadeMs;
+    const isIceGolem = e.type === 'Enemy2';
+    const fadeMs = isFireElemental ? 6000 : isIceGolem ? 5000 : footFadeMs;
     for (let i = e.footsteps.length - 1; i >= 0; i--) {
       const f = e.footsteps[i];
       const age = nowFoot - f.time;
@@ -3754,6 +3774,20 @@ function draw() {
         // Charred footprint
         ctx.globalAlpha = alpha;
         ctx.fillStyle = '#1a0800';
+      } else if (isIceGolem) {
+        // Frost patch on ground
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.fillStyle = '#c0e8ff';
+        if (f.side === 0) {
+          ctx.fillRect(fx + 5, fy + 17, 9, 7);
+          ctx.fillRect(fx + 14, fy + 21, 9, 7);
+        } else {
+          ctx.fillRect(fx + 5, fy + 21, 9, 7);
+          ctx.fillRect(fx + 14, fy + 17, 9, 7);
+        }
+        // Bright ice center
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = '#e8f4ff';
       } else {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = '#3a1510';
@@ -3773,7 +3807,12 @@ function draw() {
   const fdt = frameDt;
   for (let i = state.burnParticles.length - 1; i >= 0; i--) {
     const p = state.burnParticles[i];
-    if (p.life > p.initialLife * 0.6) {
+    if (p.ice) {
+      // Ice particles: gentle drift downward with slight wobble
+      p.x += (p.vx + Math.sin(p.life * 8) * 0.1) * 1.5 * fdt;
+      p.y += p.vy * 1.5 * fdt;
+      p.life -= 1.2 * fdt;
+    } else if (p.life > p.initialLife * 0.6) {
       p.x += p.vx * 1.44 * fdt;
       p.y += p.vy * 2.88 * fdt;
     } else {
@@ -3786,12 +3825,16 @@ function draw() {
     if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
     const px = Math.round((p.x - camX) * TILE * SCALE);
     const py = Math.round((p.y - camY) * TILE * SCALE);
-    // Color: dust = grey, fire = red/orange glow
+    // Color: dust = grey, ice = blue/white, fire = red/orange glow
     let color;
     const lifeRatio = p.life / (p.initialLife || 1.5);
     if (p.dust) {
       if (lifeRatio > 0.5) color = '#a09080';
       else color = '#706050';
+    } else if (p.ice) {
+      if (lifeRatio > 0.8) color = '#eef8ff';
+      else if (lifeRatio > 0.4) color = '#a0d8f0';
+      else color = '#60a8c8';
     } else if (lifeRatio > 0.95) color = '#ffeecc';
     else if (lifeRatio > 0.5) color = '#ff6600';
     else if (lifeRatio > 0.2) color = '#cc2200';
@@ -3970,7 +4013,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.79', canvas.width - 8, 14);
+  ctx.fillText('v1.80', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
