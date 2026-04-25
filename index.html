@@ -845,18 +845,21 @@ document.addEventListener('keydown', (e) => {
     if (!state.flying) {
       // Takeoff animation
       state.moving = false;
+      const startFacingIdx = ['down', 'left', 'up', 'right'].indexOf(state.facing);
       state.flyTransition = {
         type: 'takeoff',
         startTime: performance.now(),
         duration: 500,
         originX: state.player.x,
-        originY: state.player.y
+        originY: state.player.y,
+        startFacing: startFacingIdx >= 0 ? startFacingIdx : 0
       };
     } else {
       // Landing animation — spiral down to nearest tile
       const snapX = Math.round(state.flyX);
       const snapY = Math.round(state.flyY);
       if (!isTileBlocked(snapX, snapY, false)) {
+        const startFacingIdx = ['down', 'left', 'up', 'right'].indexOf(state.facing);
         state.flyTransition = {
           type: 'landing',
           startTime: performance.now(),
@@ -864,7 +867,8 @@ document.addEventListener('keydown', (e) => {
           originX: state.flyX,
           originY: state.flyY,
           targetX: snapX,
-          targetY: snapY
+          targetY: snapY,
+          startFacing: startFacingIdx >= 0 ? startFacingIdx : 0
         };
       }
     }
@@ -1451,17 +1455,32 @@ function handleMovement(now) {
       }
       state.flyTransition = null;
     } else {
-      // Cycle facing during transitions so sprite looks like it's turning
+      // Cycle facing from current direction so sprite looks like it's turning
       const ft2 = state.flyTransition;
       const t2 = Math.min(1, (now - ft2.startTime) / ft2.duration);
       const dirs = ['down', 'left', 'up', 'right'];
-      state.facing = dirs[Math.floor(t2 * 4) % 4];
+      const startIdx = ft2.startFacing || 0;
+      state.facing = dirs[(startIdx + Math.floor(t2 * 4)) % 4];
     }
     return; // block all movement during transition
   }
 
   // Flying mode — velocity-based 8-way movement with momentum
   if (state.flying) {
+    // Block flight input during inventory/dialogue/combat
+    if (state.inventoryOpen || state.dialogue || state.combat || state.combatTransition) {
+      // Still apply drag so you slow to a stop
+      state.flyVx *= 0.92;
+      state.flyVy *= 0.92;
+      if (Math.abs(state.flyVx) < 0.0001) state.flyVx = 0;
+      if (Math.abs(state.flyVy) < 0.0001) state.flyVy = 0;
+      state.flyX += state.flyVx * dt;
+      state.flyY += state.flyVy * dt;
+      state.player.x = state.flyX;
+      state.player.y = state.flyY;
+      state.flyBobTimer += dt;
+      return;
+    }
     state.flyBobTimer += dt;
     const maxSpeed = keys['Shift'] ? 0.009 : 0.006;
     const accel = 0.00003; // acceleration per ms
@@ -2574,7 +2593,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.67', W - 8, H - 8);
+  ctx.fillText('v1.68', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3864,7 +3883,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.67', canvas.width - 8, 14);
+  ctx.fillText('v1.68', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4312,7 +4331,7 @@ function drawPlayer(ctx, x, y) {
   if (dir === 'left') { dir = 'right'; flip = true; }
   
   const animName = (state.moving ? 'walk_' : 'idle_') + dir;
-  const anim = PLAYER_SHEET.anims[animName];
+  const anim = PLAYER_SHEET.anims[animName] || PLAYER_SHEET.anims['idle_down'];
   const isRunning = state.moving && keys['Shift'];
   const speed = state.moving ? (isRunning ? 100 : 120) : 400;
   const frame = Math.floor(performance.now() / speed) % anim.frames;
