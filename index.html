@@ -1243,20 +1243,32 @@ function tryMove(dx, dy) {
     }
   }
   
-  // Re-align to full grid when possible (movement axis only — never move diagonally)
+  // Re-align to full grid when possible
   if (!blocked) {
+    // Snap MOVEMENT axis to nearest full tile in move direction
     if (dx !== 0 && px % 1 !== 0) {
-      // Moving horizontally, X is at half — try full step to re-align
-      const fullNx = px + dx;
-      if (!isTileBlocked(fullNx, py, state.canFly)) {
-        nx = fullNx; stepX = dx;
+      const snapX = dx > 0 ? Math.ceil(px) : Math.floor(px);
+      if (!isTileBlocked(snapX, py, state.canFly)) {
+        nx = snapX;
       }
     }
     if (dy !== 0 && py % 1 !== 0) {
-      // Moving vertically, Y is at half — try full step to re-align
-      const fullNy = py + dy;
-      if (!isTileBlocked(px, fullNy, state.canFly)) {
-        ny = fullNy; stepY = dy;
+      const snapY = dy > 0 ? Math.ceil(py) : Math.floor(py);
+      if (!isTileBlocked(px, snapY, state.canFly)) {
+        ny = snapY;
+      }
+    }
+    // Snap PERPENDICULAR axis back to grid when destination is clear
+    if (dx !== 0 && py % 1 !== 0) {
+      const snapY = Math.round(py);
+      if (!isTileBlocked(nx, snapY, state.canFly)) {
+        ny = snapY;
+      }
+    }
+    if (dy !== 0 && px % 1 !== 0) {
+      const snapX = Math.round(px);
+      if (!isTileBlocked(snapX, ny, state.canFly)) {
+        nx = snapX;
       }
     }
   }
@@ -2271,7 +2283,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.40', W - 8, H - 8);
+  ctx.fillText('v1.41', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3425,7 +3437,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.40', canvas.width - 8, 14);
+  ctx.fillText('v1.41', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
