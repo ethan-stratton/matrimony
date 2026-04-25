@@ -232,6 +232,7 @@ function load() {
 }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if(!_initDone) return;
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(()=>{
     _localSaving=true;
@@ -517,14 +518,17 @@ function doImport() {
 }
 
 // ── Init ──
+let _initDone=false;
 renderAll();
-// Firebase real-time listener
+// Firebase real-time listener — source of truth
 dbRef.on('value',snap=>{
   if(_localSaving){_localSaving=false;return}
   const val=snap.val();
   if(val){data=Object.assign(defaults(),val);localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll();_setSyncStatus(true)}
+  else if(_initDone){dbRef.set(data);_setSyncStatus(true)}
   else{dbRef.set(data);_setSyncStatus(true)}
-},()=>{_setSyncStatus(false)});
+  _initDone=true;
+},()=>{_setSyncStatus(false);_initDone=true});
 </script>
 </body>
 </html>

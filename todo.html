@@ -410,6 +410,9 @@ let data;
 function load(){try{const s=localStorage.getItem(STORAGE_KEY);data=s?JSON.parse(s):defaultData()}catch(e){data=defaultData()}}
 function save(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  // Don't push to Firebase until we've received at least one Firebase snapshot
+  // This prevents cache-cleared defaults from overwriting cloud data
+  if(!_initDone) return;
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(()=>{
     _localSaving=true;
@@ -575,18 +578,34 @@ function renderLore(){
   });
 }
 
-// INIT
+// INIT — Firebase is source of truth. localStorage is just a cache.
+let _initDone=false;
+// Show loading state with cached data while waiting for Firebase
 load();renderKanban();renderDecisions();renderIdeas();renderLore();
 // Firebase real-time listener
 dbRef.on('value',snap=>{
   if(_localSaving){_localSaving=false;return}
   const val=snap.val();
-  if(val){data=val;localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderKanban();renderDecisions();
+  if(val){
+    data=val;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+    renderKanban();renderDecisions();renderIdeas();renderLore();
     document.getElementById('ideas-text').value=data.ideas||'';
     document.getElementById('lore-text').value=data.lore||'';
     _setSyncStatus(true);
-  }else{dbRef.set(data);_setSyncStatus(true)}
-},()=>{_setSyncStatus(false)});
+  }else if(_initDone){
+    // Only push to Firebase if this is a subsequent update (not first load)
+    // This prevents overwriting cloud data with empty defaults on cache clear
+    dbRef.set(data);_setSyncStatus(true);
+  }else{
+    // First load, Firebase empty, localStorage empty — use defaults
+    dbRef.set(data);_setSyncStatus(true);
+  }
+  _initDone=true;
+},()=>{
+  _setSyncStatus(false);
+  _initDone=true;
+});
 </script>
 </body>
 </html>
