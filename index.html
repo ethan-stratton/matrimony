@@ -2834,7 +2834,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.93', W - 8, H - 8);
+  ctx.fillText('v1.94', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3322,14 +3322,15 @@ function drawCombat() {
     const totalW = slotW * 3;
     const startX = Math.round((W - totalW) / 2);
     
+    const STAT_GRADIENT = [[0, '#8a6010'], [0.2, '#c89830'], [0.4, '#ffe8a0'], [0.5, '#fffff0'], [0.6, '#ffe8a0'], [0.8, '#c89830'], [1, '#8a6010']];
     let sx = startX;
-    crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispGradientText('Eff:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT);
     crispText('' + (act.eff || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
     sx += slotW;
-    crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispGradientText('Def:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT);
     crispText('' + (act.def || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
     sx += slotW;
-    crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    crispGradientText('Wait:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT);
     crispText('' + waitVal, sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
     sx += slotW;
     // Guard tag for Defend
@@ -4328,7 +4329,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.93', canvas.width - 8, 14);
+  ctx.fillText('v1.94', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
