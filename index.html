@@ -780,11 +780,22 @@ document.addEventListener('keydown', (e) => {
       (async () => {
         if (hasSave) await applySave(slot);
         state.titleToGame = { startTime: performance.now(), duration: 1200 };
+        // Fade title music out over 1200ms transition
+        const fadeStart = performance.now();
+        const fadeInterval = setInterval(() => {
+          const elapsed = performance.now() - fadeStart;
+          const t = Math.min(1, elapsed / 1200);
+          titleMusic.volume = 0.7 * (1 - t);
+          if (t >= 1) {
+            clearInterval(fadeInterval);
+            titleMusic.pause();
+            titleMusic.currentTime = 0;
+            titleMusic.volume = 0.7;
+          }
+        }, 30);
         setTimeout(() => {
           state.screen = 'game';
           state.titleToGame = null;
-          titleMusic.pause();
-          titleMusic.currentTime = 0;
         }, 1200);
       })();
       e.preventDefault();
@@ -1056,6 +1067,9 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   const oldPlayerX = state.player.x;
   const oldPlayerY = state.player.y;
   const oldLevelIid = currentLevelId;
+  
+  // Clear particles from previous level
+  state.burnParticles = [];
   
   // Load new level
   await loadLevel(targetLevelIid);
@@ -1835,21 +1849,29 @@ function drawInventory() {
   // HP below portrait
   crispText('HP 30/30', pPortraitX + 12, pPortraitY + portraitH + 4, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
   
-  // Equipment slots below HP
-  const equipY = pPortraitY + portraitH + 30;
-  const equipSlotW = portraitW + 16;
-  const equipSlotH = 24;
-  const equipSpacing = 8;
+  // Equipment slots below HP — aligned with portrait
+  const equipY = pPortraitY + portraitH + 42;
+  const equipSlotW = portraitW;
+  const equipSlotH = 28;
+  const equipSpacing = 10;
   for (let i = 0; i < 2; i++) {
     const ey = equipY + i * (equipSlotH + equipSpacing);
     const equipped = (state.equipment && state.equipment[i]) || null;
+    const isEquipHovered = mouse.x >= pPortraitX && mouse.x <= pPortraitX + equipSlotW && mouse.y >= ey && mouse.y <= ey + equipSlotH;
     ctx.fillStyle = 'rgba(12, 12, 20, 0.6)';
-    ctx.fillRect(pPortraitX + 8, ey, equipSlotW, equipSlotH);
+    ctx.fillRect(pPortraitX, ey, equipSlotW, equipSlotH);
+    if (isEquipHovered) {
+      const ePulse = 0.14 + 0.08 * Math.sin(now / 300);
+      ctx.fillStyle = 'rgba(80, 200, 60,' + ePulse + ')';
+      ctx.fillRect(pPortraitX + 1, ey, equipSlotW - 2, 1);
+      ctx.fillRect(pPortraitX, ey + 1, equipSlotW, equipSlotH - 2);
+      ctx.fillRect(pPortraitX + 1, ey + equipSlotH - 1, equipSlotW - 2, 1);
+    }
     ctx.strokeStyle = 'rgba(200, 160, 40, 0.4)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(pPortraitX + 8, ey, equipSlotW, equipSlotH);
+    ctx.strokeRect(pPortraitX, ey, equipSlotW, equipSlotH);
     const label = equipped || (i === 0 ? 'Slot 1' : 'Slot 2');
-    crispText(label, pPortraitX + 14, ey + 4, 24, equipped ? '#e8e0d0' : '#504840', 0, CRISP_FONT_ALT);
+    crispText(label, pPortraitX + 6, ey + 2, 24, equipped ? '#e8e0d0' : '#504840', 0, CRISP_FONT_ALT);
   }
   
   // ── ACTION/ITEM GRID ──
@@ -1908,12 +1930,14 @@ function drawInventory() {
     const numRows = 4; // always reserve space for 8 slots (4 rows × 2 cols)
     const statsY = gridY + numRows * gridRowH + 4;
     let sx = gridX;
-    sx += crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-    sx += crispText('' + (act.eff || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
-    sx += crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-    sx += crispText('' + (act.def || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
-    sx += crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-    crispText('' + (act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    const STAT_GRADIENT = [[0, '#c89830'], [0.3, '#ffe8a0'], [0.5, '#fffff0'], [0.7, '#ffe8a0'], [1, '#c89830']];
+    const pad3 = (n) => String(n).padStart(3, ' ');
+    sx += crispGradientText('Eff:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText(pad3(act.eff || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
+    sx += crispGradientText('Def:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText(pad3(act.def || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
+    sx += crispGradientText('Wait:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    crispText(pad3(act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
     
     // Attack type tag (e.g. "Guard" for Defend)
     const ACTION_TAGS = { 'Defend': 'Guard' };
@@ -1955,8 +1979,11 @@ function drawInventory() {
       const sy = subY + 4 + i * subRowH;
       const isSel = i === (state.inventorySubSelected || 0);
       if (isSel) {
-        ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
-        ctx.fillRect(subX + 4, sy, subW - 8, subRowH);
+        const subPulse = 0.14 + 0.08 * Math.sin(now / 300);
+        ctx.fillStyle = 'rgba(80, 200, 60,' + subPulse + ')';
+        ctx.fillRect(subX + 5, sy, subW - 10, 1);
+        ctx.fillRect(subX + 4, sy + 1, subW - 8, subRowH - 2);
+        ctx.fillRect(subX + 5, sy + subRowH - 1, subW - 10, 1);
       }
       crispText(subOpts[i], subX + 12, sy + 2, 32, isSel ? '#ffffff' : '#a0a0a0');
     }
@@ -1991,8 +2018,11 @@ function drawInventory() {
       const info = getSaveInfo(i);
       const label = info ? 'Slot ' + (i + 1) + ' - ' + info.location : 'Slot ' + (i + 1) + ' - Empty';
       if (i === state.saveMenu.selected) {
-        ctx.fillStyle = 'rgba(208,168,48,0.25)';
-        ctx.fillRect(boxX + 4, sy - 2, boxW - 8, 26);
+        const savePulse = 0.20 + 0.10 * Math.sin(now / 300);
+        ctx.fillStyle = 'rgba(80, 200, 60,' + savePulse + ')';
+        ctx.fillRect(boxX + 5, sy - 2, boxW - 10, 1);
+        ctx.fillRect(boxX + 4, sy - 1, boxW - 8, 24);
+        ctx.fillRect(boxX + 5, sy + 22, boxW - 10, 1);
       }
       crispText(label, boxX + 14, sy, 32, i === state.saveMenu.selected ? '#ffffff' : '#a0a0a0', 0, CRISP_FONT_ALT);
     }
@@ -2338,7 +2368,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.59', W - 8, H - 8);
+  ctx.fillText('v1.60', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3601,7 +3631,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.59', canvas.width - 8, 14);
+  ctx.fillText('v1.60', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4368,27 +4398,6 @@ function gameLoop(time) {
 // ══════════════════════════════════
 loadLevel().then(() => {
   // Wait for fonts before first render to prevent flash
-  Promise.all([
-    document.fonts.load('32px "RM2000"'),
-    document.fonts.load('32px "RM2000Alt"'),
-    document.fonts.load('32px "Pixelify Sans"')
-  ]).then(() => requestAnimationFrame(gameLoop))
-    .catch(() => requestAnimationFrame(gameLoop));
-});
-
-</script>
-</body>
-</html>
-  document.fonts.load('32px "RM2000Alt"'),
-    document.fonts.load('32px "Pixelify Sans"')
-  ]).then(() => requestAnimationFrame(gameLoop))
-    .catch(() => requestAnimationFrame(gameLoop));
-});
-
-</script>
-</body>
-</html>
-t render to prevent flash
   Promise.all([
     document.fonts.load('32px "RM2000"'),
     document.fonts.load('32px "RM2000Alt"'),
