@@ -1102,36 +1102,64 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = false;
 }
 
-// Check if a movement tile (tx, ty) is blocked — checks coarse + directional fine collision
-// moveDir: 'left'|'right'|'up'|'down'|null (null = check all sub-cells)
-function isTileBlocked(tx, ty, allowFly, moveDir) {
+// Check if a movement tile (tx, ty) is blocked — coarse collision only
+function isTileBlocked(tx, ty, allowFly) {
   // Check coarse collision (1:1 with movement tiles)
   if (state.collision && state.collision[ty]) {
     const val = state.collision[ty][tx];
     if (val === 1) return true;
     if (val === 2 && !allowFly) return true;
   }
-  // Check fine collision — only the ENTRY SIDE sub-cells
-  if (state.fineCollision) {
-    const s = state.fineCollisionScale || 2;
-    const cx = tx * s, cy = ty * s;
-    // Determine which sub-cells to check based on movement direction
-    let startDx = 0, endDx = s, startDy = 0, endDy = s;
-    if (moveDir === 'right') { startDx = 0; endDx = 1; } // entering from left, check left column
-    else if (moveDir === 'left') { startDx = s - 1; endDx = s; } // entering from right, check right column
-    else if (moveDir === 'down') { startDy = 0; endDy = 1; } // entering from top, check top row
-    else if (moveDir === 'up') { startDy = s - 1; endDy = s; } // entering from bottom, check bottom row
-    for (let dy = startDy; dy < endDy; dy++) {
-      for (let dx = startDx; dx < endDx; dx++) {
-        const r = cy + dy, c = cx + dx;
-        if (!state.fineCollision[r] || state.fineCollision[r][c] === undefined) continue;
-        const val = state.fineCollision[r][c];
-        if (val === 1) return true;
-        if (val === 2 && !allowFly) return true;
-      }
-    }
-  }
   return false;
+}
+
+// Calculate visual pixel offset based on fine collision in current tile
+// Returns { ox, oy } in screen pixels to nudge the sprite
+function getFineCollisionOffset(tx, ty) {
+  if (!state.fineCollision) return { ox: 0, oy: 0 };
+  const s = state.fineCollisionScale || 2;
+  const cx = tx * s, cy = ty * s;
+  const subPx = (TILE * SCALE) / s; // pixels per sub-cell on screen
+  let ox = 0, oy = 0;
+  
+  // Check each edge for fine collision and nudge away from it
+  // Bottom edge: check bottom row of sub-cells
+  let bottomBlocked = false;
+  for (let dx = 0; dx < s; dx++) {
+    const r = cy + s - 1, c = cx + dx;
+    if (state.fineCollision[r] && state.fineCollision[r][c] > 0) { bottomBlocked = true; break; }
+  }
+  if (bottomBlocked) oy -= subPx;
+  
+  // Top edge: check top row
+  let topBlocked = false;
+  for (let dx = 0; dx < s; dx++) {
+    const r = cy, c = cx + dx;
+    if (state.fineCollision[r] && state.fineCollision[r][c] > 0) { topBlocked = true; break; }
+  }
+  if (topBlocked) oy += subPx;
+  
+  // Right edge: check right column
+  let rightBlocked = false;
+  for (let dy = 0; dy < s; dy++) {
+    const r = cy + dy, c = cx + s - 1;
+    if (state.fineCollision[r] && state.fineCollision[r][c] > 0) { rightBlocked = true; break; }
+  }
+  if (rightBlocked) ox -= subPx;
+  
+  // Left edge: check left column
+  let leftBlocked = false;
+  for (let dy = 0; dy < s; dy++) {
+    const r = cy + dy, c = cx;
+    if (state.fineCollision[r] && state.fineCollision[r][c] > 0) { leftBlocked = true; break; }
+  }
+  if (leftBlocked) ox += subPx;
+  
+  // If opposing edges both blocked, cancel out (full tile collision — don't nudge)
+  if (topBlocked && bottomBlocked) oy = 0;
+  if (leftBlocked && rightBlocked) ox = 0;
+  
+  return { ox, oy };
 }
 
 function findNearestWalkable(x, y, axis) {
@@ -1210,9 +1238,8 @@ function tryMove(dx, dy) {
     }
     return;
   }
-  // Collision check (directional fine collision)
-  const moveDir = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
-  if (isTileBlocked(nx, ny, state.canFly, moveDir)) return;
+  // Collision check
+  if (isTileBlocked(nx, ny, state.canFly)) return;
   // Entity collision — block movement but don't auto-interact
   const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !e.deathAnim);
   if (blocking) {
@@ -2217,7 +2244,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.35', W - 8, H - 8);
+  ctx.fillText('v1.36', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3061,7 +3088,7 @@ function updateEnemyAI(time) {
       for (const d of shuffled) {
         const nx = e.x + d.dx;
         const ny = e.y + d.dy;
-        if (!canEntityMoveTo(e, nx, ny, d.dx, d.dy)) continue;
+        if (!canEntityMoveTo(e, nx, ny)) continue;
         const nd = Math.abs(nx - px) + Math.abs(ny - py);
         if (nd < bestDist) {
           bestDist = nd;
@@ -3075,7 +3102,7 @@ function updateEnemyAI(time) {
         const nx = e.x + d.dx;
         const ny = e.y + d.dy;
         if (Math.abs(nx - e.origX) > 3 || Math.abs(ny - e.origY) > 3) continue;
-        if (!canEntityMoveTo(e, nx, ny, d.dx, d.dy)) continue;
+        if (!canEntityMoveTo(e, nx, ny)) continue;
         bestDir = d;
         break;
       }
@@ -3100,10 +3127,9 @@ function updateEnemyAI(time) {
   }
 }
 
-function canEntityMoveTo(entity, nx, ny, dx, dy) {
-  // Check collision map (directional fine collision)
-  const moveDir = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
-  if (isTileBlocked(nx, ny, false, moveDir)) return false;
+function canEntityMoveTo(entity, nx, ny) {
+  // Check collision map
+  if (isTileBlocked(nx, ny, false)) return false;
   // Check other entities
   for (const other of state.entities) {
     if (other === entity) continue;
@@ -3231,8 +3257,12 @@ function draw() {
   }
 
   // Draw player at visual (interpolated) position
-  const playerDrawX = Math.round((vis.x - camX) * TILE * SCALE);
-  const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
+  const playerBaseX = Math.round((vis.x - camX) * TILE * SCALE);
+  const playerBaseY = Math.round((vis.y - camY) * TILE * SCALE);
+  // Apply fine collision visual nudge (only when not moving — snap to offset on arrival)
+  const fineOffset = state.moving ? { ox: 0, oy: 0 } : getFineCollisionOffset(state.player.x, state.player.y);
+  const playerDrawX = playerBaseX + fineOffset.ox;
+  const playerDrawY = playerBaseY + fineOffset.oy;
   drawPlayer(ctx, playerDrawX, playerDrawY);
 
   // Debug hitbox overlay
@@ -3372,7 +3402,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.35', canvas.width - 8, 14);
+  ctx.fillText('v1.36', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
