@@ -1458,12 +1458,15 @@ function handleMovement(now) {
       state.facing = dirs[ft.startFacing || 0];
       state.flyTransition = null;
     } else {
-      // Cycle facing from current direction so sprite looks like it's turning
+      // Cycle facing — multiple fast spins that decelerate into final direction
       const ft2 = state.flyTransition;
       const t2 = Math.min(1, (now - ft2.startTime) / ft2.duration);
+      // SmoothStop easing — fast start, decelerates at end
+      const eased = 1 - (1 - t2) * (1 - t2) * (1 - t2);
       const dirs = ['down', 'left', 'up', 'right'];
       const startIdx = ft2.startFacing || 0;
-      state.facing = dirs[(startIdx + Math.floor(t2 * 4)) % 4];
+      const totalSteps = 12; // 3 full rotations — ends back on start
+      state.facing = dirs[(startIdx + Math.floor(eased * totalSteps)) % 4];
     }
     return; // block all movement during transition
   }
@@ -2596,7 +2599,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.69', W - 8, H - 8);
+  ctx.fillText('v1.70', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3886,7 +3889,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.69', canvas.width - 8, 14);
+  ctx.fillText('v1.70', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
