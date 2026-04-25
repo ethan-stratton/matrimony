@@ -1188,10 +1188,19 @@ function tryMove(dx, dy) {
   // Adaptive step: try full tile, fall back to half tile near fine collision
   const half = 1 / (state.fineCollisionScale || 2); // 0.5 for 8px grid
   const px = state.player.x, py = state.player.y;
-  const isOnGrid = (px % 1 === 0) && (py % 1 === 0); // on full tile grid?
   
-  let stepX = dx, stepY = dy;
-  let nx = px + stepX, ny = py + stepY;
+  // Check if off-grid on the MOVEMENT axis
+  const movingAxisVal = dx !== 0 ? px : py;
+  const offGridOnMoveAxis = movingAxisVal % 1 !== 0;
+  
+  let nx, ny;
+  if (offGridOnMoveAxis) {
+    // Off-grid on movement axis — half step to re-align
+    nx = px + dx * half; ny = py + dy * half;
+  } else {
+    // On-grid — try full step first
+    nx = px + dx; ny = py + dy;
+  }
   
   // Bounds check — trigger screen transition if neighbour exists
   // Only check from full tile positions (round to nearest tile for bounds)
@@ -1244,18 +1253,19 @@ function tryMove(dx, dy) {
     return;
   }
   // Collision check with adaptive step
-  let blocked = isTileBlocked(nx, ny, state.canFly);
-  
-  if (blocked && state.fineCollision) {
-    // Full tile blocked — try half step
-    const halfNx = px + dx * half, halfNy = py + dy * half;
-    if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
-      nx = halfNx; ny = halfNy;
-      blocked = false;
+  if (isTileBlocked(nx, ny, state.canFly)) {
+    if (!offGridOnMoveAxis && state.fineCollision) {
+      // Full step blocked — try half step
+      const halfNx = px + dx * half, halfNy = py + dy * half;
+      if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
+        nx = halfNx; ny = halfNy;
+      } else {
+        return;
+      }
+    } else {
+      return;
     }
   }
-  
-  if (blocked) return;
   
   // Entity collision — check 1×1 box overlap
   const blocking = state.entities.find(e => {
@@ -1331,7 +1341,8 @@ function getFacingTile() {
 
 function interact() {
   const { x, y } = getFacingTile();
-  const entity = state.entities.find(e => e.x === x && e.y === y && !state.defeatedEnemies[e.id]);
+  // Use AABB overlap: player facing tile is (x,y) to (x+1,y+1), entity is (e.x,e.y) to (e.x+1,e.y+1)
+  const entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
   if (entity) {
     handleEntityContact(entity);
   }
@@ -2265,7 +2276,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.45', W - 8, H - 8);
+  ctx.fillText('v1.46', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3419,7 +3430,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.45', canvas.width - 8, 14);
+  ctx.fillText('v1.46', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
