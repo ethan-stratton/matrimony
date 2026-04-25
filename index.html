@@ -540,6 +540,8 @@ const state = {
   flying: false,
   flyX: 0,
   flyY: 0,
+  flyVx: 0, // velocity
+  flyVy: 0,
   flyBobTimer: 0,
   flyTransition: null, // { type: 'takeoff'|'landing', startTime, duration, originX, originY, targetX, targetY }
   saveMenu: null,
@@ -1418,6 +1420,8 @@ function handleMovement(now) {
         state.flying = true;
         state.flyX = ft.originX;
         state.flyY = ft.originY;
+        state.flyVx = 0;
+        state.flyVy = 0;
         state.flyBobTimer = 0;
       } else if (ft.type === 'landing') {
         state.flying = false;
@@ -1442,22 +1446,41 @@ function handleMovement(now) {
     return; // block all movement during transition
   }
 
-  // Flying mode — 8-way smooth pixel movement
+  // Flying mode — velocity-based 8-way movement with momentum
   if (state.flying) {
     state.flyBobTimer += dt;
-    const flySpeed = keys['Shift'] ? 0.009 : 0.006;
+    const maxSpeed = keys['Shift'] ? 0.009 : 0.006;
+    const accel = 0.00003; // acceleration per ms
+    const drag = 0.96; // velocity multiplier per frame (applied each tick)
     let fdx = 0, fdy = 0;
     if (keys['ArrowLeft']) { fdx -= 1; state.facing = 'left'; }
     if (keys['ArrowRight']) { fdx += 1; state.facing = 'right'; }
     if (keys['ArrowUp']) { fdy -= 1; state.facing = 'up'; }
     if (keys['ArrowDown']) { fdy += 1; state.facing = 'down'; }
+    // Normalize diagonal input
     if (fdx !== 0 && fdy !== 0) {
       const norm = 1 / Math.sqrt(2);
       fdx *= norm;
       fdy *= norm;
     }
-    const newFlyX = state.flyX + fdx * flySpeed * dt;
-    const newFlyY = state.flyY + fdy * flySpeed * dt;
+    // Apply acceleration
+    state.flyVx += fdx * accel * dt;
+    state.flyVy += fdy * accel * dt;
+    // Clamp to max speed
+    const speed = Math.sqrt(state.flyVx * state.flyVx + state.flyVy * state.flyVy);
+    if (speed > maxSpeed) {
+      state.flyVx *= maxSpeed / speed;
+      state.flyVy *= maxSpeed / speed;
+    }
+    // Apply drag (stronger when no input for quick-ish stop)
+    const dragMul = (fdx === 0 && fdy === 0) ? 0.92 : drag;
+    state.flyVx *= dragMul;
+    state.flyVy *= dragMul;
+    // Kill tiny velocities
+    if (Math.abs(state.flyVx) < 0.0001) state.flyVx = 0;
+    if (Math.abs(state.flyVy) < 0.0001) state.flyVy = 0;
+    const newFlyX = state.flyX + state.flyVx * dt;
+    const newFlyY = state.flyY + state.flyVy * dt;
     // Boundary check — trigger screen transition if at map edge
     if ((newFlyX < -0.5 || newFlyX >= state.mapW - 0.5 ||
          newFlyY < -0.5 || newFlyY >= state.mapH - 0.5) && !state.transitioning) {
@@ -2537,7 +2560,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.64', W - 8, H - 8);
+  ctx.fillText('v1.65', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3847,7 +3870,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.64', canvas.width - 8, 14);
+  ctx.fillText('v1.65', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
