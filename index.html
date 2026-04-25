@@ -513,6 +513,7 @@ async function applySave(slot) {
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
   state.footsteps = [];
+  state.burnParticles = [];
   updateCamera();
   return true;
 }
@@ -550,6 +551,9 @@ const state = {
   chestInteraction: null,
   inventory: [],
   footsteps: [], // { x, y, time, dir } — fading footprint trail
+  burnParticles: [], // { x, y, vx, vy, life, size } — fire elemental particles
+  wasWalking: false,
+  justStartedRunning: false,
   // Smooth camera position (in tile coords, fractional)
   smoothX: 0,
   smoothY: 0,
@@ -665,7 +669,9 @@ function updateCamera() {
 function getPlayerVisualPos() {
   if (!state.moving) return { x: state.player.x, y: state.player.y };
   const stepScale = state.moveStepScale || 1;
-  const t = Math.min(1, state.moveTimer / (getMoveDuration() * stepScale));
+  let t = Math.min(1, state.moveTimer / (getMoveDuration() * stepScale));
+  // SmoothStart (t^2) easing when transitioning from walk to run
+  if (state.justStartedRunning) t = t * t;
   // Linear interpolation for chained movement (no decel pulse between steps)
   return {
     x: state.moveFrom.x + (state.player.x - state.moveFrom.x) * t,
@@ -713,8 +719,15 @@ document.addEventListener('keydown', (e) => {
       titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
     }
     state.screen = 'title';
-    e.preventDefault();
+    // Don't preventDefault on Meta to avoid OS shortcut issues, but still transition
+    if (e.key !== 'Meta') e.preventDefault();
     return;
+  }
+  // If Meta was pressed on splash but music didn't start, retry on next key
+  if (state.screen === 'title' && !titleMusicStarted) {
+    const actx = getAudioCtx();
+    if (actx) actx.resume();
+    titleMusic.play().then(() => { titleMusicStarted = true; }).catch(() => {});
   }
   
   // Title screen input
@@ -753,10 +766,12 @@ document.addEventListener('keydown', (e) => {
       playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
+      // Guard against multi-press during transition
+      if (state.titleToGame) { e.preventDefault(); return; }
       // Start game — apply save immediately, then fade game in over title
-      playHit(true);
       const slot = state.titleSelection || 0;
       const hasSave = loadGame(slot) !== null;
+      if (hasSave) playChestOpen(); else playHit(true);
       (async () => {
         if (hasSave) await applySave(slot);
         state.titleToGame = { startTime: performance.now(), duration: 1200 };
@@ -1283,6 +1298,7 @@ function tryMove(dx, dy) {
   }
   
   // Start movement
+  state.wasWalking = !keys['Shift'];
   state.moving = true;
   state.moveTimer = 0;
   state.moveFrom.x = state.player.x;
@@ -1302,7 +1318,7 @@ function tryMove(dx, dy) {
 }
 
 const MOVE_DURATION = 230; // ms for grid movement
-const RUN_DURATION = 115; // ms for running (Shift held)
+const RUN_DURATION = 130; // ms for running (Shift held)
 function getMoveDuration() { return keys['Shift'] ? RUN_DURATION : MOVE_DURATION; }
 let lastFrameTime = 0;
 
@@ -1315,6 +1331,7 @@ function handleMovement(now) {
     const stepScale = state.moveStepScale || 1;
     if (state.moveTimer >= getMoveDuration() * stepScale) {
       state.moving = false;
+      state.justStartedRunning = state.wasWalking && keys['Shift'];
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
       else if (keys['ArrowRight']) tryMove(1, 0);
@@ -2276,7 +2293,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.49', W - 8, H - 8);
+  ctx.fillText('v1.50', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2386,7 +2403,7 @@ function drawCombat() {
   drawEBBackground(ctx, 0, arenaY, W, arenaH, bgPreset);
   
   const playerCombatSize = 64;
-  const enemyCombatSize = 48;
+  const enemyCombatSize = 64;
   const groundY = arenaY + Math.round(arenaH * 0.82);
   
   // Camera: smooth easing between positions
@@ -3147,6 +3164,12 @@ function updateEnemyAI(time) {
       if (!e.footsteps) e.footsteps = [];
       e.footsteps.push({ x: e.prevX, y: e.prevY, time: time, side: e.footsteps.length % 2 });
       if (e.footsteps.length > 8) e.footsteps.shift();
+      // Spawn burn particles for Fire Elemental
+      if (e.type === 'Enemy1') {
+        for (let bp = 0; bp < 3; bp++) {
+          state.burnParticles.push({ x: e.x + 0.5, y: e.y + 0.5, vx: (Math.random()-0.5)*0.3, vy: -Math.random()*0.5-0.2, life: 1.0, size: 2+Math.random()*2 });
+        }
+      }
       e.x += bestDir.dx;
       e.y += bestDir.dy;
       e.aiMoving = true;
@@ -3268,6 +3291,7 @@ function draw() {
   // Draw enemy footsteps
   for (const e of state.entities) {
     if (!e.footsteps || state.defeatedEnemies[e.id]) continue;
+    const isFireElemental = e.type === 'Enemy1';
     for (let i = e.footsteps.length - 1; i >= 0; i--) {
       const f = e.footsteps[i];
       const age = nowFoot - f.time;
@@ -3275,8 +3299,24 @@ function draw() {
       const alpha = 0.2 * (1 - age / footFadeMs);
       const fx = Math.round((f.x - camX) * TILE * SCALE);
       const fy = Math.round((f.y - camY) * TILE * SCALE);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#3a1510';
+      if (isFireElemental) {
+        // Orange glow
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillStyle = '#ff6600';
+        if (f.side === 0) {
+          ctx.fillRect(fx + 6, fy + 17, 8, 7);
+          ctx.fillRect(fx + 16, fy + 22, 8, 7);
+        } else {
+          ctx.fillRect(fx + 6, fy + 22, 8, 7);
+          ctx.fillRect(fx + 16, fy + 17, 8, 7);
+        }
+        // Charred footprint
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#1a0800';
+      } else {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#3a1510';
+      }
       if (f.side === 0) {
         ctx.fillRect(fx + 8, fy + 19, 4, 3);
         ctx.fillRect(fx + 18, fy + 24, 4, 3);
@@ -3286,6 +3326,23 @@ function draw() {
       }
       ctx.globalAlpha = 1;
     }
+  }
+
+  // Draw and update burn particles
+  for (let i = state.burnParticles.length - 1; i >= 0; i--) {
+    const p = state.burnParticles[i];
+    p.x += p.vx * 0.016;
+    p.y += p.vy * 0.016;
+    p.life -= 0.02;
+    if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
+    const px = Math.round((p.x - camX) * TILE * SCALE);
+    const py = Math.round((p.y - camY) * TILE * SCALE);
+    ctx.globalAlpha = p.life * 0.7;
+    ctx.fillStyle = p.life > 0.5 ? '#ff4400' : '#ff8800';
+    ctx.beginPath();
+    ctx.arc(px, py, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   // Draw player at visual (interpolated) position
@@ -3430,7 +3487,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.49', canvas.width - 8, 14);
+  ctx.fillText('v1.50', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
