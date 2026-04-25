@@ -2635,7 +2635,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.76', W - 8, H - 8);
+  ctx.fillText('v1.77', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3465,12 +3465,23 @@ function updateEnemyAI(time) {
       if (!e.aggroed) {
         e.aggroed = true;
         e.alertBark = { text: '!', startTime: time, duration: 800 };
+        e.alertHop = { startTime: time, duration: 400 };
+        // Face the player on alert
+        const fdx = px - e.x;
+        const fdy = py - e.y;
+        if (Math.abs(fdx) >= Math.abs(fdy)) {
+          e.facing = fdx < 0 ? 'left' : 'right';
+        } else {
+          e.facing = fdy < 0 ? 'up' : 'down';
+        }
+        // Reset move timer so they pause briefly before chasing
+        e.aiTimer = 0;
       }
     } else if (e.aggroed && time - (e.lastSeenTime || 0) > 3000) {
       e.aggroed = false;
     }
     const chasing = e.aggroed;
-    const interval = chasing ? 800 : e.aiInterval;
+    const interval = chasing ? 550 : e.aiInterval;
 
     if (e.aiTimer < interval) continue;
     e.aiTimer = 0;
@@ -3634,7 +3645,17 @@ function draw() {
     }
     if (ex < startX - 1 || ex > endX + 1 || ey < startY - 1 || ey > endY + 1) continue;
     const sx = Math.round((ex - camX) * TILE * SCALE);
-    const sy = Math.round((ey - camY) * TILE * SCALE);
+    let sy = Math.round((ey - camY) * TILE * SCALE);
+    // Alert hop — quick bounce up and back down
+    if (e.alertHop) {
+      const hopAge = performance.now() - e.alertHop.startTime;
+      if (hopAge > e.alertHop.duration) {
+        e.alertHop = null;
+      } else {
+        const hopT = hopAge / e.alertHop.duration;
+        sy -= Math.sin(hopT * Math.PI) * 12; // arc up 12px and back
+      }
+    }
     drawEntity(ctx, e, sx, sy);
     // Draw alert bark — gold gradient "!" using crisp text
     if (e.alertBark) {
@@ -3927,7 +3948,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.76', canvas.width - 8, 14);
+  ctx.fillText('v1.77', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
