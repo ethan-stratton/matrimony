@@ -318,7 +318,7 @@ function editEnemy(idx) {
     <div class="form-row-inline"><div class="form-row"><label>Sprite</label><input id="e-sprite" value="${esc(e.sprite)}"></div><div class="form-row"><label>Max HP</label><input id="e-hp" type="number" value="${e.maxHp}"></div></div>
     <div class="checkbox-row"><input type="checkbox" id="e-charge" ${e.startsWithCharge?'checked':''}><label for="e-charge">Starts with Charge</label></div>
     <div class="form-row"><label>Actions (Name / EFF / DEF / WAIT)</label><div id="e-actions">${actionsHtml(e.actions||[])}</div><button class="btn btn-sm" style="margin-top:4px" id="e-add-action">+ Add Action</button></div>
-    <div class="form-row"><label>Dialogue (lines separated by |)</label><div id="e-dialogue"></div></div>
+    <div class="form-row"><label>Dialogue (one encounter per box, lines separated by |)</label><div id="e-dialogue"></div><button class="btn btn-sm" style="margin-top:4px" id="e-add-dialogue">+ Add Encounter</button></div>
   `, ol => {
     const actionEls = ol.querySelectorAll('#e-actions .action-item');
     const actions = Array.from(actionEls).map(el => ({
@@ -344,7 +344,22 @@ function editEnemy(idx) {
   };
   // Wire delete buttons for existing actions
   ol.querySelectorAll('.ea-del').forEach(b => b.onclick = () => b.closest('.action-item').remove());
-  const getDialogue = arrayWidget('e-dialogue', e.dialogue||[]);
+  // Dialogue widget — textarea per encounter
+  function renderDialogueWidget() {
+    const c = document.getElementById('e-dialogue');
+    if (!c) return;
+    c.innerHTML = _dlgItems.map((v, i) => `<div style="display:flex;gap:4px;margin-bottom:4px;align-items:start">
+      <span style="color:#888;font-size:11px;padding-top:6px">#${i+1}</span>
+      <textarea class="dlg-text" data-i="${i}" style="flex:1;min-height:50px;resize:vertical;background:#2a2a2e;color:#ccc;border:1px solid #444;border-radius:4px;padding:4px;font-size:12px;font-family:inherit">${esc(v)}</textarea>
+      <button data-i="${i}" class="dlg-del" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px;padding:2px">&times;</button>
+    </div>`).join('');
+    c.querySelectorAll('.dlg-del').forEach(b => b.onclick = () => { _dlgItems.splice(+b.dataset.i, 1); renderDialogueWidget(); });
+    c.querySelectorAll('.dlg-text').forEach(t => t.oninput = () => { _dlgItems[+t.dataset.i] = t.value; });
+  }
+  const _dlgItems = [...(e.dialogue||[])];
+  renderDialogueWidget();
+  ol.querySelector('#e-add-dialogue').onclick = () => { _dlgItems.push(''); renderDialogueWidget(); const textareas = ol.querySelectorAll('.dlg-text'); if(textareas.length) textareas[textareas.length-1].focus(); };
+  const getDialogue = () => _dlgItems.filter(s => s.trim());
 }
 function delEnemy(i) { if (confirm('Delete ' + (data.enemies[i].name||'this enemy') + '?')) { data.enemies.splice(i,1); save(); renderEnemies(); } }
 
