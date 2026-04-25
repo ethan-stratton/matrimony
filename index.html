@@ -1731,17 +1731,10 @@ function pickEnemyAction(c) {
     // Prefer faster moves slightly (lower wait = resolves sooner)
     score -= (act.wait || 0) * 0.5;
 
-    // Don't spam the same move twice in a row
-    if (name === c.enemyAction) score -= 8;
-
-    // Charging is only worth it if Frost Slam follows — but AI picks fresh each time
-    // Give Charging a small baseline so it's used occasionally for variety
+    // Charging provides some defense while building up
     if (name === 'Charging...' && (act.def || 0) > 0) {
-      score += 5; // modest bonus for the defense it provides while charging
+      score += 5;
     }
-
-    // Small random factor for variety
-    score += Math.random() * 4;
 
     if (score > bestScore) {
       bestScore = score;
@@ -1862,10 +1855,10 @@ const COMBAT_ACTIONS = {
   'Defend':   { eff: 0, def: 10, wait: 9 },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
-  'Charging...': { eff: 0, def: 4, wait: 6 },
+  'Charging...': { eff: 0, def: 3, wait: 6 },
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
-  'Frost Guard': { eff: 0, def: 12, wait: 4 },
-  'Ice Shard':   { eff: 5, def: 1, wait: 5, pierce: true },
+  'Frost Guard': { eff: 0, def: 12, wait: 10 },
+  'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
   'Frost Slam':  { eff: 12, def: 3, wait: 10 },
 };
 
@@ -2718,7 +2711,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.83', W - 8, H - 8);
+  ctx.fillText('v1.84', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4107,7 +4100,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.83', canvas.width - 8, 14);
+  ctx.fillText('v1.84', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
