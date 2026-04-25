@@ -313,7 +313,7 @@ const EB_PRESETS = {
 };
 
 // Map enemy types to background presets
-const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Frozen' };
+const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Frozen', 'Enemy3': 'Deep Dark' };
 
 function ebSampleColors(colors, t) {
   const n = colors.length;
@@ -456,6 +456,7 @@ const PLAYER_SHEET = {
 // Enemy sprites (DeepDive 16x16, 4-frame strips)
 loadSprite('Enemy1', 'sprites/FireElemental.png');
 loadSprite('Enemy2', 'sprites/IceGolem.png');
+loadSprite('Enemy3', 'sprites/SwoopingBat.png');
 
 // ══════════════════════════════════
 // GAME STATE
@@ -1695,6 +1696,7 @@ let ENEMY_DIALOGUE = loadEditorDialogue();
 if (!state.encounterCounts) state.encounterCounts = {};
 
 function handleEntityContact(entity) {
+  if (state.weaponTransformPrompt) return; // don't start combat during transform prompt
   const data = ENEMY_DATA[entity.type];
   if (data) {
     const dialogues = ENEMY_DIALOGUE[entity.type];
@@ -1820,6 +1822,16 @@ const ENEMY_DATA = {
     startsWithCharge: true,
     ai: 'smart',
     patrolRange: 10,
+  },
+  'Enemy3': {
+    name: 'Swooping Bat',
+    sprite: 'Enemy3',
+    maxHp: 120, eff: 6, def: 1, wait: 3,
+    exp: 8,
+    actions: ['Bite', 'Swoop', 'Screech'],
+    ai: 'smart',
+    patrolRange: 6,
+    flying: true,
   },
 };
 
@@ -1974,6 +1986,9 @@ const COMBAT_ACTIONS = {
   'Guard': { eff: 0, def: 12, wait: 10 },
   'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
   'Frost Slam':  { eff: 12, def: 3, wait: 10 },
+  'Bite':        { eff: 6, def: 1, wait: 3 },
+  'Swoop':       { eff: 9, def: 0, wait: 5 },
+  'Screech':     { eff: 0, def: 6, wait: 4 },
 };
 
 // ── Load editor overrides from localStorage ──
@@ -2834,7 +2849,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.95', W - 8, H - 8);
+  ctx.fillText('v1.96', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3722,7 +3737,7 @@ function handleChestInput(key) {
 // ══════════════════════════════════
 function updateEnemyAI(time) {
   if (state.transitioning || state.dialogue || state.combat || state.chestInteraction ||
-      state.combatTransition || state.inventoryOpen || state.saveMenu) return;
+      state.combatTransition || state.inventoryOpen || state.saveMenu || state.weaponTransformPrompt) return;
 
   for (const e of state.entities) {
     if (e.type === 'Chest') continue;
@@ -3914,8 +3929,9 @@ function updateEnemyAI(time) {
 }
 
 function canEntityMoveTo(entity, nx, ny) {
-  // Check collision map
-  if (isTileBlocked(nx, ny, false)) return false;
+  // Flying enemies bypass fly-through collision (same as player flying)
+  const isFlying = ENEMY_DATA[entity.type]?.flying;
+  if (isTileBlocked(nx, ny, !!isFlying)) return false;
   // Check other entities
   for (const other of state.entities) {
     if (other === entity) continue;
@@ -4329,7 +4345,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.95', canvas.width - 8, 14);
+  ctx.fillText('v1.96', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {

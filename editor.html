@@ -209,6 +209,14 @@ function defaults() {
           'You return... to the frost.|I can handle the cold.|Cold does not care... what you can handle.',
           '...Still warm... still alive.|For now.|...For now.'
         ]
+      },
+      { name: 'Swooping Bat', sprite: 'Enemy3', maxHp: 120,
+        actions: [
+          { name: 'Bite', eff: 6, def: 1, wait: 3 },
+          { name: 'Swoop', eff: 9, def: 0, wait: 5 },
+          { name: 'Screech', eff: 0, def: 6, wait: 4 }
+        ],
+        dialogue: []
       }
     ],
     weapons: [
