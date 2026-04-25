@@ -1432,10 +1432,13 @@ const MOVE_DURATION = 230; // ms for grid movement
 const RUN_DURATION = 130; // ms for running (Shift held)
 function getMoveDuration() { return keys['Shift'] ? RUN_DURATION : MOVE_DURATION; }
 let lastFrameTime = 0;
+let frameDt = 1 / 60; // delta time in seconds, global for frame-rate-independent updates
 
 function handleMovement(now) {
-  const dt = lastFrameTime ? Math.min(now - lastFrameTime, 50) : 16; // cap to avoid jumps on tab-back
+  const dtMs = lastFrameTime ? Math.min(now - lastFrameTime, 50) : 16; // cap to avoid jumps on tab-back
+  frameDt = dtMs / 1000; // seconds
   lastFrameTime = now;
+  const dt = dtMs; // keep local ms dt for existing movement code
 
   // Fly transition animations (takeoff / landing)
   if (state.flyTransition) {
@@ -2632,7 +2635,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.72', W - 8, H - 8);
+  ctx.fillText('v1.73', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3719,22 +3722,23 @@ function draw() {
     }
   }
 
-  // Draw and update burn particles
+  // Draw and update burn particles (frame-rate independent)
+  const fdt = frameDt;
   for (let i = state.burnParticles.length - 1; i >= 0; i--) {
     const p = state.burnParticles[i];
     // Physics: float upward briefly, then accelerate with wind
     if (p.life > p.initialLife * 0.6) {
       // Rising phase — gentle upward float
-      p.x += p.vx * 0.008;
-      p.y += p.vy * 0.016;
+      p.x += p.vx * 0.48 * fdt;
+      p.y += p.vy * 0.96 * fdt;
     } else {
       // Catch the wind — accelerate rightward and slightly up
-      p.vx += 0.15;
-      p.vy -= 0.02;
-      p.x += p.vx * 0.016;
-      p.y += p.vy * 0.016;
+      p.vx += 9.0 * fdt;
+      p.vy -= 1.2 * fdt;
+      p.x += p.vx * 0.96 * fdt;
+      p.y += p.vy * 0.96 * fdt;
     }
-    p.life -= p.ember ? 0.008 : 0.014;
+    p.life -= (p.ember ? 0.48 : 0.84) * fdt;
     if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
     const px = Math.round((p.x - camX) * TILE * SCALE);
     const py = Math.round((p.y - camY) * TILE * SCALE);
@@ -3867,9 +3871,9 @@ function draw() {
     const turbX = Math.sin(p.y * 0.02 + wt * 2) * 25 + Math.sin(p.x * 0.015 + wt * 1.3) * 18;
     const turbY = Math.cos(p.x * 0.02 + wt * 1.7) * 15 + Math.sin(p.y * 0.03 + wt * 2.3) * 10;
     
-    const dt = 1 / 60;
-    p.x += (baseVx + wobbleVx + turbX) * dt;
-    p.y += (baseVy + wobbleVy + turbY) * dt;
+    const wdt = frameDt;
+    p.x += (baseVx + wobbleVx + turbX) * wdt;
+    p.y += (baseVy + wobbleVy + turbY) * wdt;
     
     // Store trail
     p.trail.push({ x: p.x, y: p.y });
@@ -3922,7 +3926,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.72', canvas.width - 8, 14);
+  ctx.fillText('v1.73', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
