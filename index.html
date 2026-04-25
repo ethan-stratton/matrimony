@@ -1167,6 +1167,8 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
+  // Sync flying position after level transition
+  if (state.flying) { state.flyX = state.player.x; state.flyY = state.player.y; }
   state.footsteps = [];
   updateCamera();
   
@@ -1237,7 +1239,7 @@ function hasFineCollisionInTile(tx, ty) {
 
 function findNearestWalkable(x, y, axis) {
   // Search nearby tiles for a walkable one
-  const isWalkable = (r, c) => !isTileBlocked(c, r, state.canFly);
+  const isWalkable = (r, c) => !isTileBlocked(c, r, state.flying);
   if (isWalkable(y, x)) return axis === 'col' ? y : x;
   for (let offset = 1; offset < 8; offset++) {
     if (axis === 'col') {
@@ -1328,11 +1330,11 @@ function tryMove(dx, dy) {
     return;
   }
   // Collision check with adaptive step
-  if (isTileBlocked(nx, ny, state.canFly)) {
+  if (isTileBlocked(nx, ny, state.flying)) {
     if (!offGridOnMoveAxis && state.fineCollision) {
       // Full step blocked — try half step
       const halfNx = px + dx * half, halfNy = py + dy * half;
-      if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
+      if (!isTileBlocked(halfNx, halfNy, state.flying)) {
         nx = halfNx; ny = halfNy;
       } else {
         return;
@@ -1393,7 +1395,7 @@ function handleMovement(now) {
   // Flying mode — 8-way smooth pixel movement
   if (state.flying) {
     state.flyBobTimer += dt;
-    const flySpeed = keys['Shift'] ? 0.012 : 0.006;
+    const flySpeed = keys['Shift'] ? 0.009 : 0.006;
     let fdx = 0, fdy = 0;
     if (keys['ArrowLeft']) { fdx -= 1; state.facing = 'left'; }
     if (keys['ArrowRight']) { fdx += 1; state.facing = 'right'; }
@@ -1406,6 +1408,45 @@ function handleMovement(now) {
     }
     const newFlyX = state.flyX + fdx * flySpeed * dt;
     const newFlyY = state.flyY + fdy * flySpeed * dt;
+    // Boundary check — trigger screen transition if at map edge
+    if ((newFlyX < -0.5 || newFlyX >= state.mapW - 0.5 ||
+         newFlyY < -0.5 || newFlyY >= state.mapH - 0.5) && !state.transitioning) {
+      let dir = null;
+      if (newFlyX < -0.5) dir = 'w';
+      else if (newFlyX >= state.mapW - 0.5) dir = 'e';
+      else if (newFlyY < -0.5) dir = 'n';
+      else if (newFlyY >= state.mapH - 0.5) dir = 's';
+      if (dir && typeof ldtkData !== 'undefined' && typeof currentLevelId !== 'undefined' && currentLevelId) {
+        const curLevel = ldtkData.levels.find(l => l.iid === currentLevelId);
+        if (curLevel) {
+          const nbs = (curLevel.__neighbours || []).filter(n => n.dir === dir);
+          if (nbs.length >= 1) {
+            // Pick best match
+            let best = nbs[0];
+            if (nbs.length > 1) {
+              const playerWorldX = state.flyX * 16 + curLevel.worldX;
+              const playerWorldY = state.flyY * 16 + curLevel.worldY;
+              let bestDist = Infinity;
+              for (const n of nbs) {
+                const nl = ldtkData.levels.find(l => l.iid === n.levelIid);
+                if (!nl) continue;
+                let dist;
+                if (dir === 'e' || dir === 'w') {
+                  const py = playerWorldY;
+                  dist = py < nl.worldY ? nl.worldY - py : py >= nl.worldY + nl.pxHei ? py - nl.worldY - nl.pxHei + 1 : 0;
+                } else {
+                  const px = playerWorldX;
+                  dist = px < nl.worldX ? nl.worldX - px : px >= nl.worldX + nl.pxWid ? px - nl.worldX - nl.pxWid + 1 : 0;
+                }
+                if (dist < bestDist) { bestDist = dist; best = n; }
+              }
+            }
+            doScreenTransition(best.levelIid, dir);
+          }
+        }
+      }
+      return;
+    }
     if (newFlyX >= -0.5 && newFlyX < state.mapW - 0.5 &&
         newFlyY >= -0.5 && newFlyY < state.mapH - 0.5) {
       state.flyX = newFlyX;
@@ -2446,7 +2487,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.62', W - 8, H - 8);
+  ctx.fillText('v1.63', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3723,7 +3764,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.62', canvas.width - 8, 14);
+  ctx.fillText('v1.63', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4474,43 +4515,6 @@ function gameLoop(time) {
     if (elapsed < sf.duration) {
       const fadeIn = Math.min(1, elapsed / 200);
       const fadeOut = Math.max(0, 1 - (elapsed - sf.duration + 400) / 400);
-      const alpha = Math.min(fadeIn, fadeOut);
-      ctx.globalAlpha = alpha;
-      crispText(sf.text, canvas.width / 2 - 60, 20, 32, '#f0d060', 0, CRISP_FONT_ALT);
-      ctx.globalAlpha = 1;
-    } else {
-      state.saveFeedback = null;
-    }
-  }
-  requestAnimationFrame(gameLoop);
-}
-
-// ══════════════════════════════════
-// INIT
-// ══════════════════════════════════
-loadLevel().then(() => {
-  // Wait for fonts before first render to prevent flash
-  Promise.all([
-    document.fonts.load('32px "RM2000"'),
-    document.fonts.load('32px "RM2000Alt"'),
-    document.fonts.load('32px "Pixelify Sans"')
-  ]).then(() => requestAnimationFrame(gameLoop))
-    .catch(() => requestAnimationFrame(gameLoop));
-});
-
-</script>
-</body>
-</html>
- document.fonts.load('32px "RM2000Alt"'),
-    document.fonts.load('32px "Pixelify Sans"')
-  ]).then(() => requestAnimationFrame(gameLoop))
-    .catch(() => requestAnimationFrame(gameLoop));
-});
-
-</script>
-</body>
-</html>
-
       const alpha = Math.min(fadeIn, fadeOut);
       ctx.globalAlpha = alpha;
       crispText(sf.text, canvas.width / 2 - 60, 20, 32, '#f0d060', 0, CRISP_FONT_ALT);
