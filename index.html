@@ -851,7 +851,7 @@ document.addEventListener('keydown', (e) => {
           // Drop — remove item from inventory
           const items = getInventoryActions();
           const item = items[state.inventorySelected || 0];
-          if (item && item !== 'Punch' && item !== 'Kick' && item !== 'Defend') {
+          if (item) {
             // Remove from inventory
             const idx = state.inventory.indexOf(item);
             if (idx !== -1) state.inventory.splice(idx, 1);
@@ -2121,7 +2121,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.29', W - 8, H - 8);
+  ctx.fillText('v1.30', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2988,6 +2988,10 @@ function updateEnemyAI(time) {
     if (bestDir) {
       e.prevX = e.x;
       e.prevY = e.y;
+      // Leave footprint at old position
+      if (!e.footsteps) e.footsteps = [];
+      e.footsteps.push({ x: e.prevX, y: e.prevY, time: time, side: e.footsteps.length % 2 });
+      if (e.footsteps.length > 8) e.footsteps.shift();
       e.x += bestDir.dx;
       e.y += bestDir.dy;
       e.aiMoving = true;
@@ -3108,7 +3112,30 @@ function draw() {
     }
     ctx.globalAlpha = 1;
   }
-  
+
+  // Draw enemy footsteps
+  for (const e of state.entities) {
+    if (!e.footsteps || state.defeatedEnemies[e.id]) continue;
+    for (let i = e.footsteps.length - 1; i >= 0; i--) {
+      const f = e.footsteps[i];
+      const age = nowFoot - f.time;
+      if (age > footFadeMs) { e.footsteps.splice(i, 1); continue; }
+      const alpha = 0.2 * (1 - age / footFadeMs);
+      const fx = Math.round((f.x - camX) * TILE * SCALE);
+      const fy = Math.round((f.y - camY) * TILE * SCALE);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#3a1510';
+      if (f.side === 0) {
+        ctx.fillRect(fx + 8, fy + 19, 4, 3);
+        ctx.fillRect(fx + 18, fy + 24, 4, 3);
+      } else {
+        ctx.fillRect(fx + 8, fy + 24, 4, 3);
+        ctx.fillRect(fx + 18, fy + 19, 4, 3);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // Draw player at visual (interpolated) position
   const playerDrawX = Math.round((vis.x - camX) * TILE * SCALE);
   const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
@@ -3216,7 +3243,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.29', canvas.width - 8, 14);
+  ctx.fillText('v1.30', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
