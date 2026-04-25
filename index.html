@@ -2856,7 +2856,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.06', W - 8, H - 8);
+  ctx.fillText('v2.07', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4487,7 +4487,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.06', canvas.width - 8, 14);
+  ctx.fillText('v2.07', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5004,7 +5004,7 @@ function drawEntity(ctx, entity, x, y) {
     ctx.globalAlpha = 0.2 + (1 - hoverNorm) * 0.1; // fainter when high
     ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.ellipse(x + s / 2, y + s + 4 * SCALE, s * 0.35 * shadowScale, s * 0.12 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s / 2, y + s + 4 * SCALE, s * 0.22 * shadowScale, s * 0.08 * shadowScale, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     y -= hoverOffset;
