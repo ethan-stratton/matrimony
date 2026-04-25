@@ -1102,20 +1102,27 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = false;
 }
 
-// Check if a movement tile (tx, ty) is blocked — checks coarse + fine collision
-function isTileBlocked(tx, ty, allowFly) {
+// Check if a movement tile (tx, ty) is blocked — checks coarse + directional fine collision
+// moveDir: 'left'|'right'|'up'|'down'|null (null = check all sub-cells)
+function isTileBlocked(tx, ty, allowFly, moveDir) {
   // Check coarse collision (1:1 with movement tiles)
   if (state.collision && state.collision[ty]) {
     const val = state.collision[ty][tx];
     if (val === 1) return true;
     if (val === 2 && !allowFly) return true;
   }
-  // Check fine collision (sub-tile grid)
+  // Check fine collision — only the ENTRY SIDE sub-cells
   if (state.fineCollision) {
     const s = state.fineCollisionScale || 2;
     const cx = tx * s, cy = ty * s;
-    for (let dy = 0; dy < s; dy++) {
-      for (let dx = 0; dx < s; dx++) {
+    // Determine which sub-cells to check based on movement direction
+    let startDx = 0, endDx = s, startDy = 0, endDy = s;
+    if (moveDir === 'right') { startDx = 0; endDx = 1; } // entering from left, check left column
+    else if (moveDir === 'left') { startDx = s - 1; endDx = s; } // entering from right, check right column
+    else if (moveDir === 'down') { startDy = 0; endDy = 1; } // entering from top, check top row
+    else if (moveDir === 'up') { startDy = s - 1; endDy = s; } // entering from bottom, check bottom row
+    for (let dy = startDy; dy < endDy; dy++) {
+      for (let dx = startDx; dx < endDx; dx++) {
         const r = cy + dy, c = cx + dx;
         if (!state.fineCollision[r] || state.fineCollision[r][c] === undefined) continue;
         const val = state.fineCollision[r][c];
@@ -1203,8 +1210,9 @@ function tryMove(dx, dy) {
     }
     return;
   }
-  // Collision check
-  if (isTileBlocked(nx, ny, state.canFly)) return;
+  // Collision check (directional fine collision)
+  const moveDir = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
+  if (isTileBlocked(nx, ny, state.canFly, moveDir)) return;
   // Entity collision — block movement but don't auto-interact
   const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !e.deathAnim);
   if (blocking) {
@@ -2209,7 +2217,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.34', W - 8, H - 8);
+  ctx.fillText('v1.35', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3053,7 +3061,7 @@ function updateEnemyAI(time) {
       for (const d of shuffled) {
         const nx = e.x + d.dx;
         const ny = e.y + d.dy;
-        if (!canEntityMoveTo(e, nx, ny)) continue;
+        if (!canEntityMoveTo(e, nx, ny, d.dx, d.dy)) continue;
         const nd = Math.abs(nx - px) + Math.abs(ny - py);
         if (nd < bestDist) {
           bestDist = nd;
@@ -3067,7 +3075,7 @@ function updateEnemyAI(time) {
         const nx = e.x + d.dx;
         const ny = e.y + d.dy;
         if (Math.abs(nx - e.origX) > 3 || Math.abs(ny - e.origY) > 3) continue;
-        if (!canEntityMoveTo(e, nx, ny)) continue;
+        if (!canEntityMoveTo(e, nx, ny, d.dx, d.dy)) continue;
         bestDir = d;
         break;
       }
@@ -3092,9 +3100,10 @@ function updateEnemyAI(time) {
   }
 }
 
-function canEntityMoveTo(entity, nx, ny) {
-  // Check collision map (all sub-cells)
-  if (isTileBlocked(nx, ny, false)) return false;
+function canEntityMoveTo(entity, nx, ny, dx, dy) {
+  // Check collision map (directional fine collision)
+  const moveDir = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
+  if (isTileBlocked(nx, ny, false, moveDir)) return false;
   // Check other entities
   for (const other of state.entities) {
     if (other === entity) continue;
@@ -3363,7 +3372,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.34', canvas.width - 8, 14);
+  ctx.fillText('v1.35', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
