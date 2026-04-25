@@ -1267,16 +1267,6 @@ async function doScreenTransition(targetLevelIid, fromDir) {
 // tx, ty can be at half-tile increments (e.g., 3.5)
 // The hitbox spans from (tx, ty) to (tx+1, ty+1)
 function isTileBlocked(tx, ty, allowFly) {
-  // Stream entities override collision — always passable
-  if (state.entities) {
-    for (const e of state.entities) {
-      if (e.type === 'Stream') {
-        const sw = e.widthTiles || 1;
-        const sh = e.heightTiles || 1;
-        if (tx >= e.x && tx < e.x + sw && ty >= e.y && ty < e.y + sh) return false;
-      }
-    }
-  }
   const s = state.fineCollisionScale || 2;
   // Fine cells the 1×1 hitbox covers: from (tx*s, ty*s) to ((tx+1)*s-1, (ty+1)*s-1)
   const fxStart = Math.floor(tx * s);
@@ -1440,6 +1430,7 @@ function tryMove(dx, dy) {
   // Entity collision — check 1×1 box overlap
   const blocking = state.entities.find(e => {
     if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
+    if (e.type === 'Stream') return false; // streams don't block movement
     // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
     return nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y;
   });
@@ -2871,7 +2862,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.13', W - 8, H - 8);
+  ctx.fillText('v2.14', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4596,7 +4587,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.13', canvas.width - 8, 14);
+  ctx.fillText('v2.14', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
