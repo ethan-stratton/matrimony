@@ -523,6 +523,7 @@ const state = {
   player: { x: 0, y: 0 },  // grid coords (destination)
   entities: [],
   collision: [],  // 2D array: 0=walk, 1=wall
+  collisionScale: 1, // how many collision cells per movement tile (e.g., 2 for 8px grid on 16px tiles)
   mapW: 0, mapH: 0,
   tiles: [],      // from LDtk tile layers (all of them, in draw order)
   facing: 'down',
@@ -586,13 +587,17 @@ async function loadLevel(levelIdentifier) {
   
   for (const layer of level.layerInstances) {
     if (layer.__identifier === 'IntGrid') {
-      state.mapW = layer.__cWid;
-      state.mapH = layer.__cHei;
+      const colGridSize = layer.__gridSize || TILE;
+      state.collisionScale = TILE / colGridSize; // e.g., 16/8 = 2
+      state.collisionW = layer.__cWid;
+      state.collisionH = layer.__cHei;
+      state.mapW = Math.floor(level.pxWid / TILE);
+      state.mapH = Math.floor(level.pxHei / TILE);
       state.collision = [];
-      for (let y = 0; y < state.mapH; y++) {
+      for (let y = 0; y < state.collisionH; y++) {
         const row = [];
-        for (let x = 0; x < state.mapW; x++) {
-          row.push(layer.intGridCsv[y * state.mapW + x]);
+        for (let x = 0; x < state.collisionW; x++) {
+          row.push(layer.intGridCsv[y * state.collisionW + x]);
         }
         state.collision.push(row);
       }
@@ -1058,9 +1063,25 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = false;
 }
 
+// Check if a movement tile (tx, ty) is blocked — checks all collision sub-cells
+function isTileBlocked(tx, ty, allowFly) {
+  const s = state.collisionScale || 1;
+  const cx = tx * s, cy = ty * s;
+  for (let dy = 0; dy < s; dy++) {
+    for (let dx = 0; dx < s; dx++) {
+      const r = cy + dy, c = cx + dx;
+      if (!state.collision[r] || state.collision[r][c] === undefined) return true;
+      const val = state.collision[r][c];
+      if (val === 1) return true;
+      if (val === 2 && !allowFly) return true;
+    }
+  }
+  return false;
+}
+
 function findNearestWalkable(x, y, axis) {
   // Search nearby tiles for a walkable one
-  const isWalkable = (r, c) => state.collision[r] && (state.collision[r][c] === 0 || state.collision[r][c] === 2);
+  const isWalkable = (r, c) => !isTileBlocked(c, r, state.canFly);
   if (isWalkable(y, x)) return axis === 'col' ? y : x;
   for (let offset = 1; offset < 8; offset++) {
     if (axis === 'col') {
@@ -1135,8 +1156,7 @@ function tryMove(dx, dy) {
     return;
   }
   // Collision check
-  if (state.collision[ny][nx] === 1) return; // always blocked (walls)
-  if (state.collision[ny][nx] === 2 && !state.canFly) return; // blocked unless flying
+  if (isTileBlocked(nx, ny, state.canFly)) return;
   // Entity collision — block movement but don't auto-interact
   const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !e.deathAnim);
   if (blocking) {
@@ -2121,7 +2141,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.30', W - 8, H - 8);
+  ctx.fillText('v1.31', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3005,11 +3025,8 @@ function updateEnemyAI(time) {
 }
 
 function canEntityMoveTo(entity, nx, ny) {
-  // Check collision map
-  if (!state.collision || !state.collision[ny] || state.collision[ny][nx] === undefined) return false;
-  const val = state.collision[ny][nx];
-  if (val === 1) return false;
-  if (val === 2) return false; // Enemies can't fly
+  // Check collision map (all sub-cells)
+  if (isTileBlocked(nx, ny, false)) return false;
   // Check other entities
   for (const other of state.entities) {
     if (other === entity) continue;
@@ -3243,7 +3260,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.30', canvas.width - 8, 14);
+  ctx.fillText('v1.31', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
