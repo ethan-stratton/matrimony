@@ -2366,20 +2366,18 @@ function drawInventory() {
     sx += crispGradientText('Wait:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
     sx += crispText(pad3(act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
     
-    // Attack type tag (e.g. "Guard" for Defend) and Pierce — on second line
-    const extraY = statsY + 26;
-    let ex = gridX;
+    // Attack type tag (e.g. "Guard" for Defend) and Pierce — same line after Wait
     const ACTION_TAGS = { 'Defend': 'Guard' };
     const tag = ACTION_TAGS[items[sel]];
     if (tag) {
-      ex += crispText(tag, ex, extraY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 16;
+      sx += crispText(tag, sx, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
     }
     // Pierce stat with special shimmer gradient
     if (act.pierce) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
       const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
-      ex += crispGradientText('Pierce:', ex, extraY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-      crispText(pierceVal, ex, extraY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
+      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
     }
     
     // Item description — two lines below stats
@@ -2822,7 +2820,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.88', W - 8, H - 8);
+  ctx.fillText('v1.89', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4298,7 +4296,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.88', canvas.width - 8, 14);
+  ctx.fillText('v1.89', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
