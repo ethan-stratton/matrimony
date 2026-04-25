@@ -2854,7 +2854,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.03', W - 8, H - 8);
+  ctx.fillText('v2.04', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4468,7 +4468,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.03', canvas.width - 8, 14);
+  ctx.fillText('v2.04', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4977,13 +4977,15 @@ function drawEntity(ctx, entity, x, y) {
   if (isFlying && !entity.deathAnim) {
     const t = performance.now() / 600;
     hoverOffset = Math.sin(t * Math.PI) * 4 * SCALE;
-    // Draw shadow
+    // Draw shadow — lower position, shrinks when bat is high
     const s = TILE * SCALE;
+    const hoverNorm = Math.sin(t * Math.PI); // 0=low, 1=high
+    const shadowScale = 1 - hoverNorm * 0.4; // shrinks to 60% at peak
     ctx.save();
-    ctx.globalAlpha = 0.25;
+    ctx.globalAlpha = 0.2 + (1 - hoverNorm) * 0.1; // fainter when high
     ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.ellipse(x + s / 2, y + s - 2 * SCALE, s * 0.35, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s / 2, y + s + 4 * SCALE, s * 0.35 * shadowScale, s * 0.12 * shadowScale, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     y -= hoverOffset;
