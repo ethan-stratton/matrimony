@@ -520,10 +520,13 @@ async function applySave(slot) {
 const state = {
   screen: 'splash', // 'splash' | 'title' | 'game'
   titleSelection: 0, // 0=Slot 1, 1=Slot 2, 2=Slot 3
+  titleDeleteMode: false, // delete save mode
   player: { x: 0, y: 0 },  // grid coords (destination)
   entities: [],
   collision: [],  // 2D array: 0=walk, 1=wall
   collisionScale: 1, // how many collision cells per movement tile (e.g., 2 for 8px grid on 16px tiles)
+  fineCollision: null, // optional fine collision grid (8×8)
+  fineCollisionScale: 2,
   mapW: 0, mapH: 0,
   tiles: [],      // from LDtk tile layers (all of them, in draw order)
   facing: 'down',
@@ -587,19 +590,28 @@ async function loadLevel(levelIdentifier) {
   
   for (const layer of level.layerInstances) {
     if (layer.__identifier === 'IntGrid') {
-      const colGridSize = layer.__gridSize || TILE;
-      state.collisionScale = TILE / colGridSize; // e.g., 16/8 = 2
-      state.collisionW = layer.__cWid;
-      state.collisionH = layer.__cHei;
       state.mapW = Math.floor(level.pxWid / TILE);
       state.mapH = Math.floor(level.pxHei / TILE);
+      state.collisionScale = 1;
       state.collision = [];
-      for (let y = 0; y < state.collisionH; y++) {
+      for (let y = 0; y < layer.__cHei; y++) {
         const row = [];
-        for (let x = 0; x < state.collisionW; x++) {
-          row.push(layer.intGridCsv[y * state.collisionW + x]);
+        for (let x = 0; x < layer.__cWid; x++) {
+          row.push(layer.intGridCsv[y * layer.__cWid + x]);
         }
         state.collision.push(row);
+      }
+    }
+    if (layer.__identifier === 'IntGrid_Fine_Collision') {
+      const colGridSize = layer.__gridSize || 8;
+      state.fineCollisionScale = TILE / colGridSize; // e.g., 2
+      state.fineCollision = [];
+      for (let y = 0; y < layer.__cHei; y++) {
+        const row = [];
+        for (let x = 0; x < layer.__cWid; x++) {
+          row.push(layer.intGridCsv[y * layer.__cWid + x]);
+        }
+        state.fineCollision.push(row);
       }
     }
     if (layer.__type === 'Tiles' && layer.gridTiles && layer.gridTiles.length > 0) {
@@ -705,12 +717,37 @@ document.addEventListener('keydown', (e) => {
   
   // Title screen input
   if (state.screen === 'title') {
+    if (state.titleDeleteMode) {
+      if (e.key === 'ArrowUp') {
+        state.titleSelection = (state.titleSelection + 2) % 3;
+        playTick();
+      } else if (e.key === 'ArrowDown') {
+        state.titleSelection = (state.titleSelection + 1) % 3;
+        playTick();
+      } else if (e.key === 'z' || e.key === 'Z') {
+        // Delete the selected save
+        const slot = state.titleSelection || 0;
+        localStorage.removeItem('matrimony_save_' + slot);
+        playHit(true);
+        state.titleDeleteMode = false;
+      } else if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') {
+        state.titleDeleteMode = false;
+        playTick();
+      }
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'ArrowUp') {
       state.titleSelection = (state.titleSelection + 2) % 3;
       playTick();
       e.preventDefault();
     } else if (e.key === 'ArrowDown') {
       state.titleSelection = (state.titleSelection + 1) % 3;
+      playTick();
+      e.preventDefault();
+    } else if (e.key === 'x' || e.key === 'X') {
+      // Enter delete mode
+      state.titleDeleteMode = true;
       playTick();
       e.preventDefault();
     } else if (e.key === 'z' || e.key === 'Z') {
@@ -1063,17 +1100,26 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = false;
 }
 
-// Check if a movement tile (tx, ty) is blocked — checks all collision sub-cells
+// Check if a movement tile (tx, ty) is blocked — checks coarse + fine collision
 function isTileBlocked(tx, ty, allowFly) {
-  const s = state.collisionScale || 1;
-  const cx = tx * s, cy = ty * s;
-  for (let dy = 0; dy < s; dy++) {
-    for (let dx = 0; dx < s; dx++) {
-      const r = cy + dy, c = cx + dx;
-      if (!state.collision[r] || state.collision[r][c] === undefined) return true;
-      const val = state.collision[r][c];
-      if (val === 1) return true;
-      if (val === 2 && !allowFly) return true;
+  // Check coarse collision (1:1 with movement tiles)
+  if (state.collision && state.collision[ty]) {
+    const val = state.collision[ty][tx];
+    if (val === 1) return true;
+    if (val === 2 && !allowFly) return true;
+  }
+  // Check fine collision (sub-tile grid)
+  if (state.fineCollision) {
+    const s = state.fineCollisionScale || 2;
+    const cx = tx * s, cy = ty * s;
+    for (let dy = 0; dy < s; dy++) {
+      for (let dx = 0; dx < s; dx++) {
+        const r = cy + dy, c = cx + dx;
+        if (!state.fineCollision[r] || state.fineCollision[r][c] === undefined) continue;
+        const val = state.fineCollision[r][c];
+        if (val === 1) return true;
+        if (val === 2 && !allowFly) return true;
+      }
     }
   }
   return false;
@@ -2118,10 +2164,16 @@ function drawTitle() {
   for (let i = 0; i < slots.length; i++) {
     const sy = startY + i * (slotH + 12);
     const selected = state.titleSelection === i;
-    ctx.fillStyle = selected ? 'rgba(60, 50, 80, 0.8)' : 'rgba(20, 18, 30, 0.7)';
+    ctx.fillStyle = selected ? (state.titleDeleteMode ? 'rgba(80, 30, 30, 0.8)' : 'rgba(60, 50, 80, 0.8)') : 'rgba(20, 18, 30, 0.7)';
     ctx.fillRect(slotX, sy, slotW, slotH);
     if (selected) {
-      drawGoldOutline(slotX, sy, slotW, slotH, 2);
+      if (state.titleDeleteMode) {
+        ctx.strokeStyle = '#c04040';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(slotX, sy, slotW, slotH);
+      } else {
+        drawGoldOutline(slotX, sy, slotW, slotH, 2);
+      }
     } else {
       ctx.strokeStyle = 'rgba(100, 90, 120, 0.5)';
       ctx.lineWidth = 1;
@@ -2134,14 +2186,24 @@ function drawTitle() {
   const hintAlpha = 0.4 + 0.2 * Math.sin(now / 600);
   ctx.globalAlpha = hintAlpha;
   ctx.font = '32px "' + CRISP_FONT_ALT + '"';
-  const hintW = ctx.measureText('Press Z to select').width;
-  crispText('Press Z to select', Math.round((W - hintW) / 2), Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
+  if (state.titleDeleteMode) {
+    const delW = ctx.measureText('Choose file to delete (X = Cancel)').width;
+    crispText('Choose file to delete (X = Cancel)', Math.round((W - delW) / 2), Math.round(H * 0.88), 32, '#c04040', 0, CRISP_FONT_ALT);
+  } else {
+    const hintW = ctx.measureText('Press Z to select').width;
+    crispText('Press Z to select', Math.round((W - hintW) / 2), Math.round(H * 0.88), 32, '#706878', 0, CRISP_FONT_ALT);
+  }
   ctx.globalAlpha = 1;
+
+  // Red X delete button hint (bottom right)
+  if (!state.titleDeleteMode) {
+    crispText('X = Delete', W - 120, H - 24, 32, '#804040', 0, CRISP_FONT_ALT);
+  }
   
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.31', W - 8, H - 8);
+  ctx.fillText('v1.32', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3260,7 +3322,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.31', canvas.width - 8, 14);
+  ctx.fillText('v1.32', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
