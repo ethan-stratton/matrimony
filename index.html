@@ -481,6 +481,8 @@ function saveGame(slot) {
     playerHp: 30, // TODO: track persistent HP
     playerExp: state.player.exp || 0,
     playerSteps: state.player.totalSteps || 0,
+    itemSteps: state.itemSteps || {},
+    rejectedTransforms: state.rejectedTransforms || {},
     timestamp: Date.now(),
   };
   try {
@@ -520,6 +522,8 @@ async function applySave(slot) {
   state.encounterCounts = data.encounterCounts || {};
   state.player.exp = data.playerExp || 0;
   state.player.totalSteps = data.playerSteps || 0;
+  state.itemSteps = data.itemSteps || {};
+  state.rejectedTransforms = data.rejectedTransforms || {};
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
   state.footsteps = [];
@@ -995,6 +999,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (state.weaponTransformPrompt) {
       acceptWeaponTransform();
+      playTick();
       return;
     }
     if (state.inventoryOpen && !state.combat) {
@@ -1120,6 +1125,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (state.weaponTransformPrompt) {
       rejectWeaponTransform();
+      playTick();
       return;
     }
     if (state.combat) {
@@ -1447,6 +1453,13 @@ function tryMove(dx, dy) {
   // Track total steps for weapon transformations
   if (!state.player.totalSteps) state.player.totalSteps = 0;
   state.player.totalSteps++;
+  // Track per-item steps for inventory items
+  if (!state.itemSteps) state.itemSteps = {};
+  for (const item of (state.inventory || [])) {
+    if (WEAPON_TRANSFORMATIONS[item]) {
+      state.itemSteps[item] = (state.itemSteps[item] || 0) + 1;
+    }
+  }
   checkWeaponTransformations();
   // Only play footstep if a direction key is currently held
   if (keys['ArrowLeft'] || keys['ArrowRight'] || keys['ArrowUp'] || keys['ArrowDown']) {
@@ -1886,12 +1899,15 @@ const WEAPON_TRANSFORMATIONS = {
 
 function checkWeaponTransformations() {
   if (!state.inventory || state.weaponTransformPrompt || state.combat || state.dialogue) return;
+  if (!state.itemSteps) state.itemSteps = {};
   for (let i = 0; i < state.inventory.length; i++) {
     const item = state.inventory[i];
     const tf = WEAPON_TRANSFORMATIONS[item];
     if (!tf) continue;
     if (state.rejectedTransforms && state.rejectedTransforms[item]) continue;
-    if (tf.condition === 'steps' && (state.player.totalSteps || 0) >= tf.threshold) {
+    // Initialize step counter for this item if needed
+    if (state.itemSteps[item] === undefined) state.itemSteps[item] = 0;
+    if (tf.condition === 'steps' && state.itemSteps[item] >= tf.threshold) {
       // Register the transformed weapon stats ahead of time
       const base = COMBAT_ACTIONS[item] || {};
       COMBAT_ACTIONS[tf.newName] = { ...base, pierce: tf.pierceVal || base.pierce };
@@ -2182,7 +2198,9 @@ function drawGoldOutline(x, y, w, h, thickness) {
 
 function getInventoryActions() {
   // All combat actions the player currently has
-  const base = ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])];
+  const hasShortbow = state.inventory.some(i => i === 'Shortbow' || i === 'Shortbow ★');
+  const bowName = state.inventory.find(i => i === 'Shortbow ★') || 'Shortbow';
+  const base = ['Punch', 'Kick', 'Defend', ...(hasShortbow ? [bowName] : [])];
   if (state.actionOrder) {
     // Filter out any actions no longer available, preserve order
     return state.actionOrder.filter(a => base.includes(a));
@@ -2801,7 +2819,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.86', W - 8, H - 8);
+  ctx.fillText('v1.87', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3460,7 +3478,7 @@ function drawWeaponTransformPrompt() {
   const fadeIn = Math.min(1, age * 3);
   
   const W = canvas.width, H = canvas.height;
-  const boxW = 320, boxH = 220;
+  const boxW = 320, boxH = 200;
   const bx = Math.round((W - boxW) / 2);
   const by = Math.round((H - boxH) / 2);
   
@@ -3470,62 +3488,46 @@ function drawWeaponTransformPrompt() {
   ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = fadeIn;
   
-  // Box background
-  ctx.fillStyle = '#0a0a1a';
+  // Box background — match chest style
+  ctx.fillStyle = 'rgba(10, 8, 15, 0.95)';
   ctx.fillRect(bx, by, boxW, boxH);
-  // Border — icy gradient
-  ctx.strokeStyle = '#60c0e0';
+  ctx.strokeStyle = '#5a5060';
   ctx.lineWidth = 2;
   ctx.strokeRect(bx, by, boxW, boxH);
-  // Inner glow border
-  ctx.strokeStyle = 'rgba(140, 220, 255, 0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(bx + 3, by + 3, boxW - 6, boxH - 6);
   
-  // Title — weapon name with shimmer
+  // Title — weapon name with shimmer, left-aligned
   const shimmerT = (now / 600) % 1;
   const TITLE_GRADIENT = [
     [Math.max(0, shimmerT - 0.3), '#80c0e0'],
     [shimmerT, '#ffffff'],
     [Math.min(1, shimmerT + 0.3), '#80c0e0'],
   ].map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
-  crispGradientText(p.newName, bx + boxW / 2 - 70, by + 16, 32, TITLE_GRADIENT, 0, 'Pixelify Sans');
+  crispGradientText(p.newName, bx + 16, by + 12, 32, TITLE_GRADIENT, 0, CRISP_FONT_ALT);
   
-  // Stats
-  const statsY = by + 56;
-  const STAT_GRADIENT = [[0, '#8a6010'], [0.2, '#c89830'], [0.4, '#ffe8a0'], [0.5, '#fffff0'], [0.6, '#ffe8a0'], [0.8, '#c89830'], [1, '#8a6010']];
-  let sx = bx + 20;
-  sx += crispGradientText('Eff:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-  sx += crispText(String(p.stats.eff || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
-  sx += crispGradientText('Def:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-  sx += crispText(String(p.stats.def || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
-  sx += crispGradientText('Wait:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-  crispText(String(p.stats.wait || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT);
+  // Stats line — match chest exactly (32px, GOLD_GRADIENT, #fff values)
+  let sx = bx + 16;
+  const statY = by + 46;
+  sx += crispGradientText('Eff:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  sx += crispText('' + (p.stats.eff || 0), sx, statY, 32, '#fff') + 8;
+  sx += crispGradientText('Def:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  sx += crispText('' + (p.stats.def || 0), sx, statY, 32, '#fff') + 8;
+  sx += crispGradientText('Wait:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  crispText('' + (p.stats.wait || 0), sx, statY, 32, '#fff');
   
   // Special effect — Pierce with shimmer
-  const effectY = by + 96;
+  const effectY = by + 86;
   const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.15, '#60d0ff'], [0.3, '#a0f0ff'], [0.5, '#ffffff'], [0.7, '#a0f0ff'], [0.85, '#60d0ff'], [1, '#40a0d0']];
-  // Animate the gradient scrolling
   const scrollT = (now / 800) % 1;
   const PIERCE_SHIMMER = PIERCE_GRADIENT.map(([s, c]) => [Math.max(0, Math.min(1, (s + scrollT) % 1)), c]).sort((a, b) => a[0] - b[0]);
   if (p.pierceVal) {
     const pierceText = 'Pierce: ' + (p.pierceVal === true ? '∞' : p.pierceVal);
-    crispGradientText(pierceText, bx + 20, effectY, 28, PIERCE_SHIMMER, 0, CRISP_FONT_ALT);
-    crispText('1 damage ignores defense', bx + 20, effectY + 30, 20, '#8090a0', 0, CRISP_FONT_ALT);
+    crispGradientText(pierceText, bx + 16, effectY, 32, PIERCE_SHIMMER, 0, CRISP_FONT_ALT);
+    crispText('1 damage ignores defense', bx + 16, effectY + 30, 32, '#8090a0', 0, CRISP_FONT_ALT);
   }
   
-  // Accept / Reject buttons
-  const btnY = by + boxH - 44;
-  const pulse = 0.6 + Math.sin(now / 300) * 0.4;
-  
-  // (Z) Accept — green pulsing
-  ctx.globalAlpha = fadeIn;
-  crispText('(Z)', bx + 40, btnY, 24, `rgba(80,200,60,${pulse})`, 0, CRISP_FONT_ALT);
-  crispText('Accept', bx + 75, btnY, 24, '#80c840', 0, CRISP_FONT_ALT);
-  
-  // (X) Reject — dim red
-  crispText('(X)', bx + 180, btnY, 24, '#a06060', 0, CRISP_FONT_ALT);
-  crispText('Reject', bx + 215, btnY, 24, '#906060', 0, CRISP_FONT_ALT);
+  // Accept / Reject — match chest prompt style (#ffe060, 32px)
+  const btnY = by + boxH - 40;
+  crispText('(Z) Accept   (X) Reject', bx + 16, btnY, 32, '#ffe060', 0, CRISP_FONT_ALT);
   
   ctx.globalAlpha = 1;
 }
@@ -4289,7 +4291,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.86', canvas.width - 8, 14);
+  ctx.fillText('v1.87', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
