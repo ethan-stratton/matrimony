@@ -1453,6 +1453,9 @@ function handleMovement(now) {
           });
         }
       }
+      // Restore original facing
+      const dirs = ['down', 'left', 'up', 'right'];
+      state.facing = dirs[ft.startFacing || 0];
       state.flyTransition = null;
     } else {
       // Cycle facing from current direction so sprite looks like it's turning
@@ -2593,7 +2596,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.68', W - 8, H - 8);
+  ctx.fillText('v1.69', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3883,7 +3886,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.68', canvas.width - 8, 14);
+  ctx.fillText('v1.69', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
