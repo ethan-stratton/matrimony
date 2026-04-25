@@ -1250,45 +1250,8 @@ function tryMove(dx, dy) {
     // Full tile blocked — try half step
     const halfNx = px + dx * half, halfNy = py + dy * half;
     if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
-      // Half step is clear
       nx = halfNx; ny = halfNy;
-      stepX = dx * half; stepY = dy * half;
       blocked = false;
-    }
-  }
-  
-  // Re-align to full grid when possible
-  if (!blocked) {
-    // Snap MOVEMENT axis to nearest full tile in move direction
-    if (dx !== 0 && px % 1 !== 0) {
-      const snapX = dx > 0 ? Math.ceil(px) : Math.floor(px);
-      if (!isTileBlocked(snapX, py, state.canFly)) {
-        nx = snapX;
-      }
-    }
-    if (dy !== 0 && py % 1 !== 0) {
-      const snapY = dy > 0 ? Math.ceil(py) : Math.floor(py);
-      if (!isTileBlocked(px, snapY, state.canFly)) {
-        ny = snapY;
-      }
-    }
-    // Queue perpendicular re-align as a SEPARATE follow-up move (no diagonal)
-    state.pendingSnap = null;
-    if (dx !== 0 && py % 1 !== 0) {
-      const snapY = Math.round(py);
-      const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.floor(px), Math.ceil(py));
-      const dstHasFine = hasFineCollisionInTile(Math.floor(nx), Math.floor(py)) || hasFineCollisionInTile(Math.floor(nx), Math.ceil(py));
-      if (!curHasFine && !dstHasFine && !isTileBlocked(nx, snapY, state.canFly)) {
-        state.pendingSnap = { x: nx, y: snapY };
-      }
-    }
-    if (dy !== 0 && px % 1 !== 0) {
-      const snapX = Math.round(px);
-      const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(py));
-      const dstHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(ny)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(ny));
-      if (!curHasFine && !dstHasFine && !isTileBlocked(snapX, ny, state.canFly)) {
-        state.pendingSnap = { x: snapX, y: ny };
-      }
     }
   }
   
@@ -1342,22 +1305,6 @@ function handleMovement(now) {
     const stepScale = state.moveStepScale || 1;
     if (state.moveTimer >= getMoveDuration() * stepScale) {
       state.moving = false;
-      // Execute pending perpendicular snap as a separate move
-      if (state.pendingSnap) {
-        const snap = state.pendingSnap;
-        state.pendingSnap = null;
-        // Only snap if still at a half position and destination is still clear
-        if ((state.player.x % 1 !== 0 || state.player.y % 1 !== 0) && !isTileBlocked(snap.x, snap.y, state.canFly)) {
-          state.moving = true;
-          state.moveTimer = 0;
-          state.moveFrom.x = state.player.x;
-          state.moveFrom.y = state.player.y;
-          state.moveStepScale = Math.max(Math.abs(snap.x - state.player.x), Math.abs(snap.y - state.player.y));
-          state.player.x = snap.x;
-          state.player.y = snap.y;
-          return;
-        }
-      }
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
       else if (keys['ArrowRight']) tryMove(1, 0);
@@ -2318,7 +2265,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.44', W - 8, H - 8);
+  ctx.fillText('v1.45', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3472,7 +3419,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.44', canvas.width - 8, 14);
+  ctx.fillText('v1.45', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
