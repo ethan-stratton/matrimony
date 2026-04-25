@@ -1272,14 +1272,14 @@ function tryMove(dx, dy) {
         ny = snapY;
       }
     }
-    // Snap PERPENDICULAR axis back to grid — ONLY when neither current nor destination tile has fine collision
+    // Queue perpendicular re-align as a SEPARATE follow-up move (no diagonal)
+    state.pendingSnap = null;
     if (dx !== 0 && py % 1 !== 0) {
       const snapY = Math.round(py);
-      // Check that both current tile and destination tile are free of fine collision
       const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.floor(px), Math.ceil(py));
       const dstHasFine = hasFineCollisionInTile(Math.floor(nx), Math.floor(py)) || hasFineCollisionInTile(Math.floor(nx), Math.ceil(py));
       if (!curHasFine && !dstHasFine && !isTileBlocked(nx, snapY, state.canFly)) {
-        ny = snapY;
+        state.pendingSnap = { x: nx, y: snapY };
       }
     }
     if (dy !== 0 && px % 1 !== 0) {
@@ -1287,7 +1287,7 @@ function tryMove(dx, dy) {
       const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(py));
       const dstHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(ny)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(ny));
       if (!curHasFine && !dstHasFine && !isTileBlocked(snapX, ny, state.canFly)) {
-        nx = snapX;
+        state.pendingSnap = { x: snapX, y: ny };
       }
     }
   }
@@ -1342,6 +1342,22 @@ function handleMovement(now) {
     const stepScale = state.moveStepScale || 1;
     if (state.moveTimer >= getMoveDuration() * stepScale) {
       state.moving = false;
+      // Execute pending perpendicular snap as a separate move
+      if (state.pendingSnap) {
+        const snap = state.pendingSnap;
+        state.pendingSnap = null;
+        // Only snap if still at a half position and destination is still clear
+        if ((state.player.x % 1 !== 0 || state.player.y % 1 !== 0) && !isTileBlocked(snap.x, snap.y, state.canFly)) {
+          state.moving = true;
+          state.moveTimer = 0;
+          state.moveFrom.x = state.player.x;
+          state.moveFrom.y = state.player.y;
+          state.moveStepScale = Math.max(Math.abs(snap.x - state.player.x), Math.abs(snap.y - state.player.y));
+          state.player.x = snap.x;
+          state.player.y = snap.y;
+          return;
+        }
+      }
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
       else if (keys['ArrowRight']) tryMove(1, 0);
@@ -2302,7 +2318,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.43', W - 8, H - 8);
+  ctx.fillText('v1.44', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3456,7 +3472,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.43', canvas.width - 8, 14);
+  ctx.fillText('v1.44', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
