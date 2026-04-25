@@ -2856,7 +2856,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.08', W - 8, H - 8);
+  ctx.fillText('v2.09', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3749,57 +3749,55 @@ function updateFishStream(time) {
   if (state.combat || state.dialogue) return;
   if (!state.fishParticles) state.fishParticles = [];
   
-  // Find Stream entities in current level
   const streams = state.entities.filter(e => e.type === 'Stream');
   if (streams.length === 0) { state.fishParticles.length = 0; return; }
   
-  // Spawn fish periodically — spawn at top of visible area within stream bounds
   if (!state.fishSpawnTimer) state.fishSpawnTimer = time;
-  if (time - state.fishSpawnTimer > 100) {
+  if (time - state.fishSpawnTimer > 180) {
     state.fishSpawnTimer = time;
-    const cam = getCameraOffset();
-    const camY = cam.y;
-    const viewH = CANVAS_H / (TILE * SCALE);
     for (const s of streams) {
       const sw = s.widthTiles || 1;
       const sh = s.heightTiles || 1;
-      const streamTop = s.y;
-      const streamBottom = s.y + sh;
-      // Spawn just above visible area, but within stream vertical bounds
-      const spawnY = Math.max(streamTop, camY - 2) + Math.random() * 0.5;
-      if (spawnY > streamBottom) continue; // camera is below stream
-      const spawnX = s.x + Math.random() * sw;
-      const speed = 3.5 + Math.random() * 2.0;
-      const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
-      // Life enough to cross visible area + some
-      const travelDist = viewH + 6;
+      // Spawn at top of stream entity
+      const spawnX = s.x + 0.5 + Math.random() * (sw - 1);
+      const spawnY = s.y - 1;
+      const speed = 2.0 + Math.random() * 1.5;
+      // Mostly downward with gentle drift
+      const drift = (Math.random() - 0.5) * 0.4;
+      const fishSize = 1.5 + Math.random() * 2.5; // varying sizes — some big, some small
       state.fishParticles.push({
         x: spawnX, y: spawnY,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: travelDist / speed,
-        initialLife: travelDist / speed,
-        size: 2 + Math.random() * 2,
+        vx: drift,
+        vy: speed,
+        life: (sh + 4) / speed,
+        initialLife: (sh + 4) / speed,
+        size: fishSize,
         wobble: Math.random() * Math.PI * 2,
-        wobbleSpeed: 3 + Math.random() * 3,
-        streamX: s.x, streamW: sw, streamBottom: streamBottom,
+        wobbleSpeed: 1.5 + Math.random() * 2,
+        wobbleAmp: 0.15 + Math.random() * 0.2,
+        streamX: s.x, streamW: sw, streamBottom: s.y + sh,
+        // Visual variation
+        shade: 0.08 + Math.random() * 0.12, // how dark (0.08-0.20 alpha range)
+        finPhase: Math.random() * Math.PI * 2,
+        finSpeed: 4 + Math.random() * 3,
+        glint: Math.random() < 0.3, // 30% chance of eye glint
+        big: fishSize > 3, // big fish have more detail
       });
     }
   }
   
-  // Update fish
   const fdt = frameDt || 0.016;
   for (let i = state.fishParticles.length - 1; i >= 0; i--) {
     const f = state.fishParticles[i];
     f.life -= fdt;
-    // Kill if past stream bottom or expired
     if (f.life <= 0 || f.y > f.streamBottom + 2) { state.fishParticles.splice(i, 1); continue; }
     f.wobble += f.wobbleSpeed * fdt;
-    f.x += f.vx * fdt + Math.sin(f.wobble) * 0.4 * fdt;
+    f.finPhase += f.finSpeed * fdt;
+    f.x += f.vx * fdt + Math.sin(f.wobble) * f.wobbleAmp * fdt;
     f.y += f.vy * fdt;
   }
   
-  // Push player if flying — within the stream entity bounds
+  // Push player if flying
   if (state.flying && streams.length > 0) {
     for (const s of streams) {
       const sw = s.widthTiles || 1;
@@ -3811,12 +3809,8 @@ function updateFishStream(time) {
         const dx = px - centerX;
         const halfW = sw / 2 + 1;
         const proximity = 1 - Math.min(1, Math.abs(dx) / halfW);
-        // Push downward + sideways away from center
-        const strength = proximity * 0.0012;
-        state.flyVy += strength;
-        // Push away from center horizontally
-        const sideForce = dx > 0 ? 0.0005 : -0.0005;
-        state.flyVx += sideForce * proximity;
+        state.flyVy += proximity * 0.0012;
+        state.flyVx += (dx > 0 ? 0.0005 : -0.0005) * proximity;
       }
     }
   }
@@ -3832,33 +3826,71 @@ function drawFishStream(ctx) {
   for (const f of state.fishParticles) {
     const sx = (f.x - camX) * ts;
     const sy = (f.y - camY) * ts;
-    const alpha = Math.min(1, f.life / 0.5) * Math.min(1, (f.initialLife - f.life) / 0.3);
+    // Fade in/out at edges
+    const fadeIn = Math.min(1, (f.initialLife - f.life) / 0.8);
+    const fadeOut = Math.min(1, f.life / 0.8);
+    const alpha = fadeIn * fadeOut;
     
     ctx.save();
-    ctx.globalAlpha = alpha * 0.7;
+    ctx.globalAlpha = alpha * f.shade;
     ctx.translate(sx, sy);
-    // Rotate fish to face movement direction
-    const angle = Math.atan2(f.vy, f.vx + Math.sin(f.wobble) * 0.3);
+    
+    // Fish faces movement direction — mostly down, slight wobble
+    const angle = Math.atan2(f.vy, f.vx + Math.sin(f.wobble) * f.wobbleAmp);
     ctx.rotate(angle);
     
-    // Draw simple fish shape
     const sz = f.size * SCALE;
-    ctx.fillStyle = '#6090c0';
+    
+    // Dark body — top-down teardrop shape
+    ctx.fillStyle = '#0a0810';
     ctx.beginPath();
-    ctx.ellipse(0, 0, sz * 1.5, sz * 0.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, sz * 0.5, sz * 1.4, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Tail
+    
+    // Darker spine line
+    ctx.strokeStyle = '#050308';
+    ctx.lineWidth = Math.max(1, sz * 0.15);
     ctx.beginPath();
-    ctx.moveTo(-sz * 1.3, 0);
-    ctx.lineTo(-sz * 2.2, -sz * 0.5);
-    ctx.lineTo(-sz * 2.2, sz * 0.5);
+    ctx.moveTo(0, -sz * 1.0);
+    ctx.lineTo(0, sz * 1.0);
+    ctx.stroke();
+    
+    // Tail fin — V shape at back, subtle movement
+    const tailSway = Math.sin(f.finPhase) * sz * 0.3;
+    ctx.fillStyle = '#0a0810';
+    ctx.beginPath();
+    ctx.moveTo(0, sz * 1.2);
+    ctx.lineTo(-sz * 0.4 + tailSway * 0.5, sz * 1.8);
+    ctx.lineTo(tailSway, sz * 1.5);
+    ctx.lineTo(sz * 0.4 + tailSway * 0.5, sz * 1.8);
     ctx.closePath();
     ctx.fill();
-    // Eye
-    ctx.fillStyle = '#c0d8f0';
+    
+    // Side fins — pectoral fins flapping slowly
+    const finFlap = Math.sin(f.finPhase * 0.7) * 0.3;
     ctx.beginPath();
-    ctx.arc(sz * 0.6, -sz * 0.1, sz * 0.2, 0, Math.PI * 2);
+    ctx.moveTo(-sz * 0.3, -sz * 0.2);
+    ctx.lineTo(-sz * 0.8 - finFlap * sz, sz * 0.1);
+    ctx.lineTo(-sz * 0.2, sz * 0.3);
+    ctx.closePath();
     ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sz * 0.3, -sz * 0.2);
+    ctx.lineTo(sz * 0.8 + finFlap * sz, sz * 0.1);
+    ctx.lineTo(sz * 0.2, sz * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Eye glint — rare subtle catch of light
+    if (f.glint) {
+      ctx.globalAlpha = alpha * 0.15;
+      ctx.fillStyle = '#405060';
+      ctx.beginPath();
+      ctx.arc(-sz * 0.15, -sz * 0.6, sz * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.arc(sz * 0.15, -sz * 0.6, sz * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+    }
     
     ctx.restore();
   }
@@ -4489,7 +4521,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.08', canvas.width - 8, 14);
+  ctx.fillText('v2.09', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
