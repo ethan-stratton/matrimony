@@ -551,7 +551,8 @@ const state = {
   chestInteraction: null,
   inventory: [],
   footsteps: [], // { x, y, time, dir } — fading footprint trail
-  burnParticles: [], // { x, y, vx, vy, life, size } — fire elemental particles
+  burnParticles: [],
+  equipment: [null, null], // 2 equipment slots (transformations fill both) // { x, y, vx, vy, life, size } — fire elemental particles
   wasWalking: false,
   justStartedRunning: false,
   currentMoveDuration: 230, // smoothed move duration for momentum transitions
@@ -1800,7 +1801,7 @@ function drawInventory() {
   
   // EXP display
   crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
-  crispText('X = Menu', W - pad - 130, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
+  crispText('Shift : Save', W - pad - 170, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
   ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
@@ -1833,6 +1834,22 @@ function drawInventory() {
   
   // HP below portrait
   crispText('HP 30/30', pPortraitX + 12, pPortraitY + portraitH + 4, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  
+  // Equipment slots below HP
+  const equipY = pPortraitY + portraitH + 26;
+  const equipSlotW = Math.round(portraitW / 2) + 10;
+  const equipSlotH = 18;
+  for (let i = 0; i < 2; i++) {
+    const ey = equipY + i * (equipSlotH + 4);
+    const equipped = (state.equipment && state.equipment[i]) || null;
+    ctx.fillStyle = 'rgba(12, 12, 20, 0.6)';
+    ctx.fillRect(pPortraitX, ey, equipSlotW, equipSlotH);
+    ctx.strokeStyle = 'rgba(200, 160, 40, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pPortraitX, ey, equipSlotW, equipSlotH);
+    const label = equipped || (i === 0 ? 'Slot 1' : 'Slot 2');
+    crispText(label, pPortraitX + 4, ey + 1, 24, equipped ? '#e8e0d0' : '#504840', 0, CRISP_FONT_ALT);
+  }
   
   // ── ACTION/ITEM GRID ──
   const gridX = pPortraitX + portraitW + 48;
@@ -1873,7 +1890,8 @@ function drawInventory() {
       const hy = ay;
       const hw = colW - 4;
       const hh = gridRowH;
-      ctx.fillStyle = 'rgba(80, 200, 60, 0.18)';
+      const pulse = 0.14 + 0.08 * Math.sin(now / 300);
+      ctx.fillStyle = 'rgba(80, 200, 60,' + pulse + ')';
       ctx.fillRect(hx + 1, hy, hw - 2, 1);
       ctx.fillRect(hx, hy + 1, hw, hh - 2);
       ctx.fillRect(hx + 1, hy + hh - 1, hw - 2, 1);
@@ -1882,23 +1900,41 @@ function drawInventory() {
     crispText(items[i], ax + 2, ay + 2, 32, '#ffffff');
   }
   
-  // Selected item stats
+  // Selected item stats — aligned with action grid
   const sel = state.inventorySelected || 0;
   if (sel < items.length) {
     const act = COMBAT_ACTIONS[items[sel]] || {};
-    const statsY = H - pad - 26;
-    const slotW = 120;
-    const totalW = slotW * 3;
-    const startX = Math.round((W - totalW) / 2);
-    let sx = startX;
-    crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
-    crispText('' + (act.eff || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
-    sx += slotW;
-    crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
-    crispText('' + (act.def || 0), sx + 55, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
-    sx += slotW;
-    crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
-    crispText('' + (act.wait || 0), sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    const numRows = Math.ceil(items.length / 2);
+    const statsY = gridY + numRows * gridRowH + 4;
+    let sx = gridX;
+    sx += crispGradientText('Eff:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + (act.eff || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+    sx += crispGradientText('Def:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + (act.def || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+    sx += crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    crispText('' + (act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    
+    // Attack type tag (e.g. "Guard" for Defend)
+    const ACTION_TAGS = { 'Defend': 'Guard' };
+    const tag = ACTION_TAGS[items[sel]];
+    if (tag) {
+      const tagX = sx + 40;
+      crispText(tag, tagX, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT);
+    }
+    
+    // Item description — two lines below stats
+    const ACTION_DESCRIPTIONS = {
+      'Punch': ['A quick jab.', 'Low power, low risk.'],
+      'Kick': ['A strong kick.', 'High power, low defense.'],
+      'Shortbow': ['Fires an arrow.', 'Balanced ranged attack.'],
+      'Defend': ['Brace for impact.', 'High defense, no offense.'],
+    };
+    const desc = ACTION_DESCRIPTIONS[items[sel]];
+    if (desc) {
+      const descY = statsY + 28;
+      crispText(desc[0], gridX, descY, 32, '#a09888', 0, CRISP_FONT_ALT);
+      if (desc[1]) crispText(desc[1], gridX, descY + 20, 32, '#a09888', 0, CRISP_FONT_ALT);
+    }
   }
   
   // ── SUB-MENU (Lv Up / Order / Drop) ──
@@ -2301,7 +2337,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.56', W - 8, H - 8);
+  ctx.fillText('v1.57', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3564,7 +3600,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.56', canvas.width - 8, 14);
+  ctx.fillText('v1.57', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
