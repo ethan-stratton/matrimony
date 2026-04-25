@@ -1146,6 +1146,20 @@ function isTileFullyBlocked(tx, ty, allowFly) {
   return isTileBlocked(Math.floor(tx), Math.floor(ty), allowFly);
 }
 
+// Check if a full tile has ANY fine collision painted in it
+function hasFineCollisionInTile(tx, ty) {
+  if (!state.fineCollision) return false;
+  const s = state.fineCollisionScale || 2;
+  const cx = tx * s, cy = ty * s;
+  for (let dy = 0; dy < s; dy++) {
+    for (let dx = 0; dx < s; dx++) {
+      const r = cy + dy, c = cx + dx;
+      if (state.fineCollision[r] && state.fineCollision[r][c] > 0) return true;
+    }
+  }
+  return false;
+}
+
 function findNearestWalkable(x, y, axis) {
   // Search nearby tiles for a walkable one
   const isWalkable = (r, c) => !isTileBlocked(c, r, state.canFly);
@@ -1258,16 +1272,21 @@ function tryMove(dx, dy) {
         ny = snapY;
       }
     }
-    // Snap PERPENDICULAR axis back to grid when destination is clear
+    // Snap PERPENDICULAR axis back to grid — ONLY when neither current nor destination tile has fine collision
     if (dx !== 0 && py % 1 !== 0) {
       const snapY = Math.round(py);
-      if (!isTileBlocked(nx, snapY, state.canFly)) {
+      // Check that both current tile and destination tile are free of fine collision
+      const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.floor(px), Math.ceil(py));
+      const dstHasFine = hasFineCollisionInTile(Math.floor(nx), Math.floor(py)) || hasFineCollisionInTile(Math.floor(nx), Math.ceil(py));
+      if (!curHasFine && !dstHasFine && !isTileBlocked(nx, snapY, state.canFly)) {
         ny = snapY;
       }
     }
     if (dy !== 0 && px % 1 !== 0) {
       const snapX = Math.round(px);
-      if (!isTileBlocked(snapX, ny, state.canFly)) {
+      const curHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(py)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(py));
+      const dstHasFine = hasFineCollisionInTile(Math.floor(px), Math.floor(ny)) || hasFineCollisionInTile(Math.ceil(px), Math.floor(ny));
+      if (!curHasFine && !dstHasFine && !isTileBlocked(snapX, ny, state.canFly)) {
         nx = snapX;
       }
     }
@@ -2283,7 +2302,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.41', W - 8, H - 8);
+  ctx.fillText('v1.42', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3437,7 +3456,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.41', canvas.width - 8, 14);
+  ctx.fillText('v1.42', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
