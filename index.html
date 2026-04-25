@@ -1858,20 +1858,31 @@ function drawInventory() {
     const ey = equipY + i * (equipSlotH + equipSpacing);
     const equipped = (state.equipment && state.equipment[i]) || null;
     const isEquipHovered = mouse.x >= pPortraitX && mouse.x <= pPortraitX + equipSlotW && mouse.y >= ey && mouse.y <= ey + equipSlotH;
+    // Background
     ctx.fillStyle = 'rgba(12, 12, 20, 0.6)';
     ctx.fillRect(pPortraitX, ey, equipSlotW, equipSlotH);
+    // Gold border (brighter than other elements)
+    const borderPulse = 0.5 + 0.2 * Math.sin(now / 500);
+    ctx.strokeStyle = 'rgba(208, 168, 48,' + borderPulse + ')';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pPortraitX, ey, equipSlotW, equipSlotH);
+    // Hover/highlight effect — stronger than regular items
     if (isEquipHovered) {
-      const ePulse = 0.14 + 0.08 * Math.sin(now / 300);
-      ctx.fillStyle = 'rgba(80, 200, 60,' + ePulse + ')';
+      const ePulse = 0.20 + 0.12 * Math.sin(now / 250);
+      ctx.fillStyle = 'rgba(200, 170, 50,' + ePulse + ')';
       ctx.fillRect(pPortraitX + 1, ey, equipSlotW - 2, 1);
       ctx.fillRect(pPortraitX, ey + 1, equipSlotW, equipSlotH - 2);
       ctx.fillRect(pPortraitX + 1, ey + equipSlotH - 1, equipSlotW - 2, 1);
+      // Inner glow
+      ctx.shadowColor = '#d4a830';
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = 'rgba(212, 168, 48, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(pPortraitX + 2, ey + 2, equipSlotW - 4, equipSlotH - 4);
+      ctx.shadowBlur = 0;
     }
-    ctx.strokeStyle = 'rgba(200, 160, 40, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(pPortraitX, ey, equipSlotW, equipSlotH);
     const label = equipped || (i === 0 ? 'Slot 1' : 'Slot 2');
-    crispText(label, pPortraitX + 6, ey + 2, 24, equipped ? '#e8e0d0' : '#504840', 0, CRISP_FONT_ALT);
+    crispText(label, pPortraitX + 6, ey + 2, 24, equipped ? '#e8e0d0' : '#706050', 0, CRISP_FONT_ALT);
   }
   
   // ── ACTION/ITEM GRID ──
@@ -1930,7 +1941,7 @@ function drawInventory() {
     const numRows = 4; // always reserve space for 8 slots (4 rows × 2 cols)
     const statsY = gridY + numRows * gridRowH + 4;
     let sx = gridX;
-    const STAT_GRADIENT = [[0, '#c89830'], [0.3, '#ffe8a0'], [0.5, '#fffff0'], [0.7, '#ffe8a0'], [1, '#c89830']];
+    const STAT_GRADIENT = [[0, '#8a6010'], [0.2, '#c89830'], [0.4, '#ffe8a0'], [0.5, '#fffff0'], [0.6, '#ffe8a0'], [0.8, '#c89830'], [1, '#8a6010']];
     const pad3 = (n) => String(n).padStart(3, ' ');
     sx += crispGradientText('Eff:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
     sx += crispText(pad3(act.eff || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
@@ -1943,7 +1954,7 @@ function drawInventory() {
     const ACTION_TAGS = { 'Defend': 'Guard' };
     const tag = ACTION_TAGS[items[sel]];
     if (tag) {
-      const tagX = sx + 40;
+      const tagX = sx + 80;
       crispText(tag, tagX, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT);
     }
     
@@ -2368,7 +2379,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.60', W - 8, H - 8);
+  ctx.fillText('v1.61', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2477,7 +2488,7 @@ function drawCombat() {
   const bgPreset = ENEMY_BG[c.enemy.type] || 'Giygas';
   drawEBBackground(ctx, 0, arenaY, W, arenaH, bgPreset);
   
-  const playerCombatSize = 80;
+  const playerCombatSize = 96;
   const enemyCombatSize = 48;
   const groundY = arenaY + Math.round(arenaH * 0.82);
   
@@ -3631,7 +3642,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.60', canvas.width - 8, 14);
+  ctx.fillText('v1.61', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
