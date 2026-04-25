@@ -625,6 +625,14 @@ async function loadLevel(levelIdentifier) {
   tileLayers.reverse();
   state.tiles = tileLayers;
   
+  // Clear defeated enemies for this level (they respawn on re-entry)
+  for (const e of state.entities) {
+    if (e.type !== 'Chest') {
+      delete state.defeatedEnemies[e.id];
+      e.deathAnim = null;
+    }
+  }
+  
   updateCamera();
 }
 
@@ -840,6 +848,9 @@ document.addEventListener('keydown', (e) => {
       const c = state.combat;
       // Win state — Z exits immediately
       if (c.winState) {
+        // Start death animation on the enemy entity
+        const ent = state.entities.find(en => en.id === c.enemy.id);
+        if (ent) ent.deathAnim = { startTime: performance.now() };
         exitCombat();
         return;
       }
@@ -1042,7 +1053,7 @@ function tryMove(dx, dy) {
   if (state.collision[ny][nx] === 1) return; // always blocked (walls)
   if (state.collision[ny][nx] === 2 && !state.canFly) return; // blocked unless flying
   // Entity collision — block movement but don't auto-interact
-  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id]);
+  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !e.deathAnim);
   if (blocking) {
     state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
     return;
@@ -1108,33 +1119,29 @@ function interact() {
 }
 
 // Enemy dialogue — cycles through on each encounter
-const ENEMY_DIALOGUE = {
-  'Enemy1': [
-    [
-      { speaker: 'Fire Elemental', text: '...You dare approach me, mortal?' },
-      { speaker: 'You', text: 'I\'m just passing through.' },
-      { speaker: 'Fire Elemental', text: 'No one passes through. You burn or you leave.' },
-    ],
-    [
-      { speaker: 'Fire Elemental', text: 'You again. Did the burns not teach you?' },
-      { speaker: 'You', text: 'I\'m a slow learner.' },
-      { speaker: 'Fire Elemental', text: 'Then I\'ll teach you again.' },
-    ],
-    [
-      { speaker: 'Fire Elemental', text: '...You keep coming back.' },
-      { speaker: 'You', text: 'I keep getting stronger.' },
-      { speaker: 'Fire Elemental', text: 'Hmph. Perhaps you do.' },
-    ],
-    [
-      { speaker: 'Fire Elemental', text: 'I remember when your kind feared fire.' },
-      { speaker: 'You', text: 'I still fear it. I just don\'t run.' },
-      { speaker: 'Fire Elemental', text: '...Interesting.' },
-    ],
-    [
-      { speaker: 'Fire Elemental', text: 'No words this time. Just fight.' },
-    ],
-  ],
-};
+// Load enemy dialogue from editor data (localStorage or Firebase)
+function loadEditorDialogue() {
+  try {
+    const editorData = JSON.parse(localStorage.getItem('matrimony_editor_data'));
+    if (editorData && editorData.enemies) {
+      const dialogueMap = {};
+      for (const enemy of editorData.enemies) {
+        if (enemy.dialogue && enemy.dialogue.length > 0) {
+          dialogueMap[enemy.sprite] = enemy.dialogue.map(encounter => {
+            const parts = encounter.split('|').map(s => s.trim()).filter(Boolean);
+            return parts.map((text, i) => ({
+              speaker: i % 2 === 0 ? enemy.name : 'You',
+              text: text
+            }));
+          });
+        }
+      }
+      return dialogueMap;
+    }
+  } catch(e) {}
+  return {};
+}
+let ENEMY_DIALOGUE = loadEditorDialogue();
 if (!state.encounterCounts) state.encounterCounts = {};
 
 function handleEntityContact(entity) {
@@ -1146,9 +1153,9 @@ function handleEntityContact(entity) {
       const lines = dialogues[Math.min(count, dialogues.length - 1)];
       state.encounterCounts['Enemy1'] = count + 1;
       // Queue dialogue lines, then start combat after last one
-      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text, portrait: 'Enemy1' }));
+      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text, portrait: l.speaker === 'You' ? 'player' : 'Enemy1' }));
       state.pendingCombat = { entity, data };
-      showDialogue(lines[0].speaker, lines[0].text, 'Enemy1');
+      showDialogue(lines[0].speaker, lines[0].text, lines[0].speaker === 'You' ? 'player' : 'Enemy1');
     } else {
       startCombat(entity, data);
     }
@@ -2019,7 +2026,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.23', W - 8, H - 8);
+  ctx.fillText('v1.24', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2611,7 +2618,16 @@ function drawDialogue() {
     ctx.strokeStyle = '#5a5060';
     ctx.lineWidth = 2;
     ctx.strokeRect(pX, pY, pSize, pSize);
-    drawSprite(ctx, state.dialogue.portrait, pX, pY, performance.now());
+    if (state.dialogue.portrait === 'player') {
+      if (PLAYER_SHEET.loaded) {
+        const anim = PLAYER_SHEET.anims['idle_down'];
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, 32, 32, pX + 4, pY + 4, 40, 40);
+        ctx.imageSmoothingEnabled = true;
+      }
+    } else {
+      drawSprite(ctx, state.dialogue.portrait, pX + 4, pY + 4, 0);
+    }
   }
   
   // Text (word wrap) — use crisp text
@@ -2796,7 +2812,7 @@ function updateEnemyAI(time) {
 
   for (const e of state.entities) {
     if (e.type === 'Chest') continue;
-    if (state.defeatedEnemies[e.id]) continue;
+    if (state.defeatedEnemies[e.id] || e.deathAnim) continue;
 
     // Initialize AI state
     if (e.aiTimer === undefined) {
@@ -2812,11 +2828,6 @@ function updateEnemyAI(time) {
     if (e.aiMoving) {
       if (time - e.moveStart >= MOVE_DURATION) {
         e.aiMoving = false;
-        // Check if enemy landed on player
-        if (e.x === state.player.x && e.y === state.player.y) {
-          handleEntityContact(e);
-          return; // Stop processing after combat trigger
-        }
       }
       continue; // Don't pick new move while animating
     }
@@ -2835,6 +2846,18 @@ function updateEnemyAI(time) {
     if (e.aiTimer < interval) continue;
     e.aiTimer = 0;
     e.aiInterval = 1500 + Math.random() * 1500; // New random interval for next patrol step
+
+    // Check if already adjacent to player - trigger combat
+    if (chasing && dist === 1) {
+      const fdx = px - e.x;
+      const fdy = py - e.y;
+      if (fdx < 0) e.facing = 'left';
+      else if (fdx > 0) e.facing = 'right';
+      else if (fdy < 0) e.facing = 'up';
+      else if (fdy > 0) e.facing = 'down';
+      handleEntityContact(e);
+      return;
+    }
 
     // Pick target tile
     const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
@@ -2874,6 +2897,10 @@ function updateEnemyAI(time) {
       e.y += bestDir.dy;
       e.aiMoving = true;
       e.moveStart = time;
+      if (bestDir.dx < 0) e.facing = 'left';
+      else if (bestDir.dx > 0) e.facing = 'right';
+      else if (bestDir.dy < 0) e.facing = 'up';
+      else if (bestDir.dy > 0) e.facing = 'down';
     }
   }
 }
@@ -2887,11 +2914,11 @@ function canEntityMoveTo(entity, nx, ny) {
   // Check other entities
   for (const other of state.entities) {
     if (other === entity) continue;
-    if (state.defeatedEnemies[other.id]) continue;
+    if (state.defeatedEnemies[other.id] || other.deathAnim) continue;
     if (other.x === nx && other.y === ny) return false;
   }
   // Check player position
-  if (nx === state.player.x && ny === state.player.y) return true; // Allow moving onto player (triggers combat)
+  if (nx === state.player.x && ny === state.player.y) return false; // Don't allow moving onto player tile
   return true;
 }
 
@@ -3094,7 +3121,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.23', canvas.width - 8, 14);
+  ctx.fillText('v1.24', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3594,7 +3621,29 @@ function drawEntity(ctx, entity, x, y) {
     }
     return;
   }
-  drawSprite(ctx, entity.type, x, y, performance.now());
+  // Death animation: flash then fade
+  if (entity.deathAnim) {
+    const elapsed = performance.now() - entity.deathAnim.startTime;
+    if (elapsed < 1200) {
+      if (Math.floor(elapsed / 150) % 2 === 1) return;
+    } else if (elapsed < 2000) {
+      ctx.globalAlpha = 1 - (elapsed - 1200) / 800;
+    } else {
+      ctx.globalAlpha = 1;
+      return;
+    }
+  }
+  // Flip sprite based on facing direction
+  if (entity.facing === 'left') {
+    ctx.save();
+    ctx.translate(x + TILE * SCALE, y);
+    ctx.scale(-1, 1);
+    drawSprite(ctx, entity.type, 0, 0, performance.now());
+    ctx.restore();
+  } else {
+    drawSprite(ctx, entity.type, x, y, performance.now());
+  }
+  if (entity.deathAnim) ctx.globalAlpha = 1;
 }
 
 // ══════════════════════════════════
@@ -3649,6 +3698,13 @@ function gameLoop(time) {
     windNode.gain.gain.value += (target - cur) * 0.05;
   }
   if (!state.combat) {
+    // Check death animations completion
+    for (const e of state.entities) {
+      if (e.deathAnim && performance.now() - e.deathAnim.startTime >= 2000) {
+        state.defeatedEnemies[e.id] = true;
+        e.deathAnim = null;
+      }
+    }
     handleMovement(time);
     updateEnemyAI(time);
   }
