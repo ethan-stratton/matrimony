@@ -538,6 +538,7 @@ const state = {
   canFly: false,
   saveMenu: null,
   showFontTest: false,
+  showHitboxes: false,
   fontTestScroll: 0,
   fontTestScrollX: 0,
   fontTestDragging: false,
@@ -727,7 +728,7 @@ document.addEventListener('keydown', (e) => {
       } else if (e.key === 'z' || e.key === 'Z') {
         // Delete the selected save
         const slot = state.titleSelection || 0;
-        localStorage.removeItem('matrimony_save_' + slot);
+        localStorage.removeItem('matrimony_slot_' + slot);
         playHit(true);
         state.titleDeleteMode = false;
       } else if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') {
@@ -1008,6 +1009,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
   keys[e.key] = false;
   if (e.key === 'f' || e.key === 'F') state.showFontTest = !state.showFontTest;
+  if (e.key === 'h' || e.key === 'H') state.showHitboxes = !state.showHitboxes;
   if (state.showFontTest && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     e.preventDefault();
     if (e.key === 'ArrowUp') state.fontTestScroll = Math.max(0, state.fontTestScroll - 20);
@@ -2197,13 +2199,13 @@ function drawTitle() {
 
   // Red X delete button hint (bottom right)
   if (!state.titleDeleteMode) {
-    crispText('X = Delete', W - 120, H - 24, 32, '#804040', 0, CRISP_FONT_ALT);
+    crispText('X = Delete', W - 140, H - 36, 32, '#804040', 0, CRISP_FONT_ALT);
   }
   
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.32', W - 8, H - 8);
+  ctx.fillText('v1.33', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3219,6 +3221,41 @@ function draw() {
   const playerDrawX = Math.round((vis.x - camX) * TILE * SCALE);
   const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
   drawPlayer(ctx, playerDrawX, playerDrawY);
+
+  // Debug hitbox overlay
+  if (state.showHitboxes) {
+    const ts = TILE * SCALE;
+    // Draw collision grid
+    for (let y = Math.max(0, Math.floor(camY)); y < Math.min(state.mapH, Math.ceil(camY + CANVAS_H / (TILE * SCALE))); y++) {
+      for (let x = Math.max(0, Math.floor(camX)); x < Math.min(state.mapW, Math.ceil(camX + CANVAS_W / (TILE * SCALE))); x++) {
+        const blocked = isTileBlocked(x, y, false);
+        if (blocked) {
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+          ctx.fillRect(Math.round((x - camX) * ts), Math.round((y - camY) * ts), ts, ts);
+        }
+        // Draw fine collision sub-cells
+        if (state.fineCollision) {
+          const s = state.fineCollisionScale || 2;
+          const subSize = ts / s;
+          for (let dy = 0; dy < s; dy++) {
+            for (let dx = 0; dx < s; dx++) {
+              const r = y * s + dy, c = x * s + dx;
+              if (state.fineCollision[r] && state.fineCollision[r][c] > 0) {
+                ctx.fillStyle = state.fineCollision[r][c] === 1 ? 'rgba(255, 0, 0, 0.4)' : 'rgba(255, 255, 0, 0.3)';
+                ctx.fillRect(Math.round((x - camX) * ts + dx * subSize), Math.round((y - camY) * ts + dy * subSize), Math.ceil(subSize), Math.ceil(subSize));
+              }
+            }
+          }
+        }
+      }
+    }
+    // Player hitbox (the tile they occupy)
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(Math.round((state.player.x - camX) * ts), Math.round((state.player.y - camY) * ts), ts, ts);
+    // Label
+    crispText('H = Hide Hitboxes', 8, CANVAS_H - 24, 32, '#00ff00', 0, CRISP_FONT_ALT);
+  }
   
   // Wind particles — simulate debris/leaves blown bottom-left to upper-right
   if (!state.windParticles) state.windParticles = [];
@@ -3322,7 +3359,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.32', canvas.width - 8, 14);
+  ctx.fillText('v1.33', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
