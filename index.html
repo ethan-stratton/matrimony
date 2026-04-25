@@ -2834,7 +2834,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.92', W - 8, H - 8);
+  ctx.fillText('v1.93', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3331,6 +3331,19 @@ function drawCombat() {
     sx += slotW;
     crispGradientText('Wait:', sx, statsY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
     crispText('' + waitVal, sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += slotW;
+    // Guard tag for Defend
+    const selectedName = actions[sel];
+    if (selectedName === 'Defend') {
+      sx += crispText('Guard', sx, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
+    }
+    // Pierce stat with shimmer
+    if (act.pierce) {
+      const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
+      const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
+      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
+    }
   }
   
   // Hints removed — no cancelling once committed
@@ -4315,7 +4328,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.92', canvas.width - 8, 14);
+  ctx.fillText('v1.93', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
