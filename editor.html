@@ -176,6 +176,7 @@ let _localSaving=false;
 let _saveTimer=null;
 let _syncEl=null;
 function _setSyncStatus(ok){if(!_syncEl){_syncEl=document.createElement('span');_syncEl.style.cssText='margin-left:12px;font-size:12px';document.querySelector('header h1').appendChild(_syncEl)}_syncEl.textContent=ok?'🟢 Synced':'🔴 Offline'}
+firebase.database().ref('.info/connected').on('value',snap=>{_setSyncStatus(!!snap.val())})
 // ── Data ──
 const STORAGE_KEY = 'matrimony_editor_data';
 let data = load();

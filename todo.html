@@ -175,6 +175,7 @@ let _localSaving=false;
 let _saveTimer=null;
 let _syncEl=null;
 function _setSyncStatus(ok){if(!_syncEl){_syncEl=document.createElement('span');_syncEl.style.cssText='margin-left:12px;font-size:12px';document.querySelector('.header-left').appendChild(_syncEl)}_syncEl.textContent=ok?'🟢 Synced':'🔴 Offline'}
+firebase.database().ref('.info/connected').on('value',snap=>{_setSyncStatus(!!snap.val())})
 const CATEGORIES=["Combat","Art/Sprites","Audio","Level Design","UI/UX","Systems","Content","Polish","Tools"];
 const CAT_COLORS={"Combat":"#c0392b","Art/Sprites":"#8e44ad","Audio":"#2980b9","Level Design":"#27ae60","UI/UX":"#e67e22","Systems":"#16a085","Content":"#d35400","Polish":"#7f8c8d","Tools":"#2c3e50"};
 const COLUMNS=["backlog","inprogress","done"];
