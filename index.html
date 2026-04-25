@@ -646,7 +646,7 @@ function updateCamera() {
 
 function getPlayerVisualPos() {
   if (!state.moving) return { x: state.player.x, y: state.player.y };
-  const t = Math.min(1, state.moveTimer / MOVE_DURATION);
+  const t = Math.min(1, state.moveTimer / getMoveDuration());
   // Linear interpolation for chained movement (no decel pulse between steps)
   return {
     x: state.moveFrom.x + (state.player.x - state.moveFrom.x) * t,
@@ -904,8 +904,9 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
-  // Shift = Save (overworld only, not in combat)
-  if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue) {
+  // Shift = Save (overworld only, not in combat, not while running)
+  if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue &&
+      !keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['ArrowUp'] && !keys['ArrowDown']) {
     e.preventDefault();
     if (state.inventoryOpen) {
       // Toggle save slot picker within inventory
@@ -1123,6 +1124,8 @@ function tryMove(dx, dy) {
 }
 
 const MOVE_DURATION = 230; // ms for grid movement
+const RUN_DURATION = 115; // ms for running (Shift held)
+function getMoveDuration() { return keys['Shift'] ? RUN_DURATION : MOVE_DURATION; }
 let lastFrameTime = 0;
 
 function handleMovement(now) {
@@ -1131,7 +1134,7 @@ function handleMovement(now) {
 
   if (state.moving) {
     state.moveTimer += dt;
-    if (state.moveTimer >= MOVE_DURATION) {
+    if (state.moveTimer >= getMoveDuration()) {
       state.moving = false;
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
@@ -2081,7 +2084,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.25', W - 8, H - 8);
+  ctx.fillText('v1.26', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3176,7 +3179,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.25', canvas.width - 8, 14);
+  ctx.fillText('v1.26', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
