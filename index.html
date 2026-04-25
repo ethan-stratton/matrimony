@@ -673,9 +673,8 @@ function getPlayerVisualPos() {
   // Smooth easing on all movement: SmoothStep (3t²-2t³) for buttery interpolation
   // Extra SmoothStart on first run step to prevent visual snap
   if (state.justStartedRunning) {
-    t = t * t; // SmoothStart for acceleration feel
+    t = t * t; // SmoothStart for acceleration feel on walk→run transition only
   }
-  t = t * t * (3 - 2 * t); // SmoothStep always — eliminates jitter at step boundaries
   // Linear interpolation for chained movement (no decel pulse between steps)
   return {
     x: state.moveFrom.x + (state.player.x - state.moveFrom.x) * t,
@@ -2298,7 +2297,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.52', W - 8, H - 8);
+  ctx.fillText('v1.53', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3110,9 +3109,9 @@ function updateEnemyAI(time) {
     // Fire elemental: periodic idle ember flake-off
     if (e.type === 'Enemy1' && !e.aiMoving) {
       if (!e._lastEmberTime) e._lastEmberTime = time;
-      if (time - e._lastEmberTime > 400) { // every 400ms
+      if (time - e._lastEmberTime > 700) { // every 700ms
         e._lastEmberTime = time;
-        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, size: 1+Math.random(), ember: true });
+        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, initialLife: 2.0, size: 1, ember: true });
       }
     }
 
@@ -3188,20 +3187,18 @@ function updateEnemyAI(time) {
       // Spawn burn particles for Fire Elemental — two footsteps + embers
       if (e.type === 'Enemy1') {
         // Left foot fire burst
-        for (let bp = 0; bp < 3; bp++) {
-          state.burnParticles.push({ x: e.x + 0.25, y: e.y + 0.7, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, size: 2+Math.random()*2 });
+        for (let bp = 0; bp < 1; bp++) {
+          state.burnParticles.push({ x: e.x + 0.25, y: e.y + 0.7, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
         }
         // Right foot fire burst
-        for (let bp = 0; bp < 3; bp++) {
-          state.burnParticles.push({ x: e.x + 0.75, y: e.y + 0.8, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, size: 2+Math.random()*2 });
+        for (let bp = 0; bp < 1; bp++) {
+          state.burnParticles.push({ x: e.x + 0.75, y: e.y + 0.8, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
         }
         // Big random fire chunks on movement
-        for (let bp = 0; bp < 1 + Math.round(Math.random()); bp++) {
-          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + 0.5 + Math.random()*0.3, vx: (Math.random()-0.5)*0.5, vy: -Math.random()*0.6-0.3, life: 2.0, size: 3+Math.random()*3 });
-        }
+        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + 0.5 + Math.random()*0.3, vx: (Math.random()-0.5)*0.5, vy: -Math.random()*0.6-0.3, life: 2.0, initialLife: 2.0, size: 1 });
         // Embers floating with wind (rightward, matching ambient wind)
-        for (let bp = 0; bp < 2; bp++) {
-          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, size: 1+Math.random()*1.5, ember: true });
+        for (let bp = 0; bp < 1; bp++) {
+          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, initialLife: 2.5, size: 1+Math.random()*1.5, ember: true });
         }
       }
       e.x += bestDir.dx;
@@ -3297,7 +3294,7 @@ function draw() {
     const sx = Math.round((ex - camX) * TILE * SCALE);
     const sy = Math.round((ey - camY) * TILE * SCALE);
     drawEntity(ctx, e, sx, sy);
-    // Draw alert bark
+    // Draw alert bark — gold gradient "!" using crisp text
     if (e.alertBark) {
       const barkAge = performance.now() - e.alertBark.startTime;
       if (barkAge > e.alertBark.duration) {
@@ -3306,11 +3303,8 @@ function draw() {
         const barkAlpha = barkAge < 100 ? barkAge / 100 : (1 - (barkAge - 100) / (e.alertBark.duration - 100));
         const bounceY = barkAge < 200 ? -8 * (1 - (barkAge/200) * (barkAge/200)) : 0;
         ctx.globalAlpha = Math.max(0, barkAlpha);
-        ctx.fillStyle = '#ff3333';
-        ctx.font = 'bold 24px "Cinzel", serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(e.alertBark.text, sx + TILE * SCALE / 2, sy - 4 + bounceY);
-        ctx.textAlign = 'left';
+        const barkGradient = [[0, '#f0d060'], [0.35, '#ffe8a0'], [0.5, '#fffff0'], [0.65, '#ffe8a0'], [1, '#c89830']];
+        crispGradientText('!', sx + TILE * SCALE / 2 - 4, sy - 12 + bounceY, 32, barkGradient, 0, CRISP_FONT);
         ctx.globalAlpha = 1;
       }
     }
@@ -3383,25 +3377,34 @@ function draw() {
   // Draw and update burn particles
   for (let i = state.burnParticles.length - 1; i >= 0; i--) {
     const p = state.burnParticles[i];
-    p.x += p.vx * 0.016;
-    p.y += p.vy * 0.016;
+    // Physics: float upward briefly, then accelerate with wind
+    if (p.life > p.initialLife * 0.6) {
+      // Rising phase — gentle upward float
+      p.x += p.vx * 0.008;
+      p.y += p.vy * 0.016;
+    } else {
+      // Catch the wind — accelerate rightward and slightly up
+      p.vx += 0.15;
+      p.vy -= 0.02;
+      p.x += p.vx * 0.016;
+      p.y += p.vy * 0.016;
+    }
     p.life -= p.ember ? 0.008 : 0.014;
     if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
     const px = Math.round((p.x - camX) * TILE * SCALE);
     const py = Math.round((p.y - camY) * TILE * SCALE);
-    if (p.life <= 0.2) {
-      ctx.globalAlpha = Math.min(p.life, 1.0) * 0.7 * (p.life / 0.2);
-      ctx.fillStyle = '#331100';
-    } else {
-      ctx.globalAlpha = Math.min(p.life, 1.0) * 0.7;
-      if (p.life > 0.8) ctx.fillStyle = '#ffffee';
-      else if (p.life > 0.6) ctx.fillStyle = '#ffdd33';
-      else if (p.life > 0.4) ctx.fillStyle = '#ff8800';
-      else ctx.fillStyle = '#cc2200';
-    }
-    ctx.beginPath();
-    ctx.arc(px, py, p.size, 0, Math.PI * 2);
-    ctx.fill();
+    // Color: mostly red/orange glow, brief white only at very start
+    let color;
+    const lifeRatio = p.life / (p.initialLife || 1.5);
+    if (lifeRatio > 0.95) color = '#ffeecc'; // very brief pale glow
+    else if (lifeRatio > 0.5) color = '#ff6600'; // orange
+    else if (lifeRatio > 0.2) color = '#cc2200'; // red
+    else color = '#661100'; // dying ember
+    const alpha = p.life > 0.2 ? Math.min(p.life, 1.0) * 0.8 : p.life * 2.0;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    // Single pixel (1x1 at render scale)
+    ctx.fillRect(px, py, 1, 1);
     ctx.globalAlpha = 1;
   }
 
@@ -3547,7 +3550,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.52', canvas.width - 8, 14);
+  ctx.fillText('v1.53', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
