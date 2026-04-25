@@ -2276,7 +2276,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.46', W - 8, H - 8);
+  ctx.fillText('v1.47', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3097,8 +3097,8 @@ function updateEnemyAI(time) {
     e.aiTimer = 0;
     e.aiInterval = 1500 + Math.random() * 1500; // New random interval for next patrol step
 
-    // Check if already adjacent to player - trigger combat
-    if (chasing && dist === 1) {
+    // Check if already adjacent to player - trigger combat (AABB: within 1 tile)
+    if (chasing && dist <= 1.5 && Math.abs(e.x - px) < 2 && Math.abs(e.y - py) < 2) {
       const fdx = px - e.x;
       const fdy = py - e.y;
       if (fdx < 0) e.facing = 'left';
@@ -3430,7 +3430,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.46', canvas.width - 8, 14);
+  ctx.fillText('v1.47', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
