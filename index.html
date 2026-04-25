@@ -681,15 +681,23 @@ function getPlayerVisualPos() {
     const t = Math.min(1, (performance.now() - ft.startTime) / ft.duration);
     const ease = t * t * (3 - 2 * t); // SmoothStep
     if (ft.type === 'takeoff') {
-      // Rise upward from origin
-      return { x: ft.originX, y: ft.originY - ease * 0.3 };
+      // Circle outward while rising — like banking up
+      const angle = ease * Math.PI * 2; // one full loop
+      const radius = Math.sin(ease * Math.PI) * 0.4; // grows then shrinks
+      return {
+        x: ft.originX + Math.cos(angle) * radius,
+        y: ft.originY + Math.sin(angle) * radius * 0.5 - ease * 0.3
+      };
     } else {
-      // Spiral down to target
-      const spiral = (1 - ease) * Math.PI * 2; // one full circle
-      const radius = (1 - ease) * 0.5; // shrinking radius
+      // Spiral down to target — tightening circle
+      const spiral = (1 - ease) * Math.PI * 2;
+      const radius = (1 - ease) * 0.5;
       const cx = ft.originX + (ft.targetX - ft.originX) * ease;
       const cy = ft.originY + (ft.targetY - ft.originY) * ease;
-      return { x: cx + Math.cos(spiral) * radius, y: cy + Math.sin(spiral) * radius * 0.5 - (1 - ease) * 0.3 };
+      return {
+        x: cx + Math.cos(spiral) * radius,
+        y: cy + Math.sin(spiral) * radius * 0.5 - (1 - ease) * 0.3
+      };
     }
   }
   if (state.flying) {
@@ -1443,6 +1451,11 @@ function handleMovement(now) {
       }
       state.flyTransition = null;
     }
+    // Cycle facing during transitions so sprite looks like it's turning
+    const ft2 = state.flyTransition;
+    const t2 = Math.min(1, (now - ft2.startTime) / ft2.duration);
+    const dirs = ['down', 'left', 'up', 'right'];
+    state.facing = dirs[Math.floor(t2 * 4) % 4];
     return; // block all movement during transition
   }
 
@@ -2560,7 +2573,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.65', W - 8, H - 8);
+  ctx.fillText('v1.66', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3711,27 +3724,7 @@ function draw() {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // Sprite rotation during fly transitions
-  if (state.flyTransition) {
-    const ft = state.flyTransition;
-    const t = Math.min(1, (performance.now() - ft.startTime) / ft.duration);
-    const ease = t * t * (3 - 2 * t);
-    let rotation;
-    if (ft.type === 'takeoff') {
-      rotation = ease * Math.PI * 2; // full spin
-    } else {
-      rotation = (1 - ease) * Math.PI * 2; // spin back down
-    }
-    const s = TILE * SCALE;
-    ctx.save();
-    ctx.translate(playerDrawX + s / 2, playerDrawY + s / 2);
-    ctx.rotate(rotation);
-    ctx.translate(-s / 2, -s / 2);
-    drawPlayer(ctx, 0, 0);
-    ctx.restore();
-  } else {
-    drawPlayer(ctx, playerDrawX, playerDrawY);
-  }
+  drawPlayer(ctx, playerDrawX, playerDrawY);
 
   // Debug hitbox overlay
   if (state.showHitboxes) {
@@ -3870,7 +3863,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.65', canvas.width - 8, 14);
+  ctx.fillText('v1.66', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
