@@ -2635,7 +2635,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.75', W - 8, H - 8);
+  ctx.fillText('v1.76', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3458,14 +3458,18 @@ function updateEnemyAI(time) {
     const dist = Math.abs(e.x - px) + Math.abs(e.y - py);
 
     // Determine mode and interval
-    const chasing = dist <= 4;
-    // Alert bark when first noticing player
-    if (chasing && !e.aggroed) {
-      e.aggroed = true;
-      e.alertBark = { text: '!', startTime: time, duration: 800 };
-    } else if (!chasing) {
+    const inRange = dist <= 4;
+    // Aggro memory: stay aware for 3 seconds after losing sight
+    if (inRange) {
+      e.lastSeenTime = time;
+      if (!e.aggroed) {
+        e.aggroed = true;
+        e.alertBark = { text: '!', startTime: time, duration: 800 };
+      }
+    } else if (e.aggroed && time - (e.lastSeenTime || 0) > 3000) {
       e.aggroed = false;
     }
+    const chasing = e.aggroed;
     const interval = chasing ? 800 : e.aiInterval;
 
     if (e.aiTimer < interval) continue;
@@ -3722,20 +3726,20 @@ function draw() {
     }
   }
 
-  // Draw and update burn particles (frame-rate independent, tuned fast)
+  // Draw and update burn particles (frame-rate independent)
   const fdt = frameDt;
   for (let i = state.burnParticles.length - 1; i >= 0; i--) {
     const p = state.burnParticles[i];
     if (p.life > p.initialLife * 0.6) {
-      p.x += p.vx * 1.92 * fdt;
-      p.y += p.vy * 3.84 * fdt;
+      p.x += p.vx * 1.44 * fdt;
+      p.y += p.vy * 2.88 * fdt;
     } else {
-      p.vx += 36.0 * fdt;
-      p.vy -= 4.8 * fdt;
-      p.x += p.vx * 3.84 * fdt;
-      p.y += p.vy * 3.84 * fdt;
+      p.vx += 27.0 * fdt;
+      p.vy -= 3.6 * fdt;
+      p.x += p.vx * 2.88 * fdt;
+      p.y += p.vy * 2.88 * fdt;
     }
-    p.life -= (p.ember ? 1.92 : 3.36) * fdt;
+    p.life -= (p.ember ? 1.44 : 2.52) * fdt;
     if (p.life <= 0) { state.burnParticles.splice(i, 1); continue; }
     const px = Math.round((p.x - camX) * TILE * SCALE);
     const py = Math.round((p.y - camY) * TILE * SCALE);
@@ -3868,7 +3872,7 @@ function draw() {
     const turbX = Math.sin(p.y * 0.02 + wt * 2) * 25 + Math.sin(p.x * 0.015 + wt * 1.3) * 18;
     const turbY = Math.cos(p.x * 0.02 + wt * 1.7) * 15 + Math.sin(p.y * 0.03 + wt * 2.3) * 10;
     
-    const wdt = frameDt * 4;
+    const wdt = frameDt * 3;
     p.x += (baseVx + wobbleVx + turbX) * wdt;
     p.y += (baseVy + wobbleVy + turbY) * wdt;
     
@@ -3923,7 +3927,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.75', canvas.width - 8, 14);
+  ctx.fillText('v1.76', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
