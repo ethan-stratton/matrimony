@@ -1730,7 +1730,18 @@ function pickEnemyAction(c) {
   const enemyData = ENEMY_DATA[c.enemy.type];
   const actions = enemyData?.actions || ['Stand Still'];
 
-  // Default AI: cycle sequentially (Fire Elemental, etc.)
+  // If last action was Charging, must follow up with the big attack
+  if (c.enemyAction === 'Charging...') {
+    // Find the highest-eff action available (Fire Punch, Frost Slam, etc.)
+    let bigHit = null, bigEff = 0;
+    for (const name of actions) {
+      const act = COMBAT_ACTIONS[name] || {};
+      if ((act.eff || 0) > bigEff) { bigHit = name; bigEff = act.eff; }
+    }
+    if (bigHit) { c.enemyActionIndex++; return bigHit; }
+  }
+
+  // Default AI: cycle sequentially
   if (enemyData?.ai !== 'smart') {
     const action = actions[c.enemyActionIndex % actions.length];
     c.enemyActionIndex++;
@@ -2822,7 +2833,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.90', W - 8, H - 8);
+  ctx.fillText('v1.91', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3084,7 +3095,12 @@ function drawCombat() {
     ctx.globalAlpha = 1;
   }
   
-  // Draw player bark (non-damaging move like Defend)
+  // Draw persistent "Defend" text above player while waiting with Defend
+  if (c.waiting && c.attackText === 'Defend') {
+    const defBob = -Math.sin(now / 400 * Math.PI) * 3;
+    crispText('Defend', playerArenaX + playerCombatSize / 2 - 30, playerArenaY - 20 + defBob, 32, '#80d0ff');
+  }
+  // Draw player bark (non-damaging move like Defend — brief flash on resolve)
   if (c.playerBark) {
     const bt = (now - c.playerBark.startTime) / c.playerBark.duration;
     const bAlpha = bt < 0.1 ? bt / 0.1 : bt > 0.7 ? (1 - bt) / 0.3 : 1;
@@ -4298,7 +4314,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.90', canvas.width - 8, 14);
+  ctx.fillText('v1.91', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
