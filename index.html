@@ -993,6 +993,10 @@ document.addEventListener('keydown', (e) => {
   // Z = Confirm
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
+    if (state.weaponTransformPrompt) {
+      acceptWeaponTransform();
+      return;
+    }
     if (state.inventoryOpen && !state.combat) {
       if (state.inventoryOrdering !== undefined) {
         // In order mode — swap the two items
@@ -1114,6 +1118,10 @@ document.addEventListener('keydown', (e) => {
   // X = Cancel
   if (e.key === 'x' || e.key === 'X') {
     e.preventDefault();
+    if (state.weaponTransformPrompt) {
+      rejectWeaponTransform();
+      return;
+    }
     if (state.combat) {
       // No cancelling once committed — you're locked in
     } else if (state.inventoryOpen) {
@@ -1457,6 +1465,9 @@ function handleMovement(now) {
   frameDt = dtMs / 1000; // seconds
   lastFrameTime = now;
   const dt = dtMs; // keep local ms dt for existing movement code
+
+  // Block movement during weapon transform prompt
+  if (state.weaponTransformPrompt) return;
 
   // Fly transition animations (takeoff / landing)
   if (state.flyTransition) {
@@ -1870,28 +1881,52 @@ function exitCombat(ranAway) {
 
 // Weapon transformations — conditions and effects
 const WEAPON_TRANSFORMATIONS = {
-  'Shortbow': { condition: 'steps', threshold: 10, newName: 'Shortbow ★', effect: 'pierce1', description: 'Walk 10 steps with Shortbow' },
+  'Shortbow': { condition: 'steps', threshold: 10, newName: 'Shortbow ★', effect: 'pierce1', pierceVal: 1, description: 'Walk 10 steps with Shortbow' },
 };
 
 function checkWeaponTransformations() {
-  if (!state.inventory) return;
+  if (!state.inventory || state.weaponTransformPrompt || state.combat || state.dialogue) return;
   for (let i = 0; i < state.inventory.length; i++) {
     const item = state.inventory[i];
     const tf = WEAPON_TRANSFORMATIONS[item];
     if (!tf) continue;
+    if (state.rejectedTransforms && state.rejectedTransforms[item]) continue;
     if (tf.condition === 'steps' && (state.player.totalSteps || 0) >= tf.threshold) {
-      state.inventory[i] = tf.newName;
-      // Register the transformed weapon's combat action
+      // Register the transformed weapon stats ahead of time
       const base = COMBAT_ACTIONS[item] || {};
-      COMBAT_ACTIONS[tf.newName] = { ...base, pierce: tf.effect === 'pierce1' ? 1 : base.pierce };
-      // Update action order if it references the old name
-      if (state.actionOrder) {
-        state.actionOrder = state.actionOrder.map(a => a === item ? tf.newName : a);
-      }
-      // Visual notification
-      state.saveFeedback = { text: item + ' → ' + tf.newName + '!', startTime: performance.now(), duration: 2500 };
+      COMBAT_ACTIONS[tf.newName] = { ...base, pierce: tf.pierceVal || base.pierce };
+      // Show transformation prompt
+      state.weaponTransformPrompt = {
+        index: i,
+        oldName: item,
+        newName: tf.newName,
+        stats: COMBAT_ACTIONS[tf.newName],
+        effect: tf.effect,
+        pierceVal: tf.pierceVal,
+        startTime: performance.now(),
+      };
+      return; // only one at a time
     }
   }
+}
+
+function acceptWeaponTransform() {
+  const p = state.weaponTransformPrompt;
+  if (!p) return;
+  state.inventory[p.index] = p.newName;
+  if (state.actionOrder) {
+    state.actionOrder = state.actionOrder.map(a => a === p.oldName ? p.newName : a);
+  }
+  state.weaponTransformPrompt = null;
+}
+
+function rejectWeaponTransform() {
+  const p = state.weaponTransformPrompt;
+  if (!p) return;
+  // Mark as rejected so it doesn't re-trigger
+  if (!state.rejectedTransforms) state.rejectedTransforms = {};
+  state.rejectedTransforms[p.oldName] = true;
+  state.weaponTransformPrompt = null;
 }
 
 // Combat action data
@@ -2309,7 +2344,15 @@ function drawInventory() {
     sx += crispGradientText('Def:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
     sx += crispText(pad3(act.def || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
     sx += crispGradientText('Wait:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-    crispText(pad3(act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += crispText(pad3(act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
+    
+    // Pierce stat with special shimmer gradient
+    if (act.pierce) {
+      const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
+      const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
+      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
+    }
     
     // Attack type tag (e.g. "Guard" for Defend)
     const ACTION_TAGS = { 'Defend': 'Guard' };
@@ -2758,7 +2801,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.85', W - 8, H - 8);
+  ctx.fillText('v1.86', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3407,6 +3450,86 @@ function drawDialogue() {
 }
 
 // ══════════════════════════════════
+// WEAPON TRANSFORMATION PROMPT
+// ══════════════════════════════════
+function drawWeaponTransformPrompt() {
+  const p = state.weaponTransformPrompt;
+  if (!p) return;
+  const now = performance.now();
+  const age = (now - p.startTime) / 1000;
+  const fadeIn = Math.min(1, age * 3);
+  
+  const W = canvas.width, H = canvas.height;
+  const boxW = 320, boxH = 220;
+  const bx = Math.round((W - boxW) / 2);
+  const by = Math.round((H - boxH) / 2);
+  
+  // Darken background
+  ctx.globalAlpha = fadeIn * 0.7;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = fadeIn;
+  
+  // Box background
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(bx, by, boxW, boxH);
+  // Border — icy gradient
+  ctx.strokeStyle = '#60c0e0';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx, by, boxW, boxH);
+  // Inner glow border
+  ctx.strokeStyle = 'rgba(140, 220, 255, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 3, by + 3, boxW - 6, boxH - 6);
+  
+  // Title — weapon name with shimmer
+  const shimmerT = (now / 600) % 1;
+  const TITLE_GRADIENT = [
+    [Math.max(0, shimmerT - 0.3), '#80c0e0'],
+    [shimmerT, '#ffffff'],
+    [Math.min(1, shimmerT + 0.3), '#80c0e0'],
+  ].map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
+  crispGradientText(p.newName, bx + boxW / 2 - 70, by + 16, 32, TITLE_GRADIENT, 0, 'Pixelify Sans');
+  
+  // Stats
+  const statsY = by + 56;
+  const STAT_GRADIENT = [[0, '#8a6010'], [0.2, '#c89830'], [0.4, '#ffe8a0'], [0.5, '#fffff0'], [0.6, '#ffe8a0'], [0.8, '#c89830'], [1, '#8a6010']];
+  let sx = bx + 20;
+  sx += crispGradientText('Eff:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  sx += crispText(String(p.stats.eff || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+  sx += crispGradientText('Def:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  sx += crispText(String(p.stats.def || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
+  sx += crispGradientText('Wait:', sx, statsY, 28, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+  crispText(String(p.stats.wait || 0), sx, statsY, 28, '#e8e0d0', 0, CRISP_FONT_ALT);
+  
+  // Special effect — Pierce with shimmer
+  const effectY = by + 96;
+  const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.15, '#60d0ff'], [0.3, '#a0f0ff'], [0.5, '#ffffff'], [0.7, '#a0f0ff'], [0.85, '#60d0ff'], [1, '#40a0d0']];
+  // Animate the gradient scrolling
+  const scrollT = (now / 800) % 1;
+  const PIERCE_SHIMMER = PIERCE_GRADIENT.map(([s, c]) => [Math.max(0, Math.min(1, (s + scrollT) % 1)), c]).sort((a, b) => a[0] - b[0]);
+  if (p.pierceVal) {
+    const pierceText = 'Pierce: ' + (p.pierceVal === true ? '∞' : p.pierceVal);
+    crispGradientText(pierceText, bx + 20, effectY, 28, PIERCE_SHIMMER, 0, CRISP_FONT_ALT);
+    crispText('1 damage ignores defense', bx + 20, effectY + 30, 20, '#8090a0', 0, CRISP_FONT_ALT);
+  }
+  
+  // Accept / Reject buttons
+  const btnY = by + boxH - 44;
+  const pulse = 0.6 + Math.sin(now / 300) * 0.4;
+  
+  // (Z) Accept — green pulsing
+  ctx.globalAlpha = fadeIn;
+  crispText('(Z)', bx + 40, btnY, 24, `rgba(80,200,60,${pulse})`, 0, CRISP_FONT_ALT);
+  crispText('Accept', bx + 75, btnY, 24, '#80c840', 0, CRISP_FONT_ALT);
+  
+  // (X) Reject — dim red
+  crispText('(X)', bx + 180, btnY, 24, '#a06060', 0, CRISP_FONT_ALT);
+  crispText('Reject', bx + 215, btnY, 24, '#906060', 0, CRISP_FONT_ALT);
+  
+  ctx.globalAlpha = 1;
+}
+
 // CHEST INTERACTION
 // ══════════════════════════════════
 function drawChestInteraction() {
@@ -4166,7 +4289,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.85', canvas.width - 8, 14);
+  ctx.fillText('v1.86', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4913,6 +5036,10 @@ function gameLoop(time) {
   }
   if (state.chestInteraction) {
     drawChestInteraction();
+  }
+  // Weapon transformation prompt
+  if (state.weaponTransformPrompt) {
+    drawWeaponTransformPrompt();
   }
   // Screen transition fade
   if (state.screenFade) {
