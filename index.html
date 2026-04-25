@@ -1458,13 +1458,14 @@ function handleMovement(now) {
       state.facing = dirs[ft.startFacing || 0];
       state.flyTransition = null;
     } else {
-      // Cycle facing — multiple fast spins that decelerate into final direction
+      // Cycle facing — fast spins that decelerate, then hold final facing
       const ft2 = state.flyTransition;
       const t2 = Math.min(1, (now - ft2.startTime) / ft2.duration);
-      // SmoothStop easing — fast start, decelerates at end
-      const eased = 1 - (1 - t2) * (1 - t2) * (1 - t2);
       const dirs = ['down', 'left', 'up', 'right'];
       const startIdx = ft2.startFacing || 0;
+      // Spin fills first 75% of duration, last 25% holds final facing
+      const spinT = Math.min(1, t2 / 0.75);
+      const eased = 1 - (1 - spinT) * (1 - spinT) * (1 - spinT);
       const totalSteps = 12; // 3 full rotations — ends back on start
       state.facing = dirs[(startIdx + Math.floor(eased * totalSteps)) % 4];
     }
@@ -2599,7 +2600,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.70', W - 8, H - 8);
+  ctx.fillText('v1.71', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3889,7 +3890,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.70', canvas.width - 8, 14);
+  ctx.fillText('v1.71', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
