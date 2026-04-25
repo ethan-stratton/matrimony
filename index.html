@@ -2849,7 +2849,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.97', W - 8, H - 8);
+  ctx.fillText('v1.98', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3797,8 +3797,20 @@ function updateEnemyAI(time) {
     const py = state.player.y;
     const dist = Math.abs(e.x - px) + Math.abs(e.y - py);
 
-    // Determine mode and interval
-    const inRange = dist <= 4;
+    // Directional awareness cone: 5 tiles forward, 3 sides, 2 behind
+    const dx = px - e.x;
+    const dy = py - e.y;
+    let forwardDist = 0, sideDist = 0;
+    switch (e.facing || 'down') {
+      case 'right': forwardDist = dx; sideDist = Math.abs(dy); break;
+      case 'left':  forwardDist = -dx; sideDist = Math.abs(dy); break;
+      case 'down':  forwardDist = dy; sideDist = Math.abs(dx); break;
+      case 'up':    forwardDist = -dy; sideDist = Math.abs(dx); break;
+    }
+    // Forward cone: 5 tiles ahead (within 2 tiles wide), sides: 3 tiles, behind: 2 tiles
+    const inRange = (forwardDist >= 0 && forwardDist <= 5 && sideDist <= 2) ||
+                    (forwardDist < 0 && Math.abs(forwardDist) <= 2 && sideDist <= 1) ||
+                    (dist <= 3 && sideDist <= 2);
     // Aggro memory: stay aware for 3 seconds after losing sight
     if (inRange) {
       e.lastSeenTime = time;
@@ -4345,7 +4357,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.97', canvas.width - 8, 14);
+  ctx.fillText('v1.98', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
