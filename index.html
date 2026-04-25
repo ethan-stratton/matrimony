@@ -904,23 +904,12 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
-  // Shift = Save (overworld only, not in combat, not while running)
-  if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue &&
-      !keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['ArrowUp'] && !keys['ArrowDown']) {
+  // Shift = Save (only inside inventory menu)
+  if (e.key === 'Shift' && state.screen === 'game' && !state.combat && !state.dialogue && state.inventoryOpen) {
     e.preventDefault();
-    if (state.inventoryOpen) {
-      // Toggle save slot picker within inventory
-      if (state.saveMenu) {
-        state.saveMenu = null;
-      } else {
-        state.saveMenu = { selected: 0 };
-      }
+    if (state.saveMenu) {
+      state.saveMenu = null;
     } else {
-      // Open inventory with save menu
-      state.inventoryOpen = true;
-      state.inventorySelected = 0;
-      state.inventorySubMenu = false;
-      state.inventorySubSelected = 0;
       state.saveMenu = { selected: 0 };
     }
     return;
@@ -1089,9 +1078,36 @@ function tryMove(dx, dy) {
     if (dir && ldtkData && currentLevelId) {
       const curLevel = ldtkData.levels.find(l => l.iid === currentLevelId);
       if (curLevel) {
-        const nb = (curLevel.__neighbours || []).find(n => n.dir === dir);
-        if (nb) {
-          doScreenTransition(nb.levelIid, dir);
+        // Filter all neighbours in this direction
+        const nbs = (curLevel.__neighbours || []).filter(n => n.dir === dir);
+        if (nbs.length === 1) {
+          doScreenTransition(nbs[0].levelIid, dir);
+        } else if (nbs.length > 1) {
+          // Multiple neighbours — pick the one whose world position best matches player's current position
+          const playerWorldX = state.player.x * TILE + curLevel.worldX;
+          const playerWorldY = state.player.y * TILE + curLevel.worldY;
+          let best = nbs[0], bestDist = Infinity;
+          for (const n of nbs) {
+            const nl = ldtkData.levels.find(l => l.iid === n.levelIid);
+            if (!nl) continue;
+            // Check overlap on the perpendicular axis
+            let dist;
+            if (dir === 'e' || dir === 'w') {
+              // Match Y axis
+              const nlTop = nl.worldY;
+              const nlBot = nl.worldY + nl.pxHei;
+              const py = playerWorldY;
+              dist = py < nlTop ? nlTop - py : py >= nlBot ? py - nlBot + 1 : 0;
+            } else {
+              // Match X axis
+              const nlLeft = nl.worldX;
+              const nlRight = nl.worldX + nl.pxWid;
+              const px = playerWorldX;
+              dist = px < nlLeft ? nlLeft - px : px >= nlRight ? px - nlRight + 1 : 0;
+            }
+            if (dist < bestDist) { bestDist = dist; best = n; }
+          }
+          doScreenTransition(best.levelIid, dir);
         }
       }
     }
@@ -1595,7 +1611,7 @@ function drawInventory() {
   
   // EXP display
   crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
-  crispText('Shift = Save', W - pad - 150, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
+  crispText('X = Menu', W - pad - 130, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
   ctx.fillStyle = 'rgba(8, 8, 14, 0.90)';
@@ -2084,7 +2100,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.26', W - 8, H - 8);
+  ctx.fillText('v1.27', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3179,7 +3195,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.26', canvas.width - 8, 14);
+  ctx.fillText('v1.27', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
