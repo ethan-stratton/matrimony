@@ -2100,7 +2100,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.27', W - 8, H - 8);
+  ctx.fillText('v1.28', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3195,7 +3195,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.27', canvas.width - 8, 14);
+  ctx.fillText('v1.28', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3644,7 +3644,8 @@ function drawPlayer(ctx, x, y) {
   
   const animName = (state.moving ? 'walk_' : 'idle_') + dir;
   const anim = PLAYER_SHEET.anims[animName];
-  const speed = state.moving ? 120 : 400;
+  const isRunning = state.moving && keys['Shift'];
+  const speed = state.moving ? (isRunning ? 60 : 120) : 400;
   const frame = Math.floor(performance.now() / speed) % anim.frames;
   
   const srcX = frame * PLAYER_SHEET.frameW;
