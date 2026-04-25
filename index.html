@@ -1249,19 +1249,39 @@ function tryMove(dx, dy) {
       stepX = dx * half; stepY = dy * half;
       blocked = false;
     }
-  } else if (blocked && !isOnGrid && state.fineCollision) {
-    // At half position, trying to move into blocked full tile — stay blocked
   }
   
-  // If at a half position and moving into open space, re-align to full grid
-  if (!isOnGrid && !blocked) {
-    // Check if destination is on a full tile AND open
-    const fullNx = px + dx, fullNy = py + dy;
-    const fullClear = !isTileBlocked(fullNx, fullNy, state.canFly);
-    if (fullClear) {
-      // Snap to full tile
-      nx = fullNx; ny = fullNy;
-      stepX = dx; stepY = dy;
+  // Re-align to full grid when possible
+  if (!blocked) {
+    // Try to snap the MOVEMENT axis back to grid if at half pos and full step is clear
+    if (dx !== 0 && px % 1 !== 0) {
+      // Moving horizontally but X is at half — try full step
+      const fullNx = px + dx;
+      if (!isTileBlocked(fullNx, ny, state.canFly)) {
+        nx = fullNx; stepX = dx;
+      }
+    }
+    if (dy !== 0 && py % 1 !== 0) {
+      // Moving vertically but Y is at half — try full step
+      const fullNy = py + dy;
+      if (!isTileBlocked(nx, fullNy, state.canFly)) {
+        ny = fullNy; stepY = dy;
+      }
+    }
+    // Also re-align the PERPENDICULAR axis if it's at half and the rounded pos is clear
+    if (dx !== 0 && py % 1 !== 0) {
+      // Moving horizontally, Y is off-grid — snap Y to nearest full tile
+      const snappedY = Math.round(py);
+      if (!isTileBlocked(nx, snappedY, state.canFly)) {
+        ny = snappedY; stepY = snappedY - py;
+      }
+    }
+    if (dy !== 0 && px % 1 !== 0) {
+      // Moving vertically, X is off-grid — snap X to nearest full tile
+      const snappedX = Math.round(px);
+      if (!isTileBlocked(snappedX, ny, state.canFly)) {
+        nx = snappedX; stepX = snappedX - px;
+      }
     }
   }
   
@@ -1288,7 +1308,7 @@ function tryMove(dx, dy) {
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
   // Scale duration by step size (half step = half duration)
-  const stepSize = Math.max(Math.abs(stepX), Math.abs(stepY));
+  const stepSize = Math.max(Math.abs(nx - px), Math.abs(ny - py));
   state.moveStepScale = stepSize; // store for duration scaling
   // Leave a footstep at the position we're leaving
   state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now(), side: state.footsteps.length % 2 });
@@ -2275,7 +2295,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.38', W - 8, H - 8);
+  ctx.fillText('v1.39', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3429,7 +3449,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.38', canvas.width - 8, 14);
+  ctx.fillText('v1.39', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
