@@ -522,6 +522,7 @@ const state = {
   screen: 'splash', // 'splash' | 'title' | 'game'
   titleSelection: 0, // 0=Slot 1, 1=Slot 2, 2=Slot 3
   titleDeleteMode: false, // delete save mode
+  titleDeleteConfirm: false, // confirmation prompt active
   player: { x: 0, y: 0 },  // grid coords (destination)
   entities: [],
   collision: [],  // 2D array: 0=walk, 1=wall
@@ -774,6 +775,21 @@ document.addEventListener('keydown', (e) => {
   // Title screen input
   if (state.screen === 'title') {
     if (state.titleDeleteMode) {
+      if (state.titleDeleteConfirm) {
+        // Confirmation prompt: Z = yes delete, X/Esc = cancel
+        if (e.key === 'z' || e.key === 'Z') {
+          const slot = state.titleSelection || 0;
+          localStorage.removeItem('matrimony_slot_' + slot);
+          playHit(true);
+          state.titleDeleteConfirm = false;
+          state.titleDeleteMode = false;
+        } else if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') {
+          state.titleDeleteConfirm = false;
+          playTick();
+        }
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'ArrowUp') {
         state.titleSelection = (state.titleSelection + 2) % 3;
         playTick();
@@ -781,11 +797,9 @@ document.addEventListener('keydown', (e) => {
         state.titleSelection = (state.titleSelection + 1) % 3;
         playTick();
       } else if (e.key === 'z' || e.key === 'Z') {
-        // Delete the selected save
-        const slot = state.titleSelection || 0;
-        localStorage.removeItem('matrimony_slot_' + slot);
-        playHit(true);
-        state.titleDeleteMode = false;
+        // Show confirmation before deleting
+        state.titleDeleteConfirm = true;
+        playTick();
       } else if (e.key === 'x' || e.key === 'X' || e.key === 'Escape') {
         state.titleDeleteMode = false;
         playTick();
@@ -2596,11 +2610,29 @@ function drawTitle() {
   }
   ctx.globalAlpha = 1;
 
+  // Delete confirmation overlay
+  if (state.titleDeleteConfirm) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, W, H);
+    const boxW = 420, boxH = 140;
+    const boxX = Math.round((W - boxW) / 2), boxY = Math.round((H - boxH) / 2);
+    ctx.fillStyle = 'rgba(40, 15, 15, 0.95)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = '#c04040';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    const slotName = 'File ' + ((state.titleSelection || 0) + 1);
+    crispText('Delete ' + slotName + '?', boxX + Math.round(boxW / 2), boxY + 30, 32, '#f04040', 0.5, CRISP_FONT_ALT);
+    crispText('This cannot be undone.', boxX + Math.round(boxW / 2), boxY + 62, 32, '#a08080', 0.5, CRISP_FONT_ALT);
+    const pulse = 0.7 + 0.3 * Math.sin(now / 400);
+    crispText('Z = Delete    X = Cancel', boxX + Math.round(boxW / 2), boxY + 100, 32, 'rgba(200,180,170,' + pulse + ')', 0.5, CRISP_FONT_ALT);
+  }
+
   
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.71', W - 8, H - 8);
+  ctx.fillText('v1.72', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3890,7 +3922,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.71', canvas.width - 8, 14);
+  ctx.fillText('v1.72', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
