@@ -1796,8 +1796,9 @@ const ENEMY_DATA = {
     sprite: 'Enemy1',
     maxHp: 220, eff: 10, def: 2, wait: 12,
     exp: 10,
-    actions: ['Charging...', 'Fire Punch'],
+    actions: ['Ember', 'Guard', 'Charging...', 'Fire Punch'],
     startsWithCharge: true,
+    ai: 'smart',
   },
   'Enemy2': {
     name: 'Ice Golem',
@@ -1848,7 +1849,7 @@ function startCombat(entity, enemyStats) {
     phase: 'action', // skip target phase — single enemy, go straight to action select
     targetSelf: false,
     selectedEnemy: 0,
-    actions: ['Punch', 'Kick', 'Defend', ...(state.inventory.includes('Shortbow') ? ['Shortbow'] : [])],
+    actions: getInventoryActions(),
     selectedAction: 0,
     waitCountdown: -1, // player wait: -1 = not counting, >=0 = ticking down
     waitTickSpeed: 240, // ms per tick
@@ -1955,6 +1956,7 @@ const COMBAT_ACTIONS = {
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 3, wait: 6 },
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
+  'Ember':       { eff: 4, def: 1, wait: 4 },
   'Guard': { eff: 0, def: 12, wait: 10 },
   'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
   'Frost Slam':  { eff: 12, def: 3, wait: 10 },
@@ -2364,20 +2366,20 @@ function drawInventory() {
     sx += crispGradientText('Wait:', sx, statsY, 32, STAT_GRADIENT, 0, CRISP_FONT_ALT) + 2;
     sx += crispText(pad3(act.wait || 0), sx, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
     
+    // Attack type tag (e.g. "Guard" for Defend) and Pierce — on second line
+    const extraY = statsY + 26;
+    let ex = gridX;
+    const ACTION_TAGS = { 'Defend': 'Guard' };
+    const tag = ACTION_TAGS[items[sel]];
+    if (tag) {
+      ex += crispText(tag, ex, extraY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 16;
+    }
     // Pierce stat with special shimmer gradient
     if (act.pierce) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
       const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
-      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
-    }
-    
-    // Attack type tag (e.g. "Guard" for Defend)
-    const ACTION_TAGS = { 'Defend': 'Guard' };
-    const tag = ACTION_TAGS[items[sel]];
-    if (tag) {
-      const tagX = sx + 80;
-      crispText(tag, tagX, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT);
+      ex += crispGradientText('Pierce:', ex, extraY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      crispText(pierceVal, ex, extraY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
     }
     
     // Item description — two lines below stats
@@ -2385,6 +2387,7 @@ function drawInventory() {
       'Punch': ['A quick jab.', 'Low power, low risk.'],
       'Kick': ['A strong kick.', 'High power, low defense.'],
       'Shortbow': ['Fires an arrow.', 'Balanced ranged attack.'],
+      'Shortbow ★': ['Trekking with this bow gave', 'keener insight and precision.'],
       'Defend': ['Brace for impact.', 'High defense, no offense.'],
     };
     const desc = ACTION_DESCRIPTIONS[items[sel]];
@@ -2819,7 +2822,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.87', W - 8, H - 8);
+  ctx.fillText('v1.88', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3333,14 +3336,18 @@ function drawCombat() {
       [Math.min(1, gradShift + 0.3), '#f0d060'],
     ];
     const clampedStops = winStops.map(([s, c]) => [Math.max(0, Math.min(1, s)), c]);
-    crispGradientText('You Win!', Math.round(W / 2) - 60, textY, 32, clampedStops, 0, 'Pixelify Sans');
+    const winTextW = crispGradientText('You Win!', 0, -999, 32, clampedStops, 0, 'Pixelify Sans');
+    const winX = Math.round((W - winTextW) / 2);
+    crispGradientText('You Win!', winX, textY, 32, clampedStops, 0, 'Pixelify Sans');
     
-    // Show EXP gained
+    // Show EXP gained — centered below "You Win!"
     const expReward = ENEMY_DATA[c.enemy.type]?.exp || 0;
     if (expReward > 0 && wt > 0.5) {
       const expAlpha = Math.min(1, (wt - 0.5) * 3);
       ctx.globalAlpha = expAlpha;
-      crispText('+' + expReward + ' EXP', Math.round(W / 2) - 40, textY + 36, 24, '#a0e0ff', 0, 'Pixelify Sans');
+      const expStr = '+' + expReward + ' EXP';
+      const expW = crispText(expStr, 0, -999, 24, '#a0e0ff', 0, 'Pixelify Sans');
+      crispText(expStr, Math.round((W - expW) / 2), textY + 36, 24, '#a0e0ff', 0, 'Pixelify Sans');
       ctx.globalAlpha = 1;
     }
   }
@@ -4291,7 +4298,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.87', canvas.width - 8, 14);
+  ctx.fillText('v1.88', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4901,11 +4908,25 @@ function gameLoop(time) {
             c.winState = { startTime: performance.now() };
           }
         }
-        // PAUSE — player picks new action. Enemy keeps their countdown (frozen during pause).
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        // If enemy countdown is also at 0, trigger their attack before pausing
+        if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark && !c.winState) {
+          const eAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          if ((eAct.eff || 0) === 0) {
+            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+          } else {
+            c.enemyAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          }
+          // Don't go to action phase yet — let enemy anim play first
+        } else {
+          // PAUSE — player picks new action. Enemy keeps their countdown (frozen during pause).
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
@@ -4914,11 +4935,24 @@ function gameLoop(time) {
       const t = time - c.playerBark.startTime;
       if (t >= c.playerBark.duration) {
         c.playerBark = null;
-        // No damage — just return to action select
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        // If enemy countdown is also at 0, trigger their attack before pausing
+        if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark && !c.winState) {
+          const eAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          if ((eAct.eff || 0) === 0) {
+            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+          } else {
+            c.enemyAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          }
+        } else {
+          // No damage — just return to action select
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
@@ -4957,6 +4991,13 @@ function gameLoop(time) {
         c.enemyWaitCountdown = nextAct.wait || 0;
         c.enemyWaiting = true;
         // Ticking resumes immediately (player is still counting)
+        // But if player countdown already resolved (deferred enemy attack), return to action select
+        if (c.waitCountdown <= 0) {
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
@@ -4971,6 +5012,13 @@ function gameLoop(time) {
         const nextAct = COMBAT_ACTIONS[c.enemyAction] || {};
         c.enemyWaitCountdown = nextAct.wait || 0;
         c.enemyWaiting = true;
+        // If player countdown already resolved (deferred enemy bark), return to action select
+        if (c.waitCountdown <= 0) {
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
