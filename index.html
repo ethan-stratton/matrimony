@@ -541,6 +541,7 @@ const state = {
   flyX: 0,
   flyY: 0,
   flyBobTimer: 0,
+  flyTransition: null, // { type: 'takeoff'|'landing', startTime, duration, originX, originY, targetX, targetY }
   saveMenu: null,
   showFontTest: false,
   showHitboxes: false,
@@ -673,6 +674,22 @@ function updateCamera() {
 }
 
 function getPlayerVisualPos() {
+  if (state.flyTransition) {
+    const ft = state.flyTransition;
+    const t = Math.min(1, (performance.now() - ft.startTime) / ft.duration);
+    const ease = t * t * (3 - 2 * t); // SmoothStep
+    if (ft.type === 'takeoff') {
+      // Rise upward from origin
+      return { x: ft.originX, y: ft.originY - ease * 0.3 };
+    } else {
+      // Spiral down to target
+      const spiral = (1 - ease) * Math.PI * 2; // one full circle
+      const radius = (1 - ease) * 0.5; // shrinking radius
+      const cx = ft.originX + (ft.targetX - ft.originX) * ease;
+      const cy = ft.originY + (ft.targetY - ft.originY) * ease;
+      return { x: cx + Math.cos(spiral) * radius, y: cy + Math.sin(spiral) * radius * 0.5 - (1 - ease) * 0.3 };
+    }
+  }
   if (state.flying) {
     // Gentle bob while flying
     const bob = Math.sin(state.flyBobTimer / 400) * 0.08;
@@ -814,31 +831,31 @@ document.addEventListener('keydown', (e) => {
   
   // ESC — exit combat after 3s
   // C key — toggle flight
-  if (e.key === 'c' && state.screen === 'game' && !state.combat && !state.combatTransition && !state.dialogue && !state.inventoryOpen && state.canFly) {
+  if (e.key === 'c' && state.screen === 'game' && !state.combat && !state.combatTransition && !state.dialogue && !state.inventoryOpen && state.canFly && !state.flyTransition) {
     if (!state.flying) {
-      state.flying = true;
-      state.flyX = state.player.x;
-      state.flyY = state.player.y;
-      state.flyBobTimer = 0;
+      // Takeoff animation
       state.moving = false;
+      state.flyTransition = {
+        type: 'takeoff',
+        startTime: performance.now(),
+        duration: 500,
+        originX: state.player.x,
+        originY: state.player.y
+      };
     } else {
+      // Landing animation — spiral down to nearest tile
       const snapX = Math.round(state.flyX);
       const snapY = Math.round(state.flyY);
       if (!isTileBlocked(snapX, snapY, false)) {
-        state.flying = false;
-        state.player.x = snapX;
-        state.player.y = snapY;
-        state.flyX = 0;
-        state.flyY = 0;
-        for (let d = 0; d < 6; d++) {
-          state.burnParticles.push({
-            x: snapX + 0.5 + (Math.random() - 0.5) * 0.8,
-            y: snapY + 0.9 + Math.random() * 0.2,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: -Math.random() * 0.15,
-            life: 0.8, initialLife: 0.8, size: 2, dust: true
-          });
-        }
+        state.flyTransition = {
+          type: 'landing',
+          startTime: performance.now(),
+          duration: 600,
+          originX: state.flyX,
+          originY: state.flyY,
+          targetX: snapX,
+          targetY: snapY
+        };
       }
     }
     e.preventDefault();
@@ -1254,7 +1271,7 @@ function findNearestWalkable(x, y, axis) {
 }
 
 function tryMove(dx, dy) {
-  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying) return;
+  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying || state.flyTransition) return;
   
   // Set facing
   if (dx < 0) state.facing = 'left';
@@ -1391,6 +1408,39 @@ let lastFrameTime = 0;
 function handleMovement(now) {
   const dt = lastFrameTime ? Math.min(now - lastFrameTime, 50) : 16; // cap to avoid jumps on tab-back
   lastFrameTime = now;
+
+  // Fly transition animations (takeoff / landing)
+  if (state.flyTransition) {
+    const ft = state.flyTransition;
+    const elapsed = now - ft.startTime;
+    if (elapsed >= ft.duration) {
+      if (ft.type === 'takeoff') {
+        state.flying = true;
+        state.flyX = ft.originX;
+        state.flyY = ft.originY;
+        state.flyBobTimer = 0;
+      } else if (ft.type === 'landing') {
+        state.flying = false;
+        state.player.x = ft.targetX;
+        state.player.y = ft.targetY;
+        state.flyX = 0;
+        state.flyY = 0;
+        // Landing dust puff
+        for (let d = 0; d < 8; d++) {
+          const angle = (d / 8) * Math.PI * 2;
+          state.burnParticles.push({
+            x: ft.targetX + 0.5 + Math.cos(angle) * 0.3,
+            y: ft.targetY + 0.8 + Math.sin(angle) * 0.15,
+            vx: Math.cos(angle) * 0.3,
+            vy: Math.sin(angle) * 0.1 - 0.1,
+            life: 1.0, initialLife: 1.0, size: 2, dust: true
+          });
+        }
+      }
+      state.flyTransition = null;
+    }
+    return; // block all movement during transition
+  }
 
   // Flying mode — 8-way smooth pixel movement
   if (state.flying) {
@@ -2487,7 +2537,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.63', W - 8, H - 8);
+  ctx.fillText('v1.64', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3614,18 +3664,51 @@ function draw() {
   // Draw player at visual (interpolated) position
   const playerDrawX = Math.round((vis.x - camX) * TILE * SCALE);
   const playerDrawY = Math.round((vis.y - camY) * TILE * SCALE);
-  // Flying shadow on ground
-  if (state.flying) {
+  // Flying shadow on ground (also during transitions)
+  if (state.flying || state.flyTransition) {
+    let shadowAlpha = 0.3;
+    let shadowOffsetY = 1.2;
+    if (state.flyTransition) {
+      const ft = state.flyTransition;
+      const t = Math.min(1, (performance.now() - ft.startTime) / ft.duration);
+      if (ft.type === 'takeoff') {
+        shadowAlpha = 0.3 * t; // fade in
+        shadowOffsetY = 0.8 + t * 0.4; // shadow drops away
+      } else {
+        shadowAlpha = 0.3 * (1 - t); // fade out
+        shadowOffsetY = 0.8 + (1 - t) * 0.4;
+      }
+    }
     const shadowX = playerDrawX + TILE * SCALE / 2;
-    const shadowY = playerDrawY + TILE * SCALE + 8;
-    ctx.globalAlpha = 0.3;
+    const shadowY = playerDrawY + TILE * SCALE * shadowOffsetY;
+    ctx.globalAlpha = shadowAlpha;
     ctx.fillStyle = '#000000';
     ctx.beginPath();
     ctx.ellipse(shadowX, shadowY, 8, 3, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  drawPlayer(ctx, playerDrawX, playerDrawY);
+  // Sprite rotation during fly transitions
+  if (state.flyTransition) {
+    const ft = state.flyTransition;
+    const t = Math.min(1, (performance.now() - ft.startTime) / ft.duration);
+    const ease = t * t * (3 - 2 * t);
+    let rotation;
+    if (ft.type === 'takeoff') {
+      rotation = ease * Math.PI * 2; // full spin
+    } else {
+      rotation = (1 - ease) * Math.PI * 2; // spin back down
+    }
+    const s = TILE * SCALE;
+    ctx.save();
+    ctx.translate(playerDrawX + s / 2, playerDrawY + s / 2);
+    ctx.rotate(rotation);
+    ctx.translate(-s / 2, -s / 2);
+    drawPlayer(ctx, 0, 0);
+    ctx.restore();
+  } else {
+    drawPlayer(ctx, playerDrawX, playerDrawY);
+  }
 
   // Debug hitbox overlay
   if (state.showHitboxes) {
@@ -3764,7 +3847,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.63', canvas.width - 8, 14);
+  ctx.fillText('v1.64', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
