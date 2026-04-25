@@ -2301,7 +2301,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.55', W - 8, H - 8);
+  ctx.fillText('v1.56', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3308,7 +3308,7 @@ function draw() {
         const bounceY = barkAge < 200 ? -8 * (1 - (barkAge/200) * (barkAge/200)) : 0;
         ctx.globalAlpha = Math.max(0, barkAlpha);
         const barkGradient = [[0, '#f0d060'], [0.35, '#ffe8a0'], [0.5, '#fffff0'], [0.65, '#ffe8a0'], [1, '#c89830']];
-        crispGradientText('!', sx + TILE * SCALE / 2 - 5, sy - 29 + bounceY, 32, barkGradient, 0, CRISP_FONT);
+        crispGradientText('!', sx + TILE * SCALE / 2 - 6, sy - 29 + bounceY, 32, barkGradient, 0, CRISP_FONT);
         ctx.globalAlpha = 1;
       }
     }
@@ -3564,7 +3564,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.55', canvas.width - 8, 14);
+  ctx.fillText('v1.56', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
