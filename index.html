@@ -656,10 +656,26 @@ function getPlayerVisualPos() {
 
 function getCameraOffset() {
   const vis = getPlayerVisualPos();
-  let camX = vis.x - Math.floor(CANVAS_TILES_X / 2);
-  let camY = vis.y - Math.floor(CANVAS_TILES_Y / 2);
-  camX = Math.max(0, Math.min(Math.max(0, state.mapW - CANVAS_TILES_X), camX));
-  camY = Math.max(0, Math.min(Math.max(0, state.mapH - CANVAS_TILES_Y), camY));
+  const viewW = CANVAS_W / (TILE * SCALE); // 20
+  const viewH = CANVAS_H / (TILE * SCALE); // 15
+  
+  let camX, camY;
+  
+  // If map is smaller than viewport, center it
+  if (state.mapW <= viewW) {
+    camX = (state.mapW - viewW) / 2; // negative = centered
+  } else {
+    camX = vis.x - viewW / 2;
+    camX = Math.max(0, Math.min(state.mapW - viewW, camX));
+  }
+  
+  if (state.mapH <= viewH) {
+    camY = (state.mapH - viewH) / 2;
+  } else {
+    camY = vis.y - viewH / 2;
+    camY = Math.max(0, Math.min(state.mapH - viewH, camY));
+  }
+  
   return { x: camX, y: camY };
 }
 
@@ -712,10 +728,10 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
-  // ESC — exit combat after 5s
+  // ESC — exit combat after 3s
   if (e.key === 'Escape' && state.combat && !state.combatTransition) {
-    if (performance.now() - state.combat.lastInputTime > 10000) {
-      exitCombat();
+    if (performance.now() - state.combat.lastInputTime > 3000) {
+      exitCombat(true);
     }
     return;
   }
@@ -960,31 +976,62 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.screenFade = { type: 'out', startTime: performance.now(), duration: fadeDuration };
   await new Promise(r => setTimeout(r, fadeDuration));
   
-  // Save current player Y position relative to map height (for matching entry point)
-  const relY = state.player.y / state.mapH;
-  const relX = state.player.x / state.mapW;
+  // Save player position and level IID before loading new level
+  const oldPlayerX = state.player.x;
+  const oldPlayerY = state.player.y;
+  const oldLevelIid = currentLevelId;
   
   // Load new level
   await loadLevel(targetLevelIid);
   
-  // Place player at the opposite edge
-  if (fromDir === 'w') {
-    state.player.x = state.mapW - 1;
-    // Find walkable tile on right edge near matching Y
-    const targetY = Math.round(relY * state.mapH);
-    state.player.y = findNearestWalkable(state.mapW - 1, targetY, 'col');
-  } else if (fromDir === 'e') {
-    state.player.x = 0;
-    const targetY = Math.round(relY * state.mapH);
-    state.player.y = findNearestWalkable(0, targetY, 'col');
-  } else if (fromDir === 'n') {
-    state.player.y = state.mapH - 1;
-    const targetX = Math.round(relX * state.mapW);
-    state.player.x = findNearestWalkable(targetX, state.mapH - 1, 'row');
-  } else if (fromDir === 's') {
-    state.player.y = 0;
-    const targetX = Math.round(relX * state.mapW);
-    state.player.x = findNearestWalkable(targetX, 0, 'row');
+  // Get both level's world positions from LDtk data for exact alignment
+  const oldLevel = ldtkData.levels.find(l => l.iid === oldLevelIid);
+  const newLevel = ldtkData.levels.find(l => l.iid === targetLevelIid);
+  
+  if (oldLevel && newLevel) {
+    // Convert player position to world coordinates (in tiles)
+    const worldTileX = oldPlayerX + oldLevel.worldX / TILE;
+    const worldTileY = oldPlayerY + oldLevel.worldY / TILE;
+    
+    // Convert to new level's local coordinates
+    let newX = worldTileX - newLevel.worldX / TILE;
+    let newY = worldTileY - newLevel.worldY / TILE;
+    
+    // Clamp to new level bounds and adjust for edge entry
+    if (fromDir === 'e') newX = 0;
+    else if (fromDir === 'w') newX = state.mapW - 1;
+    else if (fromDir === 's') newY = 0;
+    else if (fromDir === 'n') newY = state.mapH - 1;
+    
+    // Clamp the other axis
+    newX = Math.max(0, Math.min(state.mapW - 1, Math.round(newX)));
+    newY = Math.max(0, Math.min(state.mapH - 1, Math.round(newY)));
+    
+    // Find walkable tile near calculated position
+    if (fromDir === 'e' || fromDir === 'w') {
+      state.player.x = newX;
+      state.player.y = findNearestWalkable(newX, newY, 'col');
+    } else {
+      state.player.y = newY;
+      state.player.x = findNearestWalkable(newX, newY, 'row');
+    }
+  } else {
+    // Fallback to old relative method
+    const relY = oldPlayerY / state.mapH;
+    const relX = oldPlayerX / state.mapW;
+    if (fromDir === 'w') {
+      state.player.x = state.mapW - 1;
+      state.player.y = findNearestWalkable(state.mapW - 1, Math.round(relY * state.mapH), 'col');
+    } else if (fromDir === 'e') {
+      state.player.x = 0;
+      state.player.y = findNearestWalkable(0, Math.round(relY * state.mapH), 'col');
+    } else if (fromDir === 'n') {
+      state.player.y = state.mapH - 1;
+      state.player.x = findNearestWalkable(Math.round(relX * state.mapW), state.mapH - 1, 'row');
+    } else if (fromDir === 's') {
+      state.player.y = 0;
+      state.player.x = findNearestWalkable(Math.round(relX * state.mapW), 0, 'row');
+    }
   }
   
   state.smoothX = state.player.x;
@@ -1250,11 +1297,19 @@ function startCombat(entity, enemyStats) {
   c.lastEnemyWaitTick = performance.now();
 }
 
-function exitCombat() {
+function exitCombat(ranAway) {
   const enemy = state.combat.enemy;
   battleMusic.pause();
   battleMusic.currentTime = 0;
-  // Don't permanently defeat for now — enemy respawns each fight
+  if (ranAway && enemy) {
+    // Mark enemy as fled — disappears until level re-entry
+    state.defeatedEnemies[enemy.id] = true;
+    // Start a quick fade-out (no flash, just fade)
+    const ent = state.entities.find(e => e.id === enemy.id);
+    if (ent) {
+      ent.deathAnim = { startTime: performance.now() - 1200 }; // Skip flash phase, go straight to fade
+    }
+  }
   state.combat = null;
 }
 
@@ -2026,7 +2081,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.24', W - 8, H - 8);
+  ctx.fillText('v1.25', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2373,7 +2428,7 @@ function drawCombat() {
   if (elapsed > 9000) {
     const alpha = 0.3 + 0.3 * Math.sin(now / 800);
     ctx.globalAlpha = alpha;
-    if (now - c.lastInputTime > 10000) {
+    if (now - c.lastInputTime > 3000) {
       crispText('Esc = Run Away', W - 180, arenaY + 4, 32, '#8c828c');
     }
     ctx.globalAlpha = 1;
@@ -3121,7 +3176,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.24', canvas.width - 8, 14);
+  ctx.fillText('v1.25', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
