@@ -664,7 +664,8 @@ function updateCamera() {
 
 function getPlayerVisualPos() {
   if (!state.moving) return { x: state.player.x, y: state.player.y };
-  const t = Math.min(1, state.moveTimer / getMoveDuration());
+  const stepScale = state.moveStepScale || 1;
+  const t = Math.min(1, state.moveTimer / (getMoveDuration() * stepScale));
   // Linear interpolation for chained movement (no decel pulse between steps)
   return {
     x: state.moveFrom.x + (state.player.x - state.moveFrom.x) * t,
@@ -1104,25 +1105,49 @@ async function doScreenTransition(targetLevelIid, fromDir) {
 
 // Check if a movement tile (tx, ty) is blocked — coarse collision only
 // Check if a movement tile (tx, ty) is blocked
-// Checks coarse collision AND fine collision (any sub-cell blocked = tile blocked)
+// tx, ty can be at half-tile increments (e.g., 3.5)
+// Checks coarse collision AND fine collision
 function isTileBlocked(tx, ty, allowFly) {
-  // Check coarse collision (1:1 with movement tiles)
-  if (state.collision && state.collision[ty]) {
-    const val = state.collision[ty][tx];
+  // The coarse tile this position falls in
+  const cx = Math.floor(tx), cy = Math.floor(ty);
+  // Check coarse collision
+  if (state.collision && state.collision[cy]) {
+    const val = state.collision[cy][cx];
     if (val === 1) return true;
     if (val === 2 && !allowFly) return true;
   }
-  // Check fine collision — ANY blocked sub-cell blocks the whole tile
+  // Check fine collision at the sub-cell level
   if (state.fineCollision) {
     const s = state.fineCollisionScale || 2;
-    const cx = tx * s, cy = ty * s;
+    // Convert tile position to fine grid position
+    const fx = Math.floor(tx * s), fy = Math.floor(ty * s);
+    if (state.fineCollision[fy] && state.fineCollision[fy][fx] !== undefined) {
+      const val = state.fineCollision[fy][fx];
+      if (val === 1) return true;
+      if (val === 2 && !allowFly) return true;
+    }
+  }
+  return false;
+}
+
+// Check if a full tile position has ANY fine collision sub-cell blocked
+function isTileFullyBlocked(tx, ty, allowFly) {
+  const cx = Math.floor(tx), cy = Math.floor(ty);
+  if (state.collision && state.collision[cy]) {
+    const val = state.collision[cy][cx];
+    if (val === 1) return true;
+    if (val === 2 && !allowFly) return true;
+  }
+  if (state.fineCollision) {
+    const s = state.fineCollisionScale || 2;
     for (let dy = 0; dy < s; dy++) {
       for (let dx = 0; dx < s; dx++) {
-        const r = cy + dy, c = cx + dx;
-        if (!state.fineCollision[r] || state.fineCollision[r][c] === undefined) continue;
-        const val = state.fineCollision[r][c];
-        if (val === 1) return true;
-        if (val === 2 && !allowFly) return true;
+        const r = cy * s + dy, c = cx * s + dx;
+        if (state.fineCollision[r] && state.fineCollision[r][c] > 0) {
+          const val = state.fineCollision[r][c];
+          if (val === 1) return true;
+          if (val === 2 && !allowFly) return true;
+        }
       }
     }
   }
@@ -1154,11 +1179,18 @@ function tryMove(dx, dy) {
   if (dy < 0) state.facing = 'up';
   if (dy > 0) state.facing = 'down';
   
-  const nx = state.player.x + dx;
-  const ny = state.player.y + dy;
+  // Adaptive step: try full tile, fall back to half tile near fine collision
+  const half = 1 / (state.fineCollisionScale || 2); // 0.5 for 8px grid
+  const px = state.player.x, py = state.player.y;
+  const isOnGrid = (px % 1 === 0) && (py % 1 === 0); // on full tile grid?
+  
+  let stepX = dx, stepY = dy;
+  let nx = px + stepX, ny = py + stepY;
   
   // Bounds check — trigger screen transition if neighbour exists
-  if (nx < 0 || nx >= state.mapW || ny < 0 || ny >= state.mapH) {
+  // Only check from full tile positions (round to nearest tile for bounds)
+  const bnx = Math.floor(nx), bny = Math.floor(ny);
+  if (bnx < 0 || bnx >= state.mapW || bny < 0 || bny >= state.mapH) {
     if (state.transitioning) return;
     // Determine direction
     let dir = null;
@@ -1205,10 +1237,42 @@ function tryMove(dx, dy) {
     }
     return;
   }
-  // Collision check
-  if (isTileBlocked(nx, ny, state.canFly)) return;
+  // Collision check with adaptive step
+  let blocked = isTileBlocked(nx, ny, state.canFly);
+  
+  if (blocked && isOnGrid && state.fineCollision) {
+    // Full tile blocked — try half step
+    const halfNx = px + dx * half, halfNy = py + dy * half;
+    if (!isTileBlocked(halfNx, halfNy, state.canFly)) {
+      // Half step is clear
+      nx = halfNx; ny = halfNy;
+      stepX = dx * half; stepY = dy * half;
+      blocked = false;
+    }
+  } else if (blocked && !isOnGrid && state.fineCollision) {
+    // At half position, trying to move into blocked full tile — stay blocked
+  }
+  
+  // If at a half position and moving into open space, re-align to full grid
+  if (!isOnGrid && !blocked) {
+    // Check if destination is on a full tile AND open
+    const fullNx = px + dx, fullNy = py + dy;
+    const fullClear = !isTileBlocked(fullNx, fullNy, state.canFly);
+    if (fullClear) {
+      // Snap to full tile
+      nx = fullNx; ny = fullNy;
+      stepX = dx; stepY = dy;
+    }
+  }
+  
+  if (blocked) return;
+  
   // Entity collision — block movement but don't auto-interact
-  const blocking = state.entities.find(e => e.x === nx && e.y === ny && !state.defeatedEnemies[e.id] && !e.deathAnim);
+  const blocking = state.entities.find(e => {
+    if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
+    // Check if entity tile overlaps with destination
+    return Math.floor(e.x) === Math.floor(nx) && Math.floor(e.y) === Math.floor(ny);
+  });
   if (blocking) {
     state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
     // Enemies trigger combat on contact (no Z needed)
@@ -1223,6 +1287,9 @@ function tryMove(dx, dy) {
   state.moveTimer = 0;
   state.moveFrom.x = state.player.x;
   state.moveFrom.y = state.player.y;
+  // Scale duration by step size (half step = half duration)
+  const stepSize = Math.max(Math.abs(stepX), Math.abs(stepY));
+  state.moveStepScale = stepSize; // store for duration scaling
   // Leave a footstep at the position we're leaving
   state.footsteps.push({ x: state.moveFrom.x, y: state.moveFrom.y, time: performance.now(), side: state.footsteps.length % 2 });
   if (state.footsteps.length > 12) state.footsteps.shift();
@@ -1245,7 +1312,8 @@ function handleMovement(now) {
 
   if (state.moving) {
     state.moveTimer += dt;
-    if (state.moveTimer >= getMoveDuration()) {
+    const stepScale = state.moveStepScale || 1;
+    if (state.moveTimer >= getMoveDuration() * stepScale) {
       state.moving = false;
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
@@ -2207,7 +2275,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.37', W - 8, H - 8);
+  ctx.fillText('v1.38', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3361,7 +3429,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.37', canvas.width - 8, 14);
+  ctx.fillText('v1.38', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
