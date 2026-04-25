@@ -199,8 +199,10 @@ function defaults() {
       },
       { name: 'Ice Golem', sprite: 'Enemy2', maxHp: 300, startsWithCharge: true,
         actions: [
-          { name: 'Charging...', eff: 0, def: 6, wait: 8 },
-          { name: 'Frost Slam', eff: 8, def: 5, wait: 16 }
+          { name: 'Frost Guard', eff: 0, def: 12, wait: 4 },
+          { name: 'Ice Shard', eff: 5, def: 1, wait: 5, pierce: true },
+          { name: 'Charging...', eff: 0, def: 4, wait: 6 },
+          { name: 'Frost Slam', eff: 12, def: 3, wait: 10 }
         ],
         dialogue: [
           '...The cold... consumes.|What are you?|I am what remains... when warmth dies.',

@@ -1068,9 +1068,7 @@ document.addEventListener('keydown', (e) => {
           c.attackText = action;
           // If enemy has NO remaining countdown (resolved or fresh start), pick new action
           if (c.enemyWaitCountdown <= 0) {
-            const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still', 'Do Nothing'];
-            c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
-            c.enemyActionIndex++;
+            c.enemyAction = pickEnemyAction(c);
             const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
             c.enemyWaitCountdown = enemyAct.wait || 0;
           }
@@ -1683,6 +1681,79 @@ function handleEntityContact(entity) {
 // ══════════════════════════════════
 // COMBAT SYSTEM
 // ══════════════════════════════════
+// COMBAT AI
+// ══════════════════════════════════
+function pickEnemyAction(c) {
+  const enemyData = ENEMY_DATA[c.enemy.type];
+  const actions = enemyData?.actions || ['Stand Still'];
+
+  // Default AI: cycle sequentially (Fire Elemental, etc.)
+  if (enemyData?.ai !== 'smart') {
+    const action = actions[c.enemyActionIndex % actions.length];
+    c.enemyActionIndex++;
+    return action;
+  }
+
+  // Smart AI: knows player's queued action (except first turn)
+  const playerAction = c.attackText;
+  const playerAct = COMBAT_ACTIONS[playerAction || ''] || {};
+  const playerWait = c.waitCountdown || 0;
+
+  // Score each possible action
+  let bestAction = actions[0];
+  let bestScore = -Infinity;
+
+  for (const name of actions) {
+    const act = COMBAT_ACTIONS[name] || {};
+    let score = 0;
+
+    // If player is using a high-eff attack that will land soon, go defensive
+    if ((playerAct.eff || 0) >= 8 && playerWait <= 5 && (act.def || 0) >= 8) {
+      score += 30 + (act.def || 0); // strongly prefer guarding
+    }
+
+    // If player is defending (high def, low eff), use pierce to bypass
+    if ((playerAct.def || 0) >= 6 && act.pierce) {
+      score += 25;
+    }
+
+    // If player is defending, don't use a big non-pierce attack (it'll get blocked)
+    if ((playerAct.def || 0) >= 6 && (act.eff || 0) > 0 && !act.pierce) {
+      score -= (playerAct.def || 0) * 2;
+    }
+
+    // Damage potential (consider pierce)
+    if (act.eff > 0) {
+      const dmg = act.pierce ? act.eff : Math.max(0, act.eff - (playerAct.def || 0));
+      score += dmg * 2;
+    }
+
+    // Prefer faster moves slightly (lower wait = resolves sooner)
+    score -= (act.wait || 0) * 0.5;
+
+    // Don't spam the same move twice in a row
+    if (name === c.enemyAction) score -= 8;
+
+    // Charging is only worth it if Frost Slam follows — but AI picks fresh each time
+    // Give Charging a small baseline so it's used occasionally for variety
+    if (name === 'Charging...' && (act.def || 0) > 0) {
+      score += 5; // modest bonus for the defense it provides while charging
+    }
+
+    // Small random factor for variety
+    score += Math.random() * 4;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestAction = name;
+    }
+  }
+
+  c.enemyActionIndex++;
+  return bestAction;
+}
+
+// ══════════════════════════════════
 const ENEMY_DATA = {
   'Enemy1': {
     name: 'Fire Elemental',
@@ -1695,8 +1766,9 @@ const ENEMY_DATA = {
     name: 'Ice Golem',
     sprite: 'Enemy2',
     maxHp: 300, eff: 8, def: 5, wait: 16,
-    actions: ['Charging...', 'Frost Slam'],
+    actions: ['Frost Guard', 'Ice Shard', 'Charging...', 'Frost Slam'],
     startsWithCharge: true,
+    ai: 'smart',
     patrolRange: 10,
   },
 };
@@ -1792,6 +1864,9 @@ const COMBAT_ACTIONS = {
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 4, wait: 6 },
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
+  'Frost Guard': { eff: 0, def: 12, wait: 4 },
+  'Ice Shard':   { eff: 5, def: 1, wait: 5, pierce: true },
+  'Frost Slam':  { eff: 12, def: 3, wait: 10 },
 };
 
 // ── Load editor overrides from localStorage ──
@@ -2643,7 +2718,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.82', W - 8, H - 8);
+  ctx.fillText('v1.83', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4032,7 +4107,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.82', canvas.width - 8, 14);
+  ctx.fillText('v1.83', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4634,7 +4709,7 @@ function gameLoop(time) {
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          const dmg = Math.max(0, (act.eff || 0) - (enemyAct.def || 0));
+          const dmg = Math.max(0, (act.eff || 0) - (act.pierce ? 0 : (enemyAct.def || 0)));
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           playHit(false);
           if (c.enemyHp <= 0 && !c.winState) {
@@ -4658,7 +4733,7 @@ function gameLoop(time) {
         // Apply damage to player — player ALWAYS has def from their queued action
         const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
         const playerAct = COMBAT_ACTIONS[c.attackText || ''] || {};
-        const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (playerAct.def || 0));
+        const enemyDmg = Math.max(0, (enemyAct.eff || 0) - (enemyAct.pierce ? 0 : (playerAct.def || 0)));
         // Screen shake on ANY hit (stronger if damage, lighter if blocked)
         c.screenShake = { startTime: time, duration: enemyDmg > 0 ? 400 : 200, intensity: enemyDmg > 0 ? 6 : 3 };
         // Explosion effect for fire-type attacks
@@ -4677,9 +4752,7 @@ function gameLoop(time) {
           playHit(false); // lighter hit sound for blocked
         }
         // Enemy immediately picks next action + starts new countdown — NO PAUSE
-        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
-        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
-        c.enemyActionIndex++;
+        c.enemyAction = pickEnemyAction(c);
         c.enemyActionRevealed = true;
         const nextAct = COMBAT_ACTIONS[c.enemyAction] || {};
         c.enemyWaitCountdown = nextAct.wait || 0;
@@ -4694,9 +4767,7 @@ function gameLoop(time) {
       if (t >= c.enemyBark.duration) {
         c.enemyBark = null;
         // Same as attack resolve but no damage — enemy picks next action, NO PAUSE
-        const enemyActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
-        c.enemyAction = enemyActions[c.enemyActionIndex % enemyActions.length];
-        c.enemyActionIndex++;
+        c.enemyAction = pickEnemyAction(c);
         c.enemyActionRevealed = true;
         const nextAct = COMBAT_ACTIONS[c.enemyAction] || {};
         c.enemyWaitCountdown = nextAct.wait || 0;
