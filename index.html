@@ -542,6 +542,7 @@ const state = {
   fontTestContentH: 600,
   defeatedEnemies: {},
   openedChests: {},
+  chestInteraction: null,
   inventory: [],
   footsteps: [], // { x, y, time, dir } — fading footprint trail
   // Smooth camera position (in tile coords, fractional)
@@ -611,6 +612,7 @@ async function loadLevel(levelIdentifier) {
           state.entities.push({
             type: e.__identifier,
             x: gx, y: gy,
+            origX: gx, origY: gy,
             id: `${e.__identifier}_${gx}_${gy}`,
             fields: e.fieldInstances ? Object.fromEntries(e.fieldInstances.map(f => [f.__identifier, f.__value])) : {},
           });
@@ -785,6 +787,12 @@ document.addEventListener('keydown', (e) => {
         }
       }
     }
+  }
+  
+  // Chest interaction intercepts all input
+  if (state.chestInteraction) {
+    if (handleChestInput(e.key)) { e.preventDefault(); }
+    return;
   }
   
   // Z = Confirm
@@ -998,7 +1006,7 @@ function findNearestWalkable(x, y, axis) {
 }
 
 function tryMove(dx, dy) {
-  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen) return;
+  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction) return;
   
   // Set facing
   if (dx < 0) state.facing = 'left';
@@ -1138,19 +1146,17 @@ function handleEntityContact(entity) {
       const lines = dialogues[Math.min(count, dialogues.length - 1)];
       state.encounterCounts['Enemy1'] = count + 1;
       // Queue dialogue lines, then start combat after last one
-      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text }));
+      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text, portrait: 'Enemy1' }));
       state.pendingCombat = { entity, data };
-      showDialogue(lines[0].speaker, lines[0].text);
+      showDialogue(lines[0].speaker, lines[0].text, 'Enemy1');
     } else {
       startCombat(entity, data);
     }
   } else if (entity.type === 'Chest') {
     if (!state.openedChests[entity.id]) {
-      state.openedChests[entity.id] = true;
       const item = entity.fields.Item || 'Shortbow';
-      state.inventory.push(item);
       playChestOpen();
-      showDialogue('', 'Found ' + item + '!');
+      state.chestInteraction = { step: 'reveal', item: item, entityId: entity.id };
     } else {
       showDialogue('', 'The chest is empty.');
     }
@@ -2013,7 +2019,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.22', W - 8, H - 8);
+  ctx.fillText('v1.23', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2555,8 +2561,8 @@ function drawCombatTransition() {
   // No screen wipe — combat overlays directly on the overworld
 }
 
-function showDialogue(speaker, text) {
-  state.dialogue = { speaker, text };
+function showDialogue(speaker, text, portrait) {
+  state.dialogue = { speaker, text, portrait: portrait || null };
 }
 
 function closeDialogue() {
@@ -2564,7 +2570,7 @@ function closeDialogue() {
   // Continue dialogue queue if present
   if (state.dialogueQueue && state.dialogueQueue.length > 0) {
     const next = state.dialogueQueue.shift();
-    showDialogue(next.speaker, next.text);
+    showDialogue(next.speaker, next.text, next.portrait);
     return;
   }
   state.dialogueQueue = null;
@@ -2595,13 +2601,21 @@ function drawDialogue() {
   ctx.lineWidth = 2;
   ctx.strokeRect(boxX, boxY, boxW, boxH);
   
-  // Speaker name
-  if (state.dialogue.speaker) {
-    crispText(state.dialogue.speaker, boxX + 12, boxY + 6, 32, '#b89cff');
+  // Portrait above dialogue box (for enemy dialogues)
+  if (state.dialogue.portrait) {
+    const pSize = 48;
+    const pX = boxX;
+    const pY = boxY - pSize - 4;
+    ctx.fillStyle = 'rgba(10, 8, 15, 0.92)';
+    ctx.fillRect(pX, pY, pSize, pSize);
+    ctx.strokeStyle = '#5a5060';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pX, pY, pSize, pSize);
+    drawSprite(ctx, state.dialogue.portrait, pX, pY, performance.now());
   }
   
   // Text (word wrap) — use crisp text
-  const textY = state.dialogue.speaker ? boxY + 34 : boxY + 6;
+  const textY = boxY + 8;
   // We need to word-wrap with crisp text. Measure using an offscreen ctx.
   if (!drawDialogue._mc) {
     drawDialogue._mc = document.createElement('canvas').getContext('2d');
@@ -2623,6 +2637,262 @@ function drawDialogue() {
     }
   }
   crispText(line.trim(), boxX + 12, lineY, 32, '#c8b8a0');
+}
+
+// ══════════════════════════════════
+// CHEST INTERACTION
+// ══════════════════════════════════
+function drawChestInteraction() {
+  const ci = state.chestInteraction;
+  if (!ci) return;
+  const W = canvas.width;
+  const H = canvas.height;
+  const boxH = Math.round(H * 0.28);
+  const boxY = H - boxH - 8;
+  const boxX = 0;
+  const boxW = W;
+  const now = performance.now();
+
+  // Background
+  ctx.fillStyle = 'rgba(10, 8, 15, 0.95)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = '#5a5060';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  if (ci.step === 'reveal') {
+    // Item name in gold
+    crispGradientText(ci.item, boxX + 16, boxY + 12, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    // Flashing "Next"
+    if (Math.sin(now / 300) > 0) {
+      crispText('Next ▶', boxW - 80, boxY + boxH - 24, 32, '#d4a830');
+    }
+  } else if (ci.step === 'stats') {
+    const act = COMBAT_ACTIONS[ci.item] || { eff: 0, def: 0, wait: 0 };
+    // Item name
+    crispGradientText(ci.item, boxX + 16, boxY + 10, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT);
+    // Stats line
+    let sx = boxX + 16;
+    const statY = boxY + 36;
+    sx += crispGradientText('Eff:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + act.eff, sx, statY, 32, '#fff') + 8;
+    sx += crispGradientText('Def:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx += crispText('' + act.def, sx, statY, 32, '#fff') + 8;
+    sx += crispGradientText('Wait:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    crispText('' + act.wait, sx, statY, 32, '#fff');
+    // Take / Leave prompt
+    crispText('(Z) Take it   (X) Leave it', boxX + 16, boxY + 62, 32, '#ffe060');
+  } else if (ci.step === 'inventoryFull') {
+    crispText('Inventory full! Choose item to drop:', boxX + 16, boxY + 8, 32, '#ffe060');
+    const items = getInventoryActions();
+    const sel = ci.selectedSlot || 0;
+    for (let i = 0; i < items.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const ix = boxX + 16 + col * Math.round(boxW / 2);
+      const iy = boxY + 32 + row * 20;
+      const color = i === sel ? '#ffe060' : '#c8b8a0';
+      const prefix = i === sel ? '▶ ' : '  ';
+      crispText(prefix + items[i], ix, iy, 32, color);
+    }
+    // Show selected item stats at bottom
+    const selItem = items[sel];
+    const act = COMBAT_ACTIONS[selItem] || { eff: 0, def: 0, wait: 0 };
+    let sx2 = boxX + 16;
+    const sy2 = boxY + boxH - 24;
+    sx2 += crispGradientText('Eff:', sx2, sy2, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx2 += crispText('' + act.eff, sx2, sy2, 32, '#fff') + 8;
+    sx2 += crispGradientText('Def:', sx2, sy2, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    sx2 += crispText('' + act.def, sx2, sy2, 32, '#fff') + 8;
+    sx2 += crispGradientText('Wait:', sx2, sy2, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+    crispText('' + act.wait, sx2, sy2, 32, '#fff');
+  } else if (ci.step === 'confirmDrop') {
+    const items = getInventoryActions();
+    const dropItem = items[ci.selectedSlot || 0];
+    crispText('Drop ' + dropItem + '?', boxX + 16, boxY + 20, 32, '#ffe060');
+    crispText('(Z) Yes   (X) No', boxX + 16, boxY + 50, 32, '#c8b8a0');
+  }
+}
+
+function handleChestInput(key) {
+  const ci = state.chestInteraction;
+  if (!ci) return false;
+
+  if (ci.step === 'reveal') {
+    if (key === 'z' || key === 'Z' || key === 'x' || key === 'X') {
+      ci.step = 'stats';
+      return true;
+    }
+  } else if (ci.step === 'stats') {
+    if (key === 'z' || key === 'Z') {
+      // Take it
+      if (state.inventory.length >= 8) {
+        ci.step = 'inventoryFull';
+        ci.selectedSlot = 0;
+      } else {
+        state.inventory.push(ci.item);
+        state.openedChests[ci.entityId] = true;
+        state.chestInteraction = null;
+      }
+      return true;
+    }
+    if (key === 'x' || key === 'X') {
+      // Leave it — close without taking
+      state.chestInteraction = null;
+      return true;
+    }
+  } else if (ci.step === 'inventoryFull') {
+    const items = getInventoryActions();
+    const sel = ci.selectedSlot || 0;
+    const numItems = items.length;
+    const row = Math.floor(sel / 2);
+    const col = sel % 2;
+    if (key === 'ArrowUp') { const nr = row - 1; if (nr >= 0) { const ni = nr * 2 + col; ci.selectedSlot = ni < numItems ? ni : sel; } return true; }
+    if (key === 'ArrowDown') { const nr = row + 1; const ni = nr * 2 + col; ci.selectedSlot = ni < numItems ? ni : sel; return true; }
+    if (key === 'ArrowLeft') { if (col === 1) { ci.selectedSlot = row * 2; } return true; }
+    if (key === 'ArrowRight') { if (col === 0) { const ni = row * 2 + 1; ci.selectedSlot = ni < numItems ? ni : sel; } return true; }
+    if (key === 'z' || key === 'Z') {
+      ci.step = 'confirmDrop';
+      return true;
+    }
+    if (key === 'x' || key === 'X') {
+      // Cancel — go back to stats
+      ci.step = 'stats';
+      return true;
+    }
+  } else if (ci.step === 'confirmDrop') {
+    if (key === 'z' || key === 'Z') {
+      // Drop the selected item, take the new one
+      const items = getInventoryActions();
+      const dropItem = items[ci.selectedSlot || 0];
+      // Remove from inventory
+      const invIdx = state.inventory.indexOf(dropItem);
+      if (invIdx >= 0) state.inventory.splice(invIdx, 1);
+      // Remove from actionOrder
+      if (state.actionOrder) {
+        const aoIdx = state.actionOrder.indexOf(dropItem);
+        if (aoIdx >= 0) state.actionOrder.splice(aoIdx, 1);
+      }
+      // Add new item
+      state.inventory.push(ci.item);
+      state.openedChests[ci.entityId] = true;
+      state.chestInteraction = null;
+      return true;
+    }
+    if (key === 'x' || key === 'X') {
+      ci.step = 'inventoryFull';
+      return true;
+    }
+  }
+  return false;
+}
+
+// ══════════════════════════════════
+// ENEMY AI — Patrol + Chase
+// ══════════════════════════════════
+function updateEnemyAI(time) {
+  if (state.transitioning || state.dialogue || state.combat || state.chestInteraction ||
+      state.combatTransition || state.inventoryOpen || state.saveMenu) return;
+
+  for (const e of state.entities) {
+    if (e.type === 'Chest') continue;
+    if (state.defeatedEnemies[e.id]) continue;
+
+    // Initialize AI state
+    if (e.aiTimer === undefined) {
+      e.aiTimer = 0;
+      e.aiInterval = 1500 + Math.random() * 1500;
+      e.aiMoving = false;
+      e.prevX = e.x;
+      e.prevY = e.y;
+      e.moveStart = 0;
+    }
+
+    // Handle smooth movement interpolation
+    if (e.aiMoving) {
+      if (time - e.moveStart >= MOVE_DURATION) {
+        e.aiMoving = false;
+        // Check if enemy landed on player
+        if (e.x === state.player.x && e.y === state.player.y) {
+          handleEntityContact(e);
+          return; // Stop processing after combat trigger
+        }
+      }
+      continue; // Don't pick new move while animating
+    }
+
+    e.aiTimer += (time - (e._lastAITime || time));
+    e._lastAITime = time;
+
+    const px = state.player.x;
+    const py = state.player.y;
+    const dist = Math.abs(e.x - px) + Math.abs(e.y - py);
+
+    // Determine mode and interval
+    const chasing = dist <= 4;
+    const interval = chasing ? 800 : e.aiInterval;
+
+    if (e.aiTimer < interval) continue;
+    e.aiTimer = 0;
+    e.aiInterval = 1500 + Math.random() * 1500; // New random interval for next patrol step
+
+    // Pick target tile
+    const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+    let bestDir = null;
+
+    if (chasing) {
+      // Greedy chase: pick direction that minimizes distance to player
+      let bestDist = Infinity;
+      const shuffled = dirs.slice().sort(() => Math.random() - 0.5);
+      for (const d of shuffled) {
+        const nx = e.x + d.dx;
+        const ny = e.y + d.dy;
+        if (!canEntityMoveTo(e, nx, ny)) continue;
+        const nd = Math.abs(nx - px) + Math.abs(ny - py);
+        if (nd < bestDist) {
+          bestDist = nd;
+          bestDir = d;
+        }
+      }
+    } else {
+      // Random patrol within 3 tiles of spawn
+      const shuffled = dirs.slice().sort(() => Math.random() - 0.5);
+      for (const d of shuffled) {
+        const nx = e.x + d.dx;
+        const ny = e.y + d.dy;
+        if (Math.abs(nx - e.origX) > 3 || Math.abs(ny - e.origY) > 3) continue;
+        if (!canEntityMoveTo(e, nx, ny)) continue;
+        bestDir = d;
+        break;
+      }
+    }
+
+    if (bestDir) {
+      e.prevX = e.x;
+      e.prevY = e.y;
+      e.x += bestDir.dx;
+      e.y += bestDir.dy;
+      e.aiMoving = true;
+      e.moveStart = time;
+    }
+  }
+}
+
+function canEntityMoveTo(entity, nx, ny) {
+  // Check collision map
+  if (!state.collision || !state.collision[ny] || state.collision[ny][nx] === undefined) return false;
+  const val = state.collision[ny][nx];
+  if (val === 1) return false;
+  if (val === 2) return false; // Enemies can't fly
+  // Check other entities
+  for (const other of state.entities) {
+    if (other === entity) continue;
+    if (state.defeatedEnemies[other.id]) continue;
+    if (other.x === nx && other.y === ny) return false;
+  }
+  // Check player position
+  if (nx === state.player.x && ny === state.player.y) return true; // Allow moving onto player (triggers combat)
+  return true;
 }
 
 // ══════════════════════════════════
@@ -2681,9 +2951,16 @@ function draw() {
   // Draw entities
   for (const e of state.entities) {
     if (state.defeatedEnemies[e.id]) continue;
-    if (e.x < startX || e.x > endX || e.y < startY || e.y > endY) continue;
-    const sx = Math.round((e.x - camX) * TILE * SCALE);
-    const sy = Math.round((e.y - camY) * TILE * SCALE);
+    // Calculate interpolated position for smooth movement
+    let ex = e.x, ey = e.y;
+    if (e.aiMoving && e.moveStart) {
+      const t = Math.min(1, (performance.now() - e.moveStart) / MOVE_DURATION);
+      ex = e.prevX + (e.x - e.prevX) * t;
+      ey = e.prevY + (e.y - e.prevY) * t;
+    }
+    if (ex < startX - 1 || ex > endX + 1 || ey < startY - 1 || ey > endY + 1) continue;
+    const sx = Math.round((ex - camX) * TILE * SCALE);
+    const sy = Math.round((ey - camY) * TILE * SCALE);
     drawEntity(ctx, e, sx, sy);
   }
   
@@ -2817,7 +3094,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.22', canvas.width - 8, 14);
+  ctx.fillText('v1.23', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -3359,6 +3636,7 @@ function gameLoop(time) {
       if (state.inventoryOpen && !state.combat) drawInventory();
       if (state.combat) drawCombat();
       if (state.dialogue) drawDialogue();
+      if (state.chestInteraction) drawChestInteraction();
       ctx.restore();
     }
     requestAnimationFrame(gameLoop);
@@ -3372,6 +3650,7 @@ function gameLoop(time) {
   }
   if (!state.combat) {
     handleMovement(time);
+    updateEnemyAI(time);
   }
   // Update combat wait countdowns + animations
   if (state.combat) {
@@ -3512,6 +3791,9 @@ function gameLoop(time) {
   }
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
+  }
+  if (state.chestInteraction) {
+    drawChestInteraction();
   }
   // Screen transition fade
   if (state.screenFade) {
