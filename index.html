@@ -730,7 +730,7 @@ document.addEventListener('keydown', (e) => {
   
   // ESC — exit combat after 3s
   if (e.key === 'Escape' && state.combat && !state.combatTransition) {
-    if (performance.now() - state.combat.lastInputTime > 3000) {
+    if (performance.now() - state.combat.lastInputTime > 10000) {
       exitCombat(true);
     }
     return;
@@ -2428,7 +2428,7 @@ function drawCombat() {
   if (elapsed > 9000) {
     const alpha = 0.3 + 0.3 * Math.sin(now / 800);
     ctx.globalAlpha = alpha;
-    if (now - c.lastInputTime > 3000) {
+    if (now - c.lastInputTime > 10000) {
       crispText('Esc = Run Away', W - 180, arenaY + 4, 32, '#8c828c');
     }
     ctx.globalAlpha = 1;
