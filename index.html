@@ -308,7 +308,7 @@ const EB_PRESETS = {
 };
 
 // Map enemy types to background presets
-const ENEMY_BG = { 'Enemy1': 'Giygas' };
+const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Giygas' };
 
 function ebSampleColors(colors, t) {
   const n = colors.length;
@@ -450,6 +450,7 @@ const PLAYER_SHEET = {
 
 // Enemy sprites (DeepDive 16x16, 4-frame strips)
 loadSprite('Enemy1', 'sprites/FireElemental.png');
+loadSprite('Enemy2', 'sprites/IceGolem.png');
 
 // ══════════════════════════════════
 // GAME STATE
@@ -1653,17 +1654,16 @@ let ENEMY_DIALOGUE = loadEditorDialogue();
 if (!state.encounterCounts) state.encounterCounts = {};
 
 function handleEntityContact(entity) {
-  if (entity.type === 'Enemy1') {
-    const data = ENEMY_DATA['Enemy1'];
-    const dialogues = ENEMY_DIALOGUE['Enemy1'];
+  const data = ENEMY_DATA[entity.type];
+  if (data) {
+    const dialogues = ENEMY_DIALOGUE[entity.type];
     if (dialogues) {
-      const count = state.encounterCounts['Enemy1'] || 0;
+      const count = state.encounterCounts[entity.type] || 0;
       const lines = dialogues[Math.min(count, dialogues.length - 1)];
-      state.encounterCounts['Enemy1'] = count + 1;
-      // Queue dialogue lines, then start combat after last one
-      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text, portrait: l.speaker === 'You' ? 'player' : 'Enemy1' }));
+      state.encounterCounts[entity.type] = count + 1;
+      state.dialogueQueue = lines.slice(1).map(l => ({ speaker: l.speaker, text: l.text, portrait: l.speaker === 'You' ? 'player' : entity.type }));
       state.pendingCombat = { entity, data };
-      showDialogue(lines[0].speaker, lines[0].text, lines[0].speaker === 'You' ? 'player' : 'Enemy1');
+      showDialogue(lines[0].speaker, lines[0].text, lines[0].speaker === 'You' ? 'player' : entity.type);
     } else {
       startCombat(entity, data);
     }
@@ -1690,6 +1690,14 @@ const ENEMY_DATA = {
     maxHp: 220, eff: 10, def: 2, wait: 12,
     actions: ['Charging...', 'Fire Punch'],
     startsWithCharge: true,
+  },
+  'Enemy2': {
+    name: 'Ice Golem',
+    sprite: 'Enemy2',
+    maxHp: 300, eff: 8, def: 5, wait: 16,
+    actions: ['Charging...', 'Frost Slam'],
+    startsWithCharge: true,
+    patrolRange: 10,
   },
 };
 
@@ -2635,7 +2643,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.78', W - 8, H - 8);
+  ctx.fillText('v1.79', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3502,6 +3510,7 @@ function updateEnemyAI(time) {
     // Pick target tile
     const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
     let bestDir = null;
+    const patrolRange = (ENEMY_DATA[e.type] && ENEMY_DATA[e.type].patrolRange) || 3;
 
     if (chasing) {
       // Greedy chase: pick direction that minimizes distance to player
@@ -3517,7 +3526,7 @@ function updateEnemyAI(time) {
           bestDir = d;
         }
       }
-    } else if (Math.abs(e.x - e.origX) > 3 || Math.abs(e.y - e.origY) > 3) {
+    } else if (Math.abs(e.x - e.origX) > patrolRange || Math.abs(e.y - e.origY) > patrolRange) {
       // Return to patrol zone — greedy walk toward spawn
       let bestDist = Infinity;
       for (const d of dirs) {
@@ -3531,12 +3540,12 @@ function updateEnemyAI(time) {
         }
       }
     } else {
-      // Random patrol within 3 tiles of spawn
+      // Random patrol within patrolRange tiles of spawn
       const shuffled = dirs.slice().sort(() => Math.random() - 0.5);
       for (const d of shuffled) {
         const nx = e.x + d.dx;
         const ny = e.y + d.dy;
-        if (Math.abs(nx - e.origX) > 3 || Math.abs(ny - e.origY) > 3) continue;
+        if (Math.abs(nx - e.origX) > patrolRange || Math.abs(ny - e.origY) > patrolRange) continue;
         if (!canEntityMoveTo(e, nx, ny)) continue;
         bestDir = d;
         break;
@@ -3961,7 +3970,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.78', canvas.width - 8, 14);
+  ctx.fillText('v1.79', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
