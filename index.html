@@ -1552,6 +1552,9 @@ function handleMovement(now) {
       if (Math.abs(state.flyVy) < 0.0001) state.flyVy = 0;
       state.flyX += state.flyVx * dt;
       state.flyY += state.flyVy * dt;
+      // Clamp to level bounds
+      state.flyX = Math.max(0, Math.min(state.mapW - 1, state.flyX));
+      state.flyY = Math.max(0, Math.min(state.mapH - 1, state.flyY));
       state.player.x = state.flyX;
       state.player.y = state.flyY;
       state.flyBobTimer += dt;
@@ -2861,7 +2864,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.10', W - 8, H - 8);
+  ctx.fillText('v2.11', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3838,8 +3841,8 @@ function updateFishStream(time) {
     f.y += f.vy * fdt;
   }
   
-  // Push player if flying — stream current mechanics
-  if (state.flying && streams.length > 0) {
+  // Push player if flying — stream current mechanics (not during menus)
+  if (state.flying && streams.length > 0 && !state.inventoryOpen && !state.saveMenu && !state.dialogue) {
     for (const s of streams) {
       const sw = s.widthTiles || 1;
       const sh = s.heightTiles || 1;
@@ -3869,6 +3872,9 @@ function updateFishStream(time) {
         }
       }
     }
+    // Clamp to level bounds after stream push
+    state.flyX = Math.max(0, Math.min((state.mapW || 26) - 1, state.flyX));
+    state.flyY = Math.max(0, Math.min((state.mapH || 32) - 1, state.flyY));
   }
 }
 
@@ -4577,7 +4583,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.10', canvas.width - 8, 14);
+  ctx.fillText('v2.11', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
