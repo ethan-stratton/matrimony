@@ -532,6 +532,8 @@ async function applySave(slot) {
   state.fishParticles = [];
   state.fishSpawnTimer = 0;
   updateCamera();
+  // Pre-populate fish so they appear to have been swimming already
+  prepopulateFish();
   return true;
 }
 
@@ -1251,6 +1253,7 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   if (state.flying) { state.flyX = state.player.x; state.flyY = state.player.y; }
   state.footsteps = [];
   updateCamera();
+  prepopulateFish();
   
   // Fade in
   state.screenFade = { type: 'in', startTime: performance.now(), duration: fadeDuration };
@@ -1563,6 +1566,8 @@ function handleMovement(now) {
     if (keys['ArrowRight']) { fdx += 1; state.facing = 'right'; }
     if (keys['ArrowUp']) { fdy -= 1; state.facing = 'up'; }
     if (keys['ArrowDown']) { fdy += 1; state.facing = 'down'; }
+    // Track pressed directions for stream current
+    state.flyKeys = { up: !!keys['ArrowUp'], down: !!keys['ArrowDown'], left: !!keys['ArrowLeft'], right: !!keys['ArrowRight'] };
     // Normalize diagonal input
     if (fdx !== 0 && fdy !== 0) {
       const norm = 1 / Math.sqrt(2);
@@ -2856,7 +2861,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.09', W - 8, H - 8);
+  ctx.fillText('v2.10', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3745,6 +3750,42 @@ function handleChestInput(key) {
 // ══════════════════════════════════
 // FISH STREAM
 // ══════════════════════════════════
+function prepopulateFish() {
+  if (!state.fishParticles) state.fishParticles = [];
+  const streams = state.entities.filter(e => e.type === 'Stream');
+  for (const s of streams) {
+    const sw = s.widthTiles || 1;
+    const sh = s.heightTiles || 1;
+    // Scatter ~30 fish throughout the stream at various Y positions
+    for (let i = 0; i < 30; i++) {
+      const spawnX = s.x + 0.5 + Math.random() * (sw - 1);
+      const spawnY = s.y + Math.random() * sh;
+      const speed = 2.0 + Math.random() * 1.5;
+      const drift = (Math.random() - 0.5) * 0.4;
+      const fishSize = 1.5 + Math.random() * 2.5;
+      const totalLife = (sh + 4) / speed;
+      // Set life as if they've been swimming for a while (partial life remaining)
+      const elapsed = (spawnY - s.y) / speed;
+      state.fishParticles.push({
+        x: spawnX, y: spawnY,
+        vx: drift, vy: speed,
+        life: totalLife - elapsed,
+        initialLife: totalLife,
+        size: fishSize,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 1.5 + Math.random() * 2,
+        wobbleAmp: 0.15 + Math.random() * 0.2,
+        streamX: s.x, streamW: sw, streamBottom: s.y + sh,
+        shade: 0.08 + Math.random() * 0.12,
+        finPhase: Math.random() * Math.PI * 2,
+        finSpeed: 4 + Math.random() * 3,
+        glint: Math.random() < 0.3,
+        big: fishSize > 3,
+      });
+    }
+  }
+}
+
 function updateFishStream(time) {
   if (state.combat || state.dialogue) return;
   if (!state.fishParticles) state.fishParticles = [];
@@ -3797,7 +3838,7 @@ function updateFishStream(time) {
     f.y += f.vy * fdt;
   }
   
-  // Push player if flying
+  // Push player if flying — stream current mechanics
   if (state.flying && streams.length > 0) {
     for (const s of streams) {
       const sw = s.widthTiles || 1;
@@ -3809,8 +3850,23 @@ function updateFishStream(time) {
         const dx = px - centerX;
         const halfW = sw / 2 + 1;
         const proximity = 1 - Math.min(1, Math.abs(dx) / halfW);
-        state.flyVy += proximity * 0.0012;
-        state.flyVx += (dx > 0 ? 0.0005 : -0.0005) * proximity;
+        
+        // Check if player is pressing any direction
+        const pressing = state.flyKeys && (state.flyKeys.up || state.flyKeys.down || state.flyKeys.left || state.flyKeys.right);
+        
+        if (pressing) {
+          // Player is actively pressing — gentle downstream current, can inch upstream
+          state.flyVy += proximity * 0.0006; // mild downward push
+          // If pressing up, severely reduce upward velocity (swimming against current)
+          if (state.flyKeys && state.flyKeys.up && state.flyVy < 0) {
+            state.flyVy *= 0.985; // dampen upward movement
+          }
+        } else {
+          // Not pressing — current pushes you down and out to nearest edge
+          state.flyVy += proximity * 0.0015;
+          const sideForce = dx > 0 ? 0.001 : -0.001;
+          state.flyVx += sideForce * proximity;
+        }
       }
     }
   }
@@ -3835,9 +3891,9 @@ function drawFishStream(ctx) {
     ctx.globalAlpha = alpha * f.shade;
     ctx.translate(sx, sy);
     
-    // Fish faces movement direction — mostly down, slight wobble
-    const angle = Math.atan2(f.vy, f.vx + Math.sin(f.wobble) * f.wobbleAmp);
-    ctx.rotate(angle);
+    // Fish faces mostly downward — just slight wobble rotation
+    const wobbleAngle = Math.sin(f.wobble) * 0.15;
+    ctx.rotate(wobbleAngle);
     
     const sz = f.size * SCALE;
     
@@ -4521,7 +4577,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.09', canvas.width - 8, 14);
+  ctx.fillText('v2.10', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
