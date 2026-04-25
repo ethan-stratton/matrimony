@@ -179,14 +179,14 @@ function playFootstep() {
   const basePitch = footstepAlt ? 175 : 145;
   osc.frequency.value = basePitch + (Math.random() - 0.5) * 40;
   footstepAlt = !footstepAlt;
-  gain.gain.value = 0.114;
+  gain.gain.value = 0.1;
   osc.connect(gain);
   gain.connect(ac.destination);
   const t = ac.currentTime;
   osc.start(t);
   osc.stop(t + 0.07);
   // Fade out manually
-  gain.gain.setValueAtTime(0.114, t);
+  gain.gain.setValueAtTime(0.1, t);
   gain.gain.linearRampToValueAtTime(0, t + 0.07);
 }
 function playTick() {
@@ -2643,7 +2643,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.81', W - 8, H - 8);
+  ctx.fillText('v1.82', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4032,7 +4032,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.81', canvas.width - 8, 14);
+  ctx.fillText('v1.82', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
