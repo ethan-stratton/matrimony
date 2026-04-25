@@ -2849,7 +2849,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.98', W - 8, H - 8);
+  ctx.fillText('v1.99', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3807,10 +3807,10 @@ function updateEnemyAI(time) {
       case 'down':  forwardDist = dy; sideDist = Math.abs(dx); break;
       case 'up':    forwardDist = -dy; sideDist = Math.abs(dx); break;
     }
-    // Forward cone: 5 tiles ahead (within 2 tiles wide), sides: 3 tiles, behind: 2 tiles
-    const inRange = (forwardDist >= 0 && forwardDist <= 5 && sideDist <= 2) ||
+    // Forward cone: 5 tiles ahead (within 3 tiles wide), sides: 4 tiles, behind: 2 tiles
+    const inRange = (forwardDist >= 0 && forwardDist <= 5 && sideDist <= 3) ||
                     (forwardDist < 0 && Math.abs(forwardDist) <= 2 && sideDist <= 1) ||
-                    (dist <= 3 && sideDist <= 2);
+                    (dist <= 4 && sideDist <= 3);
     // Aggro memory: stay aware for 3 seconds after losing sight
     if (inRange) {
       e.lastSeenTime = time;
@@ -4357,7 +4357,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.98', canvas.width - 8, 14);
+  ctx.fillText('v1.99', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -4858,6 +4858,24 @@ function drawEntity(ctx, entity, x, y) {
     }
     return;
   }
+  // Flying enemy hover: bob up/down + shadow
+  const enemyData = ENEMY_DATA[entity.type];
+  const isFlying = enemyData && enemyData.flying;
+  let hoverOffset = 0;
+  if (isFlying && !entity.deathAnim) {
+    const t = performance.now() / 600;
+    hoverOffset = Math.sin(t * Math.PI) * 4 * SCALE;
+    // Draw shadow
+    const s = TILE * SCALE;
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(x + s / 2, y + s - 2 * SCALE, s * 0.35, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    y -= hoverOffset;
+  }
   // Death animation: flash then fade
   if (entity.deathAnim) {
     const elapsed = performance.now() - entity.deathAnim.startTime;
@@ -4967,25 +4985,11 @@ function gameLoop(time) {
             c.winState = { startTime: performance.now() };
           }
         }
-        // If enemy countdown is also at 0, trigger their attack before pausing
-        if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark && !c.winState) {
-          const eAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          if ((eAct.eff || 0) === 0) {
-            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
-          } else {
-            c.enemyAttackAnim = {
-              startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-            };
-          }
-          // Don't go to action phase yet — let enemy anim play first
-        } else {
-          // PAUSE — player picks new action. Enemy keeps their countdown (frozen during pause).
-          c.phase = 'action';
-          c.waiting = false;
-          c.attackText = null;
-          c.waitCountdown = -1;
-        }
+        // PAUSE — player picks new action. Enemy keeps their countdown (if 0, fires on next commit).
+        c.phase = 'action';
+        c.waiting = false;
+        c.attackText = null;
+        c.waitCountdown = -1;
       }
     }
     
@@ -4995,23 +4999,11 @@ function gameLoop(time) {
       if (t >= c.playerBark.duration) {
         c.playerBark = null;
         // If enemy countdown is also at 0, trigger their attack before pausing
-        if (c.enemyWaitCountdown <= 0 && !c.enemyAttackAnim && !c.enemyBark && !c.winState) {
-          const eAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          if ((eAct.eff || 0) === 0) {
-            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
-          } else {
-            c.enemyAttackAnim = {
-              startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-            };
-          }
-        } else {
-          // No damage — just return to action select
-          c.phase = 'action';
-          c.waiting = false;
-          c.attackText = null;
-          c.waitCountdown = -1;
-        }
+        // Return to action select — enemy countdown stays at 0, fires on next commit
+        c.phase = 'action';
+        c.waiting = false;
+        c.attackText = null;
+        c.waitCountdown = -1;
       }
     }
     
