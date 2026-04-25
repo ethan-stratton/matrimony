@@ -1103,28 +1103,39 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.transitioning = false;
 }
 
-// Check if a movement tile (tx, ty) is blocked — coarse collision only
-// Check if a movement tile (tx, ty) is blocked
+// Check if placing a 1×1 tile hitbox at position (tx, ty) overlaps any collision
 // tx, ty can be at half-tile increments (e.g., 3.5)
-// Checks coarse collision AND fine collision
+// The hitbox spans from (tx, ty) to (tx+1, ty+1)
 function isTileBlocked(tx, ty, allowFly) {
-  // The coarse tile this position falls in
-  const cx = Math.floor(tx), cy = Math.floor(ty);
-  // Check coarse collision
-  if (state.collision && state.collision[cy]) {
-    const val = state.collision[cy][cx];
-    if (val === 1) return true;
-    if (val === 2 && !allowFly) return true;
+  const s = state.fineCollisionScale || 2;
+  // Fine cells the 1×1 hitbox covers: from (tx*s, ty*s) to ((tx+1)*s-1, (ty+1)*s-1)
+  const fxStart = Math.floor(tx * s);
+  const fyStart = Math.floor(ty * s);
+  const fxEnd = Math.ceil((tx + 1) * s) - 1;
+  const fyEnd = Math.ceil((ty + 1) * s) - 1;
+  
+  // Check coarse collision for all tiles the hitbox overlaps
+  const txStart = Math.floor(tx), txEnd = Math.floor(tx + 0.999);
+  const tyStart = Math.floor(ty), tyEnd = Math.floor(ty + 0.999);
+  for (let cy = tyStart; cy <= tyEnd; cy++) {
+    for (let cx = txStart; cx <= txEnd; cx++) {
+      if (state.collision && state.collision[cy]) {
+        const val = state.collision[cy][cx];
+        if (val === 1) return true;
+        if (val === 2 && !allowFly) return true;
+      }
+    }
   }
-  // Check fine collision at the sub-cell level
+  
+  // Check fine collision — all sub-cells the hitbox overlaps
   if (state.fineCollision) {
-    const s = state.fineCollisionScale || 2;
-    // Convert tile position to fine grid position
-    const fx = Math.floor(tx * s), fy = Math.floor(ty * s);
-    if (state.fineCollision[fy] && state.fineCollision[fy][fx] !== undefined) {
-      const val = state.fineCollision[fy][fx];
-      if (val === 1) return true;
-      if (val === 2 && !allowFly) return true;
+    for (let fy = fyStart; fy <= fyEnd; fy++) {
+      for (let fx = fxStart; fx <= fxEnd; fx++) {
+        if (!state.fineCollision[fy] || state.fineCollision[fy][fx] === undefined) continue;
+        const val = state.fineCollision[fy][fx];
+        if (val === 1) return true;
+        if (val === 2 && !allowFly) return true;
+      }
     }
   }
   return false;
@@ -1132,26 +1143,7 @@ function isTileBlocked(tx, ty, allowFly) {
 
 // Check if a full tile position has ANY fine collision sub-cell blocked
 function isTileFullyBlocked(tx, ty, allowFly) {
-  const cx = Math.floor(tx), cy = Math.floor(ty);
-  if (state.collision && state.collision[cy]) {
-    const val = state.collision[cy][cx];
-    if (val === 1) return true;
-    if (val === 2 && !allowFly) return true;
-  }
-  if (state.fineCollision) {
-    const s = state.fineCollisionScale || 2;
-    for (let dy = 0; dy < s; dy++) {
-      for (let dx = 0; dx < s; dx++) {
-        const r = cy * s + dy, c = cx * s + dx;
-        if (state.fineCollision[r] && state.fineCollision[r][c] > 0) {
-          const val = state.fineCollision[r][c];
-          if (val === 1) return true;
-          if (val === 2 && !allowFly) return true;
-        }
-      }
-    }
-  }
-  return false;
+  return isTileBlocked(Math.floor(tx), Math.floor(ty), allowFly);
 }
 
 function findNearestWalkable(x, y, axis) {
@@ -1251,36 +1243,20 @@ function tryMove(dx, dy) {
     }
   }
   
-  // Re-align to full grid when possible
+  // Re-align to full grid when possible (movement axis only — never move diagonally)
   if (!blocked) {
-    // Try to snap the MOVEMENT axis back to grid if at half pos and full step is clear
     if (dx !== 0 && px % 1 !== 0) {
-      // Moving horizontally but X is at half — try full step
+      // Moving horizontally, X is at half — try full step to re-align
       const fullNx = px + dx;
-      if (!isTileBlocked(fullNx, ny, state.canFly)) {
+      if (!isTileBlocked(fullNx, py, state.canFly)) {
         nx = fullNx; stepX = dx;
       }
     }
     if (dy !== 0 && py % 1 !== 0) {
-      // Moving vertically but Y is at half — try full step
+      // Moving vertically, Y is at half — try full step to re-align
       const fullNy = py + dy;
-      if (!isTileBlocked(nx, fullNy, state.canFly)) {
+      if (!isTileBlocked(px, fullNy, state.canFly)) {
         ny = fullNy; stepY = dy;
-      }
-    }
-    // Also re-align the PERPENDICULAR axis if it's at half and the rounded pos is clear
-    if (dx !== 0 && py % 1 !== 0) {
-      // Moving horizontally, Y is off-grid — snap Y to nearest full tile
-      const snappedY = Math.round(py);
-      if (!isTileBlocked(nx, snappedY, state.canFly)) {
-        ny = snappedY; stepY = snappedY - py;
-      }
-    }
-    if (dy !== 0 && px % 1 !== 0) {
-      // Moving vertically, X is off-grid — snap X to nearest full tile
-      const snappedX = Math.round(px);
-      if (!isTileBlocked(snappedX, ny, state.canFly)) {
-        nx = snappedX; stepX = snappedX - px;
       }
     }
   }
@@ -2295,7 +2271,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.39', W - 8, H - 8);
+  ctx.fillText('v1.40', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3449,7 +3425,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v1.39', canvas.width - 8, 14);
+  ctx.fillText('v1.40', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
