@@ -459,6 +459,20 @@ const PLAYER_SHEET = {
 const SKELETON_SHEET = {
   img: null, loaded: false,
   frameW: 32, frameH: 32, cols: 4,
+  anims: {
+    idle_down:  { row: 0, frames: 2 },
+    idle_right: { row: 1, frames: 2 },
+    idle_up:    { row: 2, frames: 2 },
+    walk_down:  { row: 3, frames: 4 },
+    walk_right: { row: 4, frames: 4 },
+    walk_up:    { row: 5, frames: 4 },
+    hurt:       { row: 7, frames: 2 },
+    hurt_down:  { row: 7, frames: 2 },
+    hurt_right: { row: 8, frames: 2 },
+    hurt_up:    { row: 9, frames: 2 },
+    death_down: { row: 10, frames: 3 },
+    death_right:{ row: 11, frames: 3 },
+  },
 };
 {
   const img = new Image();
@@ -2902,7 +2916,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.29', W - 8, H - 8);
+  ctx.fillText('v2.30', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2919,7 +2933,10 @@ function drawCombat() {
     ctx.fillRect(0, 0, W, H);
     if (ds.phase === 'dots') {
       const text = ds.dots[ds.dotIndex] || '.  .  .';
-      crispText(text, W / 2, H / 2, 36, '#888', 0.5, CRISP_FONT_ALT);
+      // Measure text width for centering
+      ctx.font = '36px "RM2000Alt"';
+      const tw = ctx.measureText(text).width;
+      crispText(text, Math.round(W / 2 - tw / 2), Math.round(H / 2 - 18), 36, '#888', 0.5, CRISP_FONT_ALT);
     } else if (ds.phase === 'wake') {
       const t = Math.min(1, (now - ds.wakeStart) / 1500);
       ctx.save();
@@ -2933,8 +2950,13 @@ function drawCombat() {
       }
       if (t > 0.5) {
         ctx.globalAlpha = (t - 0.5) * 2;
-        crispText('You are still here.', W / 2, H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
-        if (t >= 1) crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
+        ctx.font = '28px "RM2000Alt"';
+        const tw2 = ctx.measureText('You are still here.').width;
+        crispText('You are still here.', Math.round(W / 2 - tw2 / 2), H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
+        if (t >= 1) {
+          const tw3 = ctx.measureText('[ Z ]').width;
+          crispText('[ Z ]', Math.round(W / 2 - tw3 / 2), H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
+        }
       }
       ctx.restore();
     }
@@ -4722,7 +4744,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.29', canvas.width - 8, 14);
+  ctx.fillText('v2.30', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5277,8 +5299,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.29-fix
-  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.29 LOADED ==='); }
+  // Cache buster: v2.30-fix
+  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.30 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
