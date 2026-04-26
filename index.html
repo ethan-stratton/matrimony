@@ -1650,6 +1650,15 @@ function handleMovement(now) {
         state.player.y = ft.targetY;
         state.flyX = 0;
         state.flyY = 0;
+        // Check for GroundItem at landing tile — auto-trigger pickup
+        const lx = ft.targetX, ly = ft.targetY;
+        const landItem = state.entities.find(e => e.type === 'GroundItem' && !state.openedChests[e.id] &&
+          Math.floor(lx) === Math.floor(e.x) && Math.floor(ly) === Math.floor(e.y));
+        if (landItem) {
+          const item = landItem.fields.Item || 'Unknown';
+          playChestOpen();
+          state.chestInteraction = { step: 'reveal', item: item, entityId: landItem.id, isGroundItem: true };
+        }
         // Landing dust puff
         for (let d = 0; d < 8; d++) {
           const angle = (d / 8) * Math.PI * 2;
