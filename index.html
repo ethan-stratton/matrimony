@@ -1866,7 +1866,7 @@ const ENEMY_DATA = {
     sprite: 'Enemy1',
     maxHp: 220, eff: 10, def: 2, wait: 12,
     exp: 10,
-    actions: ['Ember', 'Guard', 'Charging...', 'Fire Punch'],
+    actions: ['Ember', 'Defend', 'Charging...', 'Fire Punch'],
     startsWithCharge: true,
     ai: 'smart',
   },
@@ -1875,7 +1875,7 @@ const ENEMY_DATA = {
     sprite: 'Enemy2',
     maxHp: 300, eff: 8, def: 5, wait: 16,
     exp: 15,
-    actions: ['Guard', 'Ice Shard', 'Charging...', 'Frost Slam'],
+    actions: ['Defend', 'Ice Shard', 'Charging...', 'Frost Slam'],
     startsWithCharge: true,
     ai: 'smart',
     patrolRange: 10,
@@ -2041,6 +2041,7 @@ const COMBAT_ACTIONS = {
   'Fire Punch':  { eff: 10, def: 2, wait: 12 },
   'Ember':       { eff: 4, def: 1, wait: 4 },
   'Guard': { eff: 0, def: 12, wait: 10 },
+  'Defend': { eff: 0, def: 12, wait: 10, guard: true },
   'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
   'Frost Slam':  { eff: 12, def: 3, wait: 10 },
   'Bite':        { eff: 6, def: 1, wait: 3 },
@@ -2906,7 +2907,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.18', W - 8, H - 8);
+  ctx.fillText('v2.19', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3063,8 +3064,8 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       p.vy += 4 * fdt * 60; // gravity
       p.y += p.vy * fdt * 60;
       // Position relative to the appropriate HP bar
-      const barCX = p.enemy ? (infoX + barW * hpRatio) : (pPortraitX + 12);
-      const barCY = p.enemy ? (barY + barH / 2) : (pPortraitY + portraitH + 12);
+      const barCX = p.enemy ? (infoX + barW * hpRatio) : (pad + 32);
+      const barCY = p.enemy ? (barY + barH / 2) : (H - 80);
       const alpha = Math.min(1, p.life * 2);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.enemy ? (hpRatio > 0.5 ? '#5ab85a' : hpRatio > 0.25 ? '#d8b040' : '#d04040') : '#d04040';
@@ -3086,12 +3087,15 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     sx += crispGradientText('Def:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
     sx += crispText('' + (act.def || 0), sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
     sx += crispGradientText('Wait:', sx, statY, 32, GOLD_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-    crispText('' + waitVal, sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+    sx += crispText('' + waitVal, sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 12;
+    // Guard tag (for Defend moves)
+    if (act.guard || c.enemyAction === 'Defend') {
+      sx += crispText('Guard', sx, statY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
+    }
     // Pierce tag
     if (act.pierce) {
-      sx += crispText('' + waitVal, sx, statY, 32, '#e8e0d0', 0, CRISP_FONT_ALT) + 16;
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
-      crispGradientText('Pierce', sx, statY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT);
+      sx += crispGradientText('Pierce', sx, statY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 12;
     }
   }
   
@@ -4030,7 +4034,7 @@ function drawFishStream(ctx) {
     const fadeOut = Math.min(1, f.life / 0.8);
     const alpha = fadeIn * fadeOut;
     const sz = f.size * SCALE;
-    const wobbleAngle = Math.sin(f.wobble) * 0.15;
+    const wobbleAngle = Math.PI + Math.sin(f.wobble) * 0.15;
     
     // Shadow — offset down, smaller, very faint
     ctx.save();
@@ -4742,7 +4746,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.18', canvas.width - 8, 14);
+  ctx.fillText('v2.19', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
