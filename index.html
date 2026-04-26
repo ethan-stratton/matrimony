@@ -5374,9 +5374,8 @@ function drawEntity(ctx, entity, x, y) {
     const s = TILE * SCALE;
     const now = performance.now();
 
-    // Pixel-snapped bob: snap to nearest SCALE increment so pixels stay aligned
-    const bobRaw = Math.sin(now / 600) * 3 * SCALE;
-    const bob = Math.round(bobRaw / SCALE) * SCALE;
+    // Smooth bob
+    const bob = Math.sin(now / 600) * 3 * SCALE;
 
     // Shadow — squishes as item bobs up
     const shadowStretch = 1 - Math.abs(bob) / (3 * SCALE) * 0.3;
