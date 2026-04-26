@@ -220,12 +220,16 @@ function defaults() {
       }
     ],
     weapons: [
-      { name: 'Punch', eff: 8, def: 4, wait: 4, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
-      { name: 'Kick', eff: 12, def: 1, wait: 5, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
-      { name: 'Shortbow', eff: 10, def: 2, wait: 3, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
-      { name: 'Defend', eff: 0, def: 10, wait: 9, tags: ['defensive'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Shortbow', eff: 10, def: 2, wait: 3, tags: [], upgradeCosts: [], awakening: { condition: '50 steps', becomes: 'Shortbow ★', bonus: 'Pierce 1' } },
+      { name: 'Rusty Shortsword', eff: 12, def: 4, wait: 5, tags: [], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Buckler', eff: 0, def: 10, wait: 6, tags: ['defensive', 'guard'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Thunder', eff: 8, def: 0, wait: 5, tags: ['pierce', 'magic'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Heal', eff: 0, def: 0, wait: 8, tags: ['magic', 'support'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
+      { name: 'Bone Throw', eff: 7, def: 0, wait: 4, tags: ['pierce', 'skeleton'], upgradeCosts: [], awakening: { condition: '', becomes: '', bonus: '' } },
     ],
-    combos: [],
+    combos: [
+      { name: 'Slash!', trigger: 'Use Rusty Shortsword 3× consecutively', result: 'Slash!', eff: 16, def: 4, wait: 5, notes: '3rd hit becomes Slash! — same wait, more damage' },
+    ],
     items: [],
     transformations: [
       { name: 'Skeleton', sprite: 'skeleton.png', lockedActions: [], unlockedActions: ['Bone Throw'], passives: ['Undead — immune to poison'], description: 'Death is not the end. You rise again, stripped of flesh but not will.' },

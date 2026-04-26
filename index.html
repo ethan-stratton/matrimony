@@ -1197,12 +1197,27 @@ document.addEventListener('keydown', (e) => {
       } else if (c.phase === 'action' && !c.waiting) {
         const action = (c.actions || [])[c.selectedAction || 0];
         if (action) {
-          const act = COMBAT_ACTIONS[action] || {};
+          // Combo system: track consecutive Rusty Shortsword uses
+          if (!c.comboCount) c.comboCount = 0;
+          if (!c.comboAction) c.comboAction = null;
+          let resolvedAction = action;
+          if (action === 'Rusty Shortsword') {
+            c.comboCount++;
+            c.comboAction = 'Rusty Shortsword';
+            if (c.comboCount >= 3) {
+              resolvedAction = 'Slash!';
+              c.comboCount = 0; // reset after combo fires
+            }
+          } else {
+            c.comboCount = 0;
+            c.comboAction = null;
+          }
+          const act = COMBAT_ACTIONS[resolvedAction] || {};
           c.waitCountdown = act.wait || 0;
           c.lastWaitTick = performance.now();
           c.waitAccumulator = 0;
           c.waiting = true;
-          c.attackText = action;
+          c.attackText = resolvedAction;
           // If enemy has NO remaining countdown (resolved or fresh start), pick new action
           if (c.enemyWaitCountdown <= 0) {
             c.enemyAction = pickEnemyAction(c);
@@ -2092,11 +2107,13 @@ function rejectWeaponTransform() {
 
 // Combat action data
 const COMBAT_ACTIONS = {
-  'Punch':    { eff: 8, def: 4, wait: 4 },
-  'Kick':     { eff: 12, def: 1, wait: 5 },
   'Shortbow': { eff: 10, def: 2, wait: 3 },
   'Shortbow ★': { eff: 10, def: 2, wait: 3, pierce: 1 },
-  'Defend':   { eff: 0, def: 10, wait: 9 },
+  'Rusty Shortsword': { eff: 12, def: 4, wait: 5 },
+  'Slash!': { eff: 16, def: 4, wait: 5 },
+  'Buckler': { eff: 0, def: 10, wait: 6, guard: true },
+  'Thunder': { eff: 8, def: 0, wait: 5, pierce: true },
+  'Heal': { eff: 0, def: 0, wait: 8, heal: 10 },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 3, wait: 6 },
@@ -2349,15 +2366,13 @@ function drawGoldOutline(x, y, w, h, thickness) {
 }
 
 function getInventoryActions() {
-  // All combat actions the player currently has
-  const hasShortbow = state.inventory.some(i => i === 'Shortbow' || i === 'Shortbow ★');
-  const bowName = state.inventory.find(i => i === 'Shortbow ★') || 'Shortbow';
-  const base = ['Punch', 'Kick', 'Defend', ...(hasShortbow ? [bowName] : [])];
+  // All combat actions come from inventory — no innate moves
+  const items = state.inventory || [];
   if (state.actionOrder) {
-    // Filter out any actions no longer available, preserve order
-    return state.actionOrder.filter(a => base.includes(a));
+    // Filter out any actions no longer in inventory, preserve order
+    return state.actionOrder.filter(a => items.includes(a));
   }
-  return base;
+  return [...items];
 }
 
 function drawInventory() {
@@ -2532,11 +2547,14 @@ function drawInventory() {
     
     // Item description — two lines below stats
     const ACTION_DESCRIPTIONS = {
-      'Punch': ['A quick jab.', 'Low power, low risk.'],
-      'Kick': ['A strong kick.', 'High power, low defense.'],
       'Shortbow': ['Fires an arrow.', 'Balanced ranged attack.'],
       'Shortbow ★': ['Trekking with this bow gave', 'keener insight and precision.'],
-      'Defend': ['Brace for impact.', 'High defense, no offense.'],
+      'Rusty Shortsword': ['A worn blade, still sharp.', 'Good offense with some guard.'],
+      'Buckler': ['A small but sturdy shield.', 'Brace and endure.'],
+      'Thunder': ['A crackling bolt from above.', 'Pierces all armor.'],
+      'Heal': ['Mend your wounds.', 'Restores 10 HP.'],
+      'Bone Throw': ['A fragment of yourself,', 'hurled with hollow conviction.'],
+      'Slash!': ['A fierce follow-up strike!', 'Combo finisher.'],
     };
     const desc = ACTION_DESCRIPTIONS[items[sel]];
     if (desc) {
@@ -2970,7 +2988,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.36', W - 8, H - 8);
+  ctx.fillText('v2.37', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3473,7 +3491,7 @@ function drawCombatNormal(c, W, H, now, elapsed) {
   const gridY = pPortraitY;
   const colW = Math.round((W - gridX - 24) / 2);
   
-  const actions = c.actions || ['Punch', 'Kick'];
+  const actions = c.actions && c.actions.length > 0 ? c.actions : ['Stand Still'];
   
   // Mouse hover (only when in action phase and not waiting)
   let hovered = -1;
@@ -3511,13 +3529,29 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       ctx.fillRect(hx + 1, hy + hh - 1, hw - 2, 1);
     }
     
-    crispText(actions[i], ax + 2, ay + 2, 32, '#ffffff');
+    // Draw action name — combo-ready shows flashing gradient "Slash!"
+    const actionName = actions[i];
+    const isComboReady = actionName === 'Rusty Shortsword' && c.comboCount >= 2;
+    if (isComboReady) {
+      const shimmer = (now / 150) % 1;
+      const SLASH_GRADIENT = [
+        [Math.max(0, shimmer - 0.3), '#c84020'],
+        [shimmer, '#ffe8a0'],
+        [Math.min(1, shimmer + 0.3), '#ff6030'],
+      ];
+      crispGradientText('Slash!', ax + 2, ay + 2, 32, SLASH_GRADIENT, 0, CRISP_FONT_ALT);
+    } else {
+      crispText(actions[i], ax + 2, ay + 2, 32, '#ffffff');
+    }
   }
   
   // Selected action stats — centered on screen, anchored positions for each stat
   const sel = c.selectedAction || 0;
   if (c.phase === 'action' && sel < actions.length) {
-    const act = COMBAT_ACTIONS[actions[sel]] || {};
+    const selectedName = actions[sel];
+    const isComboReady = selectedName === 'Rusty Shortsword' && c.comboCount >= 2;
+    const displayAction = isComboReady ? 'Slash!' : selectedName;
+    const act = COMBAT_ACTIONS[displayAction] || {};
     const statsY = H - pad - 26;
     const waitVal = c.waiting ? c.waitCountdown : (act.wait || 0);
     // Fixed-width slots: label + 3-digit number space. Center the whole block.
@@ -3537,8 +3571,7 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     crispText('' + waitVal, sx + 65, statsY, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
     sx += slotW;
     // Guard tag for Defend
-    const selectedName = actions[sel];
-    if (selectedName === 'Defend') {
+    if (displayAction === 'Defend' || (act.guard)) {
       sx += crispText('Guard', sx, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
     }
     // Pierce stat with shimmer
@@ -4809,7 +4842,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.36', canvas.width - 8, 14);
+  ctx.fillText('v2.37', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5364,8 +5397,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.36-fix
-  if (!window._v236) { window._v236 = true; console.warn('=== MATRIMONY v2.36 LOADED ==='); }
+  // Cache buster: v2.37-fix
+  if (!window._v237) { window._v237 = true; console.warn('=== MATRIMONY v2.37 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5558,9 +5591,15 @@ function gameLoop(time) {
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.playerAttackAnim = null;
-        // Apply damage to enemy
+        // Apply damage to enemy (or heal if heal action)
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
+          if (act.heal) {
+            // Heal player
+            c.playerHp = Math.min(c.playerMaxHp, c.playerHp + act.heal);
+            c.hpFlash = { startTime: performance.now(), duration: 600, blocked: true, damage: 0 };
+            playHit(true);
+          } else {
           const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
           const pierceDmg = typeof act.pierce === 'number' ? act.pierce : 0;
           const dmg = act.pierce === true ? (act.eff || 0) : Math.max(pierceDmg, (act.eff || 0) - (enemyAct.def || 0));
@@ -5585,6 +5624,7 @@ function gameLoop(time) {
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
           }
+          } // end else (not heal)
         }
         // PAUSE — player picks new action. Enemy keeps their countdown (if 0, fires on next commit).
         c.phase = 'action';
