@@ -453,6 +453,22 @@ const PLAYER_SHEET = {
   PLAYER_SHEET.img = img;
 }
 
+// Skeleton sprite (same layout as prototype character)
+const SKELETON_SHEET = {
+  img: null, loaded: false,
+  frameW: 32, frameH: 32, cols: 4,
+};
+{
+  const img = new Image();
+  img.src = 'character sprite/Snoblin_Free_Skeleton/Assets/Skeleton/skeleton.png';
+  img.onload = () => { SKELETON_SHEET.loaded = true; };
+  SKELETON_SHEET.img = img;
+}
+
+function getPlayerSheet() {
+  return (state.isSkeleton && SKELETON_SHEET.loaded) ? SKELETON_SHEET : PLAYER_SHEET;
+}
+
 // Enemy sprites (DeepDive 16x16, 4-frame strips)
 loadSprite('Enemy1', 'sprites/FireElemental.png');
 loadSprite('Enemy2', 'sprites/IceGolem.png');
@@ -484,6 +500,7 @@ function saveGame(slot) {
     playerSteps: state.player.totalSteps || 0,
     itemSteps: state.itemSteps || {},
     rejectedTransforms: state.rejectedTransforms || {},
+    isSkeleton: state.isSkeleton || false,
     timestamp: Date.now(),
   };
   try {
@@ -525,6 +542,7 @@ async function applySave(slot) {
   state.player.totalSteps = data.playerSteps || 0;
   state.itemSteps = data.itemSteps || {};
   state.rejectedTransforms = data.rejectedTransforms || {};
+  state.isSkeleton = data.isSkeleton || false;
   state.smoothX = state.player.x;
   state.smoothY = state.player.y;
   state.footsteps = [];
@@ -1070,6 +1088,27 @@ document.addEventListener('keydown', (e) => {
     }
     if (state.combat) {
       const c = state.combat;
+      // Death sequence — Z advances through "..." dialogue
+      if (c.playerDied && c.deathSequence) {
+        const ds = c.deathSequence;
+        if (ds.phase === 'dots') {
+          ds.dotIndex++;
+          if (ds.dotIndex >= ds.dots.length) {
+            // Wake up as skeleton
+            ds.phase = 'wake';
+            ds.wakeStart = performance.now();
+          }
+          return;
+        }
+        if (ds.phase === 'wake') {
+          // Finish — exit combat as skeleton
+          state.isSkeleton = true;
+          state.combat = null;
+          state.player.hp = 15;
+          return;
+        }
+        return;
+      }
       // Win state — Z exits immediately
       if (c.winState) {
         // Award EXP
@@ -2288,8 +2327,8 @@ function drawInventory() {
   ctx.fillStyle = '#0c0c14';
   ctx.fillRect(pPortraitX, pPortraitY, portraitW, portraitH);
   drawGoldOutline(pPortraitX, pPortraitY, portraitW, portraitH, 3);
-  if (PLAYER_SHEET.loaded) {
-    const anim = PLAYER_SHEET.anims['idle_down'];
+  if (getPlayerSheet().loaded) {
+    const anim = getPlayerSheet().anims['idle_down'];
     ctx.save();
     ctx.beginPath();
     ctx.rect(pPortraitX + 1, pPortraitY + 1, portraitW - 2, portraitH - 2);
@@ -2298,7 +2337,7 @@ function drawInventory() {
     const pDrawSize = Math.round(portraitW * 0.7);
     const pdx = pPortraitX + 1 + Math.round((portraitW - 2 - pDrawSize) / 2);
     const pdy = pPortraitY + 1 + Math.round((portraitH - 2 - pDrawSize) / 2);
-    ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+    ctx.drawImage(getPlayerSheet().img, 0, anim.row * getPlayerSheet().frameH, getPlayerSheet().frameW, getPlayerSheet().frameH,
       pdx, pdy, pDrawSize, pDrawSize);
     ctx.imageSmoothingEnabled = true;
     ctx.restore();
@@ -2862,7 +2901,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.15', W - 8, H - 8);
+  ctx.fillText('v2.16', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2871,6 +2910,62 @@ function drawCombat() {
   const H = canvas.height;
   const now = performance.now();
   const elapsed = now - c.startTime;
+  
+  // Death sequence rendering
+  if (c.playerDied && c.deathSequence) {
+    const ds = c.deathSequence;
+    if (ds.phase === 'fade') {
+      // Draw normal combat underneath, then fade to black
+      drawCombatNormal(c, W, H, now, elapsed);
+      const t = Math.min(1, (now - ds.fadeStart) / ds.fadeDuration);
+      ctx.fillStyle = `rgba(0,0,0,${t})`;
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+    if (ds.phase === 'dots') {
+      // Black screen with "..." text
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      const text = ds.dots[ds.dotIndex] || '.  .  .';
+      ctx.save();
+      ctx.globalAlpha = 1;
+      crispText(text, W / 2, H / 2, 36, '#888', 0.5, CRISP_FONT_ALT);
+      ctx.restore();
+      return;
+    }
+    if (ds.phase === 'wake') {
+      // Fade from black, show skeleton sprite in center
+      const t = Math.min(1, (now - ds.wakeStart) / 1500);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Fade in skeleton
+      ctx.save();
+      ctx.globalAlpha = t;
+      if (SKELETON_SHEET.loaded) {
+        const anim = PLAYER_SHEET.anims['idle_down'];
+        const sz = 96;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(SKELETON_SHEET.img, 0, anim.row * 32, 32, 32,
+          W / 2 - sz / 2, H / 2 - sz / 2 - 20, sz, sz);
+      }
+      // "You are still here." text fades in after skeleton
+      if (t > 0.5) {
+        const textAlpha = (t - 0.5) * 2;
+        ctx.globalAlpha = textAlpha;
+        crispText('You are still here.', W / 2, H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
+        if (t >= 1) {
+          crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
+        }
+      }
+      ctx.restore();
+      return;
+    }
+  }
+  
+  drawCombatNormal(c, W, H, now, elapsed);
+}
+
+function drawCombatNormal(c, W, H, now, elapsed) {
   
   // Screen shake
   let shakeX = 0, shakeY = 0;
@@ -3088,7 +3183,7 @@ function drawCombat() {
     const t = now - a.startTime;
     if (t >= a.rushDuration && t < a.rushDuration + a.hitPause) {
       // Flash player red during hit — pixel-only using offscreen canvas
-      if (PLAYER_SHEET.loaded) {
+      if (getPlayerSheet().loaded) {
         if (!drawCombat._hitCanvas) {
           drawCombat._hitCanvas = document.createElement('canvas');
           drawCombat._hitCtx = drawCombat._hitCanvas.getContext('2d');
@@ -3098,10 +3193,10 @@ function drawCombat() {
         hc.width = playerCombatSize; hc.height = playerCombatSize;
         hctx.clearRect(0, 0, hc.width, hc.height);
         hctx.imageSmoothingEnabled = false;
-        const anim2 = PLAYER_SHEET.anims['idle_right'];
+        const anim2 = getPlayerSheet().anims['idle_right'];
         const frame2 = Math.floor(now / 400) % anim2.frames;
         hctx.save(); hctx.translate(playerCombatSize, 0); hctx.scale(-1, 1);
-        hctx.drawImage(PLAYER_SHEET.img, frame2 * PLAYER_SHEET.frameW, anim2.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH, 0, 0, playerCombatSize, playerCombatSize);
+        hctx.drawImage(getPlayerSheet().img, frame2 * getPlayerSheet().frameW, anim2.row * getPlayerSheet().frameH, getPlayerSheet().frameW, getPlayerSheet().frameH, 0, 0, playerCombatSize, playerCombatSize);
         hctx.restore();
         hctx.globalCompositeOperation = 'source-atop';
         hctx.fillStyle = '#ff4444';
@@ -3140,16 +3235,16 @@ function drawCombat() {
   }
   
   // Draw player (facing left)
-  if (PLAYER_SHEET.loaded) {
-    const anim = PLAYER_SHEET.anims[playerAttacking ? 'walk_right' : 'idle_right'];
+  if (getPlayerSheet().loaded) {
+    const anim = getPlayerSheet().anims[playerAttacking ? 'walk_right' : 'idle_right'];
     const frame = Math.floor(now / 400) % anim.frames;
-    const srcX = frame * PLAYER_SHEET.frameW;
-    const srcY = anim.row * PLAYER_SHEET.frameH;
+    const srcX = frame * getPlayerSheet().frameW;
+    const srcY = anim.row * getPlayerSheet().frameH;
     ctx.imageSmoothingEnabled = false;
     ctx.save();
     ctx.translate(playerArenaX + playerCombatSize, playerArenaY);
     ctx.scale(-1, 1);
-    ctx.drawImage(PLAYER_SHEET.img, srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+    ctx.drawImage(getPlayerSheet().img, srcX, srcY, getPlayerSheet().frameW, getPlayerSheet().frameH,
       0, 0, playerCombatSize, playerCombatSize);
     ctx.restore();
     
@@ -3170,7 +3265,7 @@ function drawCombat() {
         fctx.save();
         fctx.translate(playerCombatSize, 0);
         fctx.scale(-1, 1);
-        fctx.drawImage(PLAYER_SHEET.img, srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+        fctx.drawImage(getPlayerSheet().img, srcX, srcY, getPlayerSheet().frameW, getPlayerSheet().frameH,
           0, 0, playerCombatSize, playerCombatSize);
         fctx.restore();
         fctx.globalCompositeOperation = 'source-atop';
@@ -3186,7 +3281,7 @@ function drawCombat() {
   }
   
   // Block sheen — white sweep across player pixels only on full block
-  if (c.blockSheen && PLAYER_SHEET.loaded) {
+  if (c.blockSheen && getPlayerSheet().loaded) {
     const bt = now - c.blockSheen.startTime;
     if (bt < c.blockSheen.duration) {
       const progress = bt / c.blockSheen.duration;
@@ -3199,10 +3294,10 @@ function drawCombat() {
       sc.width = playerCombatSize; sc.height = playerCombatSize;
       sctx.clearRect(0, 0, sc.width, sc.height);
       sctx.imageSmoothingEnabled = false;
-      const anim3 = PLAYER_SHEET.anims['idle_right'];
+      const anim3 = getPlayerSheet().anims['idle_right'];
       const frame3 = Math.floor(now / 400) % anim3.frames;
       sctx.save(); sctx.translate(playerCombatSize, 0); sctx.scale(-1, 1);
-      sctx.drawImage(PLAYER_SHEET.img, frame3 * PLAYER_SHEET.frameW, anim3.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH, 0, 0, playerCombatSize, playerCombatSize);
+      sctx.drawImage(getPlayerSheet().img, frame3 * getPlayerSheet().frameW, anim3.row * getPlayerSheet().frameH, getPlayerSheet().frameW, getPlayerSheet().frameH, 0, 0, playerCombatSize, playerCombatSize);
       sctx.restore();
       sctx.globalCompositeOperation = 'source-atop';
       const sweepX = -playerCombatSize + progress * playerCombatSize * 3;
@@ -3243,8 +3338,8 @@ function drawCombat() {
   ctx.fillStyle = '#0c0c14';
   ctx.fillRect(pPortraitX, pPortraitY, portraitW, portraitH);
   drawGoldOutline(pPortraitX, pPortraitY, portraitW, portraitH, 3);
-  if (PLAYER_SHEET.loaded) {
-    const anim = PLAYER_SHEET.anims['idle_down'];
+  if (getPlayerSheet().loaded) {
+    const anim = getPlayerSheet().anims['idle_down'];
     ctx.save();
     ctx.beginPath();
     ctx.rect(pPortraitX + 1, pPortraitY + 1, portraitW - 2, portraitH - 2);
@@ -3254,7 +3349,7 @@ function drawCombat() {
     const pDrawSize = Math.round(portraitW * 0.7);
     const pdx = pPortraitX + 1 + Math.round((portraitW - 2 - pDrawSize) / 2);
     const pdy = pPortraitY + 1 + Math.round((portraitH - 2 - pDrawSize) / 2);
-    ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+    ctx.drawImage(getPlayerSheet().img, 0, anim.row * getPlayerSheet().frameH, getPlayerSheet().frameW, getPlayerSheet().frameH,
       pdx, pdy, pDrawSize, pDrawSize);
     ctx.imageSmoothingEnabled = true;
     ctx.restore();
@@ -3497,10 +3592,10 @@ function drawDialogue() {
     ctx.lineWidth = 2;
     ctx.strokeRect(pX, pY, pSize, pSize);
     if (state.dialogue.portrait === 'player') {
-      if (PLAYER_SHEET.loaded) {
-        const anim = PLAYER_SHEET.anims['idle_down'];
+      if (getPlayerSheet().loaded) {
+        const anim = getPlayerSheet().anims['idle_down'];
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(PLAYER_SHEET.img, 0, anim.row * PLAYER_SHEET.frameH, 32, 32, pX + 4, pY + 4, 40, 40);
+        ctx.drawImage(getPlayerSheet().img, 0, anim.row * getPlayerSheet().frameH, 32, 32, pX + 4, pY + 4, 40, 40);
         ctx.imageSmoothingEnabled = true;
       }
     } else {
@@ -4587,7 +4682,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.15', canvas.width - 8, 14);
+  ctx.fillText('v2.16', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5023,7 +5118,7 @@ function drawSprite(ctx, spriteName, x, y, time) {
 
 function drawPlayer(ctx, x, y) {
   const s = TILE * SCALE;
-  if (!PLAYER_SHEET.loaded) {
+  if (!getPlayerSheet().loaded) {
     ctx.fillStyle = '#6a8aca';
     ctx.fillRect(x + s*0.2, y + s*0.15, s*0.6, s*0.7);
     return;
@@ -5035,13 +5130,13 @@ function drawPlayer(ctx, x, y) {
   if (dir === 'left') { dir = 'right'; flip = true; }
   
   const animName = (state.moving ? 'walk_' : 'idle_') + dir;
-  const anim = PLAYER_SHEET.anims[animName] || PLAYER_SHEET.anims['idle_down'];
+  const anim = getPlayerSheet().anims[animName] || getPlayerSheet().anims['idle_down'];
   const isRunning = state.moving && keys['Shift'];
   const speed = state.moving ? (isRunning ? 100 : 120) : 400;
   const frame = Math.floor(performance.now() / speed) % anim.frames;
   
-  const srcX = frame * PLAYER_SHEET.frameW;
-  const srcY = anim.row * PLAYER_SHEET.frameH;
+  const srcX = frame * getPlayerSheet().frameW;
+  const srcY = anim.row * getPlayerSheet().frameH;
   
   const drawSize = s * 2;
   const drawX = Math.round(x - s / 2);
@@ -5053,14 +5148,14 @@ function drawPlayer(ctx, x, y) {
     ctx.save();
     ctx.translate(drawX + drawSize, drawY);
     ctx.scale(-1, 1);
-    ctx.drawImage(PLAYER_SHEET.img,
-      srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+    ctx.drawImage(getPlayerSheet().img,
+      srcX, srcY, getPlayerSheet().frameW, getPlayerSheet().frameH,
       0, 0, drawSize, drawSize
     );
     ctx.restore();
   } else {
-    ctx.drawImage(PLAYER_SHEET.img,
-      srcX, srcY, PLAYER_SHEET.frameW, PLAYER_SHEET.frameH,
+    ctx.drawImage(getPlayerSheet().img,
+      srcX, srcY, getPlayerSheet().frameW, getPlayerSheet().frameH,
       drawX, drawY, drawSize, drawSize
     );
   }
@@ -5201,6 +5296,39 @@ function gameLoop(time) {
   if (state.combat) {
     const c = state.combat;
     
+    // Death sequence — freeze combat, run cinematic
+    if (c.playerDied) {
+      if (!c.deathSequence) {
+        // Start the death sequence — fade to black over 1.5s
+        c.deathSequence = {
+          phase: 'fade',
+          fadeStart: performance.now(),
+          fadeDuration: 1500,
+          dots: ['.  .  .', '.  .  .  .  .  .', '.  .  .  .  .  .  .  .  .'],
+          dotIndex: -1,
+        };
+        // Stop all combat animations
+        c.phase = 'dead';
+        c.waiting = false;
+        c.enemyWaiting = false;
+      }
+      const ds = c.deathSequence;
+      if (ds.phase === 'fade') {
+        const t = (performance.now() - ds.fadeStart) / ds.fadeDuration;
+        if (t >= 1) {
+          ds.phase = 'dots';
+          ds.dotIndex = 0;
+        }
+      }
+      if (ds.phase === 'wake') {
+        const t = (performance.now() - ds.wakeStart) / 1500;
+        if (t >= 1 && !ds.done) {
+          ds.done = true;
+        }
+      }
+      return; // Skip normal combat updates
+    }
+    
     // Update player attack animation
     if (c.playerAttackAnim) {
       const a = c.playerAttackAnim;
@@ -5263,6 +5391,11 @@ function gameLoop(time) {
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
           playHit(true);
+          // Check for death
+          if (c.playerHp <= 0) {
+            c.playerDied = true;
+            c.deathTime = time;
+          }
         } else {
           // Full block — hitstop + shield sheen
           c.hitstop = { startTime: time, duration: 120 };
