@@ -5377,13 +5377,10 @@ function drawEntity(ctx, entity, x, y) {
     const sparkR = s * 0.35;
     const sparkX = x + s / 2 + Math.cos(sparkAngle) * sparkR;
     const sparkY = y + s / 2 + Math.sin(sparkAngle) * sparkR * 0.6;
-    // Draw sprite — pixel-perfect, no sub-pixel movement
+    // Draw sprite — exact integer multiple of 16px (same size as tile)
     if (spr && spr.loaded) {
       ctx.imageSmoothingEnabled = false;
-      const drawSize = Math.round(s * 0.75);
-      const ox = Math.round(x + (s - drawSize) / 2);
-      const oy = Math.round(y + (s - drawSize) / 2);
-      ctx.drawImage(spr.img, ox, oy, drawSize, drawSize);
+      ctx.drawImage(spr.img, Math.round(x), Math.round(y), s, s);
       ctx.imageSmoothingEnabled = true;
     } else {
       ctx.fillStyle = '#c8a040';
