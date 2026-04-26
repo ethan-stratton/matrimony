@@ -2902,7 +2902,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.24', W - 8, H - 8);
+  ctx.fillText('v2.25', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2914,7 +2914,9 @@ function drawCombat() {
   
   // Death sequence rendering
   if (c.playerDied && c.deathSequence) {
+    try {
     const ds = c.deathSequence;
+    console.log('[DRAW DEATH]', ds.phase);
     if (ds.phase === 'fade') {
       drawCombatNormal(c, W, H, now, elapsed);
       const t = Math.min(1, (now - ds.fadeStart) / ds.fadeDuration);
@@ -2955,6 +2957,8 @@ function drawCombat() {
       ctx.restore();
       return;
     }
+    } catch(err) { console.error('[DRAW DEATH ERROR]', err); }
+    return;
   }
   
   drawCombatNormal(c, W, H, now, elapsed);
@@ -4738,7 +4742,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.24', canvas.width - 8, 14);
+  ctx.fillText('v2.25', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5388,6 +5392,7 @@ function gameLoop(time) {
     
     // Death sequence — freeze combat, run cinematic
     if (c.playerDied) {
+      try {
       if (!c.deathSequence) {
         c.deathSequence = {
           phase: 'fade',
@@ -5404,7 +5409,6 @@ function gameLoop(time) {
       const ds = c.deathSequence;
       const now = performance.now();
       if (ds.phase === 'fade') {
-        // Fade out battle music with the screen
         const fadeT = (now - ds.fadeStart) / ds.fadeDuration;
         battleMusic.volume = Math.max(0, 0.30 * (1 - fadeT));
         if (fadeT >= 1) {
@@ -5426,6 +5430,7 @@ function gameLoop(time) {
           ds.done = true;
         }
       }
+      } catch(err) { console.error('[DEATH UPDATE ERROR]', err); }
       return; // Skip normal combat updates
     }
     
