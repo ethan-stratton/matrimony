@@ -1814,7 +1814,13 @@ function getFacingTile() {
 function interact() {
   const { x, y } = getFacingTile();
   // Use AABB overlap: player facing tile is (x,y) to (x+1,y+1), entity is (e.x,e.y) to (e.x+1,e.y+1)
-  const entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
+  let entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
+  // While flying, also check tile directly below player for GroundItems
+  if (!entity && state.flying) {
+    const px = Math.floor(state.flyX), py = Math.floor(state.flyY);
+    entity = state.entities.find(e => e.type === 'GroundItem' && !state.openedChests[e.id] &&
+      px === Math.floor(e.x) && py === Math.floor(e.y));
+  }
   if (entity) {
     handleEntityContact(entity);
   }
@@ -1932,6 +1938,11 @@ function pickEnemyAction(c) {
     // If player is using a high-eff attack that will land soon, go defensive
     if ((playerAct.eff || 0) >= 8 && playerWait <= 5 && (act.def || 0) >= 8) {
       score += 30 + (act.def || 0); // strongly prefer guarding
+    }
+
+    // If player is vulnerable (low def AND long wait), punish hard with biggest damage
+    if ((playerAct.def || 0) <= 2 && (playerAct.wait || 0) >= 8 && (act.eff || 0) > 0) {
+      score += 25 + (act.eff || 0) * 2; // go all-in on damage
     }
 
     // If player is defending (high def, low eff), use pierce to bypass
@@ -2144,8 +2155,8 @@ const COMBAT_ACTIONS = {
   'Rusty Shortsword': { eff: 12, def: 4, wait: 5 },
   'Slash!': { eff: 16, def: 4, wait: 5 },
   'Buckler': { eff: 0, def: 10, wait: 6, guard: true },
-  'Thunder': { eff: 8, def: 0, wait: 5, pierce: true },
-  'Heal': { eff: 0, def: 0, wait: 8, heal: 10 },
+  'Thunder': { eff: 25, def: 0, wait: 15, pierce: true },
+  'Heal': { eff: 10, def: 0, wait: 8, heal: true },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
   'Charging...': { eff: 0, def: 3, wait: 6 },
@@ -2572,9 +2583,17 @@ function drawInventory() {
     // Pierce stat with special shimmer gradient
     if (act.pierce) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
-      const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
-      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
+      if (act.pierce === true) {
+        sx += crispGradientText('Pierce', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 12;
+      } else {
+        sx += crispGradientText('Pierce', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+        sx += crispText(String(act.pierce), sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT) + 12;
+      }
+    }
+    // Heal tag with gradient
+    if (act.heal) {
+      const HEAL_GRADIENT = [[0, '#20a040'], [0.2, '#40d060'], [0.35, '#80ff90'], [0.5, '#ffffff'], [0.65, '#80ff90'], [0.8, '#40d060'], [1, '#20a040']];
+      sx += crispGradientText('Heal', sx, statsY, 32, HEAL_GRADIENT, 0, CRISP_FONT_ALT) + 12;
     }
     
     // Item description — two lines below stats
@@ -2583,8 +2602,8 @@ function drawInventory() {
       'Shortbow ★': ['Trekking with this bow gave', 'keener insight and precision.'],
       'Rusty Shortsword': ['A worn blade, still sharp.', 'Good offense with some guard.'],
       'Buckler': ['A small but sturdy shield.', 'Brace and endure.'],
-      'Thunder': ['A crackling bolt from above.', 'Pierces all armor.'],
-      'Heal': ['Mend your wounds.', 'Restores 10 HP.'],
+      'Thunder': ['A crackling bolt from above.', 'Pierces all armor. Slow to charge.'],
+      'Heal': ['Mend your wounds.', 'Restores HP equal to EFF.'],
       'Bone Throw': ['A fragment of yourself,', 'hurled with hollow conviction.'],
       'Slash!': ['A fierce follow-up strike!', 'Combo finisher.'],
     };
@@ -3604,14 +3623,22 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     sx += slotW;
     // Guard tag for Defend
     if (displayAction === 'Defend' || (act.guard)) {
-      sx += crispText('Guard', sx, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
+            sx += crispText('Guard', sx, statsY, 32, '#a0c8ff', 0, CRISP_FONT_ALT) + 12;
     }
     // Pierce stat with shimmer
     if (act.pierce) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
-      const pierceVal = act.pierce === true ? '∞' : String(act.pierce);
-      sx += crispGradientText('Pierce:', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
-      crispText(pierceVal, sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT);
+      if (act.pierce === true) {
+        sx += crispGradientText('Pierce', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 12;
+      } else {
+        sx += crispGradientText('Pierce', sx, statsY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+        sx += crispText(String(act.pierce), sx, statsY, 32, '#a0f0ff', 0, CRISP_FONT_ALT) + 12;
+      }
+    }
+    // Heal tag
+    if (act.heal) {
+      const HEAL_GRADIENT = [[0, '#20a040'], [0.2, '#40d060'], [0.35, '#80ff90'], [0.5, '#ffffff'], [0.65, '#80ff90'], [0.8, '#40d060'], [1, '#20a040']];
+      sx += crispGradientText('Heal', sx, statsY, 32, HEAL_GRADIENT, 0, CRISP_FONT_ALT) + 12;
     }
   }
   
@@ -3826,7 +3853,7 @@ function drawWeaponTransformPrompt() {
   const scrollT = (now / 800) % 1;
   const PIERCE_SHIMMER = PIERCE_GRADIENT.map(([s, c]) => [Math.max(0, Math.min(1, (s + scrollT) % 1)), c]).sort((a, b) => a[0] - b[0]);
   if (p.pierceVal) {
-    const pierceText = 'Pierce: ' + (p.pierceVal === true ? '∞' : p.pierceVal);
+    const pierceText = 'Pierce' + (p.pierceVal === true ? '' : ' ' + p.pierceVal);
     crispGradientText(pierceText, bx + 16, effectY, 32, PIERCE_SHIMMER, 0, CRISP_FONT_ALT);
     crispText('1 damage ignores defense', bx + 16, effectY + 30, 32, '#8090a0', 0, CRISP_FONT_ALT);
   }
@@ -5689,8 +5716,9 @@ function gameLoop(time) {
         if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           if (act.heal) {
-            // Heal player
-            c.playerHp = Math.min(c.playerMaxHp, c.playerHp + act.heal);
+            // Heal player — amount equals EFF stat
+            const healAmt = act.eff || 0;
+            c.playerHp = Math.min(c.playerMaxHp, c.playerHp + healAmt);
             c.hpFlash = { startTime: performance.now(), duration: 600, blocked: true, damage: 0 };
             playHit(true);
           } else {
@@ -5968,7 +5996,7 @@ function gameLoop(time) {
       const sy = by + 44;
       crispText('Eff ' + act.eff + '  Def ' + act.def + '  Wait ' + act.wait, bx + 30, sy, 18, '#c0b888', 0.3, CRISP_FONT_ALT);
       if (act.pierce) {
-        crispText('Pierce ' + (act.pierce === true ? '∞' : act.pierce), bx + 30, sy + 22, 16, '#88c8d0', 0.3, CRISP_FONT_ALT);
+        crispText('Pierce' + (act.pierce === true ? '' : ' ' + act.pierce), bx + 30, sy + 22, 16, '#88c8d0', 0.3, CRISP_FONT_ALT);
       }
       // Description
       crispText('A fragment of yourself,', bx + 30, sy + 48, 14, '#888', 0.2, CRISP_FONT_ALT);
