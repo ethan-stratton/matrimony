@@ -2902,7 +2902,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.26', W - 8, H - 8);
+  ctx.fillText('v2.27', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4742,7 +4742,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.26', canvas.width - 8, 14);
+  ctx.fillText('v2.27', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5297,6 +5297,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
+  // Cache buster: v2.27-fix
+  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.27 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
