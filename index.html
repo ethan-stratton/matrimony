@@ -2934,7 +2934,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.32', W - 8, H - 8);
+  ctx.fillText('v2.33', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3992,27 +3992,54 @@ function updateFishStream(time) {
       const sh = s.heightTiles || 1;
       const px = state.flyX;
       const py = state.flyY;
-      if (px >= s.x - 1 && px <= s.x + sw + 1 && py >= s.y - 1 && py <= s.y + sh + 1) {
-        const centerX = s.x + sw / 2;
-        const dx = px - centerX;
-        const halfW = sw / 2 + 1;
-        const proximity = 1 - Math.min(1, Math.abs(dx) / halfW);
+      // Only push when player is actually inside the stream bounds
+      if (px >= s.x && px < s.x + sw && py >= s.y && py < s.y + sh) {
+        // Stream direction: default 'down', can be set per entity in LDtk
+        const dir = (s.fields && s.fields.Direction) || 'down';
+        // Proximity to center on the axis perpendicular to flow
+        let proximity = 1;
+        if (dir === 'down' || dir === 'up') {
+          const centerX = s.x + sw / 2;
+          const dx = px - centerX;
+          proximity = 1 - Math.min(1, Math.abs(dx) / (sw / 2));
+        } else {
+          const centerY = s.y + sh / 2;
+          const dy = py - centerY;
+          proximity = 1 - Math.min(1, Math.abs(dy) / (sh / 2));
+        }
         
-        // Check if player is pressing any direction
+        // Flow direction vectors
+        const flowX = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
+        const flowY = dir === 'down' ? 1 : dir === 'up' ? -1 : 0;
+        // Perpendicular push-out direction (away from center)
+        let perpX = 0, perpY = 0;
+        if (dir === 'down' || dir === 'up') {
+          const centerX = s.x + sw / 2;
+          perpX = px >= centerX ? 1 : -1;
+        } else {
+          const centerY = s.y + sh / 2;
+          perpY = py >= centerY ? 1 : -1;
+        }
+        
         const pressing = state.flyKeys && (state.flyKeys.up || state.flyKeys.down || state.flyKeys.left || state.flyKeys.right);
         
         if (pressing) {
-          // Player is actively pressing — gentle downstream current, can inch upstream
-          state.flyVy += proximity * 0.0006; // mild downward push
-          // If pressing up, severely reduce upward velocity (swimming against current)
-          if (state.flyKeys && state.flyKeys.up && state.flyVy < 0) {
-            state.flyVy *= 0.985; // dampen upward movement
+          // Gentle downstream current
+          state.flyVx += flowX * proximity * 0.0006;
+          state.flyVy += flowY * proximity * 0.0006;
+          // Dampen movement against the current
+          if (state.flyKeys && ((dir === 'down' && state.flyKeys.up) || (dir === 'up' && state.flyKeys.down))) {
+            if (state.flyVy * flowY < 0) state.flyVy *= 0.985;
+          }
+          if (state.flyKeys && ((dir === 'right' && state.flyKeys.left) || (dir === 'left' && state.flyKeys.right))) {
+            if (state.flyVx * flowX < 0) state.flyVx *= 0.985;
           }
         } else {
-          // Not pressing — current pushes you down and out to nearest edge
-          state.flyVy += proximity * 0.0015;
-          const sideForce = dx > 0 ? 0.001 : -0.001;
-          state.flyVx += sideForce * proximity;
+          // Not pressing — current pushes downstream and out to nearest edge
+          state.flyVx += flowX * proximity * 0.0015;
+          state.flyVy += flowY * proximity * 0.0015;
+          state.flyVx += perpX * 0.001 * proximity;
+          state.flyVy += perpY * 0.001 * proximity;
         }
       }
     }
@@ -4746,7 +4773,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.32', canvas.width - 8, 14);
+  ctx.fillText('v2.33', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5301,8 +5328,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.32-fix
-  if (!window._v232) { window._v232 = true; console.warn('=== MATRIMONY v2.32 LOADED ==='); }
+  // Cache buster: v2.33-fix
+  if (!window._v233) { window._v233 = true; console.warn('=== MATRIMONY v2.33 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5329,9 +5356,18 @@ function gameLoop(time) {
       const progress = Math.min(1, elapsed / state.titleToGame.duration);
       // Ease in (SmoothStart)
       const alpha = progress * progress;
-      // Draw game underneath at partial alpha
-      ctx.save();
-      ctx.globalAlpha = alpha;
+      // Render entire game scene to offscreen canvas, then composite as single image
+      // This prevents layer seams and ensures everything appears at uniform alpha
+      if (!state.titleToGame._offscreen) {
+        state.titleToGame._offscreen = document.createElement('canvas');
+        state.titleToGame._offCtx = state.titleToGame._offscreen.getContext('2d');
+      }
+      const osc = state.titleToGame._offscreen;
+      const osctx = state.titleToGame._offCtx;
+      osc.width = canvas.width; osc.height = canvas.height;
+      // Temporarily swap ctx to draw everything to offscreen
+      const realCtx = ctx;
+      ctx = osctx;
       draw();
       if (state.inventoryOpen && !state.combat) drawInventory();
       if (state.combat) drawCombat();
@@ -5370,6 +5406,11 @@ function gameLoop(time) {
       }
       if (state.dialogue) drawDialogue();
       if (state.chestInteraction) drawChestInteraction();
+      // Swap ctx back and composite offscreen at uniform alpha
+      ctx = realCtx;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(osc, 0, 0);
       ctx.restore();
     }
     requestAnimationFrame(gameLoop);
