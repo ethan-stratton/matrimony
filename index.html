@@ -1045,6 +1045,22 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   
+  // Death offer phase — arrow keys toggle, X rejects
+  if (state.deathOverworld && state.deathOverworld.phase === 'offer') {
+    e.preventDefault();
+    const ds = state.deathOverworld;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      ds.offerSelected = ds.offerSelected === 0 ? 1 : 0;
+      playTick();
+    }
+    if ((e.key === 'x' || e.key === 'X' || e.key === 'Escape')) {
+      // Reject
+      state.deathOverworld = null;
+    }
+    // Z handled below
+    if (e.key !== 'z' && e.key !== 'Z') return;
+  }
+  
   // Z = Confirm
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
@@ -1066,6 +1082,23 @@ document.addEventListener('keydown', (e) => {
           state.defeatedEnemies[e.id] = true;
         }
         state.entities = state.entities.filter(e => !state.defeatedEnemies[e.id]);
+        // Show Bone Throw offer (if not already in inventory)
+        if (!state.inventory.includes('Bone Throw')) {
+          ds.phase = 'offer';
+          ds.offerSelected = 0; // 0 = Take, 1 = Leave
+        } else {
+          state.deathOverworld = null;
+        }
+        return;
+      }
+      if (ds.phase === 'offer') {
+        if (ds.offerSelected === 0) {
+          // Accept Bone Throw
+          if (state.inventory.length < 8) {
+            state.inventory.push('Bone Throw');
+          }
+        }
+        // Either way, dismiss
         state.deathOverworld = null;
         return;
       }
@@ -2074,6 +2107,7 @@ const COMBAT_ACTIONS = {
   'Bite':        { eff: 6, def: 1, wait: 3 },
   'Swoop':       { eff: 9, def: 0, wait: 5 },
   'Screech':     { eff: 0, def: 6, wait: 4 },
+  'Bone Throw':  { eff: 7, def: 0, wait: 4, pierce: 1 },
 };
 
 // ── Load editor overrides from localStorage ──
@@ -2934,7 +2968,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.34', W - 8, H - 8);
+  ctx.fillText('v2.35', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4773,7 +4807,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.34', canvas.width - 8, 14);
+  ctx.fillText('v2.35', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5328,8 +5362,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.34-fix
-  if (!window._v234) { window._v234 = true; console.warn('=== MATRIMONY v2.34 LOADED ==='); }
+  // Cache buster: v2.35-fix
+  if (!window._v235) { window._v235 = true; console.warn('=== MATRIMONY v2.35 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5776,6 +5810,49 @@ function gameLoop(time) {
         crispText('You are still here.', Math.round(W / 2 - tw2 / 2), H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
       }
       ctx.restore();
+    }
+    if (ds.phase === 'offer') {
+      // Black background with chest-style item offer box
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      const boxW = 260, boxH = 160;
+      const bx = Math.round(W / 2 - boxW / 2), by = Math.round(H / 2 - boxH / 2);
+      // Dark box with bone-white border
+      ctx.fillStyle = '#111';
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeStyle = '#b0a890';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, boxW, boxH);
+      // Title
+      const title = 'Bone Throw';
+      crispGradientText(title, bx + boxW / 2 - 50, by + 14, 22,
+        [{ pos: 0, color: '#c8b880' }, { pos: 0.5, color: '#fff8e0' }, { pos: 1, color: '#c8b880' }], 0.5, CRISP_FONT_ALT);
+      // Stats
+      const act = COMBAT_ACTIONS['Bone Throw'];
+      const sy = by + 44;
+      crispText('Eff ' + act.eff + '  Def ' + act.def + '  Wait ' + act.wait, bx + 30, sy, 18, '#c0b888', 0.3, CRISP_FONT_ALT);
+      if (act.pierce) {
+        crispText('Pierce ' + (act.pierce === true ? '∞' : act.pierce), bx + 30, sy + 22, 16, '#88c8d0', 0.3, CRISP_FONT_ALT);
+      }
+      // Description
+      crispText('A fragment of yourself,', bx + 30, sy + 48, 14, '#888', 0.2, CRISP_FONT_ALT);
+      crispText('hurled with hollow conviction.', bx + 30, sy + 64, 14, '#888', 0.2, CRISP_FONT_ALT);
+      // Take / Leave buttons
+      const btnY = by + boxH - 30;
+      const takeX = bx + boxW / 2 - 70;
+      const leaveX = bx + boxW / 2 + 20;
+      const sel = ds.offerSelected || 0;
+      if (sel === 0) {
+        const pulse = 0.20 + 0.10 * Math.sin(now / 300);
+        ctx.fillStyle = 'rgba(80, 200, 60,' + pulse + ')';
+        ctx.fillRect(takeX - 4, btnY - 2, 54, 20);
+      } else {
+        const pulse = 0.20 + 0.10 * Math.sin(now / 300);
+        ctx.fillStyle = 'rgba(200, 80, 60,' + pulse + ')';
+        ctx.fillRect(leaveX - 4, btnY - 2, 54, 20);
+      }
+      crispText('(Z) Take', takeX, btnY, 16, sel === 0 ? '#fff' : '#666', 0.2, CRISP_FONT_ALT);
+      crispText('(X) Leave', leaveX, btnY, 16, sel === 1 ? '#fff' : '#666', 0.2, CRISP_FONT_ALT);
     }
   }
   if (state.dialogue) {
