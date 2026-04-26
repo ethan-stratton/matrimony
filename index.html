@@ -1568,9 +1568,10 @@ function tryMove(dx, dy) {
   const blocking = state.entities.find(e => {
     if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
     if (e.type === 'Stream') return false; // streams don't block movement
-    if (e.type === 'GroundItem') return !state.openedChests[e.id]; // block until picked up
     // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
-    return nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y;
+    if (!(nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y)) return false;
+    if (e.type === 'GroundItem') return !state.openedChests[e.id]; // block until picked up
+    return true;
   });
   if (blocking) {
     state.facing = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
@@ -5372,24 +5373,61 @@ function drawEntity(ctx, entity, x, y) {
     const spr = GROUND_ITEM_SPRITES[itemName];
     const s = TILE * SCALE;
     const now = performance.now();
-    // Sparkle shimmer — small bright pixel that orbits
-    const sparkAngle = (now / 800) % (Math.PI * 2);
-    const sparkR = s * 0.35;
-    const sparkX = x + s / 2 + Math.cos(sparkAngle) * sparkR;
-    const sparkY = y + s / 2 + Math.sin(sparkAngle) * sparkR * 0.6;
-    // Draw sprite — exact integer multiple of 16px (same size as tile)
+
+    // Pixel-snapped bob: snap to nearest SCALE increment so pixels stay aligned
+    const bobRaw = Math.sin(now / 600) * 3 * SCALE;
+    const bob = Math.round(bobRaw / SCALE) * SCALE;
+
+    // Shadow — squishes as item bobs up
+    const shadowStretch = 1 - Math.abs(bob) / (3 * SCALE) * 0.3;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(
+      Math.round(x + s / 2), Math.round(y + s - 2 * SCALE),
+      Math.round(s * 0.3 * shadowStretch), Math.round(SCALE * 1.5),
+      0, 0, Math.PI * 2
+    );
+    ctx.fill();
+
+    // Draw sprite at integer-multiple size
+    const drawY = Math.round(y - bob);
     if (spr && spr.loaded) {
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(spr.img, Math.round(x), Math.round(y), s, s);
+      ctx.drawImage(spr.img, Math.round(x), drawY, s, s);
       ctx.imageSmoothingEnabled = true;
     } else {
       ctx.fillStyle = '#c8a040';
-      ctx.fillRect(Math.round(x + s * 0.25), Math.round(y + s * 0.25), Math.round(s * 0.5), Math.round(s * 0.5));
+      ctx.fillRect(Math.round(x + s * 0.25), drawY + Math.round(s * 0.25), Math.round(s * 0.5), Math.round(s * 0.5));
     }
-    // Sparkle
-    const sparkAlpha = 0.4 + 0.4 * Math.sin(now / 200);
-    ctx.fillStyle = `rgba(255,255,200,${sparkAlpha})`;
-    ctx.fillRect(Math.round(sparkX), Math.round(sparkY), 2, 2);
+
+    // Particles — rising motes + orbiting sparkle
+    // Orbiting sparkle
+    const sparkAngle = (now / 800) % (Math.PI * 2);
+    const sparkR = s * 0.4;
+    const sx2 = x + s / 2 + Math.cos(sparkAngle) * sparkR;
+    const sy2 = y + s / 2 - bob + Math.sin(sparkAngle) * sparkR * 0.5;
+    const sparkAlpha = 0.5 + 0.4 * Math.sin(now / 180);
+    ctx.fillStyle = `rgba(255,255,180,${sparkAlpha})`;
+    ctx.fillRect(Math.round(sx2), Math.round(sy2), 2, 2);
+    // Second sparkle offset
+    const spark2Angle = sparkAngle + Math.PI;
+    const sx3 = x + s / 2 + Math.cos(spark2Angle) * sparkR * 0.7;
+    const sy3 = y + s / 2 - bob + Math.sin(spark2Angle) * sparkR * 0.4;
+    const spark2Alpha = 0.3 + 0.3 * Math.sin(now / 250 + 1.5);
+    ctx.fillStyle = `rgba(200,220,255,${spark2Alpha})`;
+    ctx.fillRect(Math.round(sx3), Math.round(sy3), 2, 2);
+    // Rising motes — 3 seeded by entity position
+    for (let i = 0; i < 3; i++) {
+      const seed = (entity.x * 73 + entity.y * 137 + i * 311) % 1000;
+      const period = 2000 + seed;
+      const phase = (now + seed * 500) % period;
+      const t = phase / period; // 0→1
+      const moteX = x + s * 0.2 + (seed % 10) / 10 * s * 0.6;
+      const moteY = y + s - t * s * 1.2;
+      const moteAlpha = t < 0.1 ? t / 0.1 : t > 0.7 ? (1 - t) / 0.3 : 1;
+      ctx.fillStyle = `rgba(255,245,200,${moteAlpha * 0.5})`;
+      ctx.fillRect(Math.round(moteX), Math.round(moteY), 1, 1);
+    }
     return;
   }
   if (entity.type === 'Chest') {
