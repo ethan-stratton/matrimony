@@ -1101,7 +1101,7 @@ document.addEventListener('keydown', (e) => {
           }
           return;
         }
-        if (ds.phase === 'wake' && ds.done) {
+        if (ds.phase === 'wake') {
           state.isSkeleton = true;
           state.player.hp = 15;
           exitCombat();
@@ -2902,7 +2902,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.27', W - 8, H - 8);
+  ctx.fillText('v2.28', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2914,32 +2914,14 @@ function drawCombat() {
   
   // Death sequence rendering
   if (c.playerDied && c.deathSequence) {
-    try {
     const ds = c.deathSequence;
-    console.log('[DRAW DEATH]', ds.phase);
-    if (ds.phase === 'fade') {
-      drawCombatNormal(c, W, H, now, elapsed);
-      const t = Math.min(1, (now - ds.fadeStart) / ds.fadeDuration);
-      ctx.fillStyle = `rgba(0,0,0,${t})`;
-      ctx.fillRect(0, 0, W, H);
-      return;
-    }
-    if (ds.phase === 'black') {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-      return;
-    }
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
     if (ds.phase === 'dots') {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
       const text = ds.dots[ds.dotIndex] || '.  .  .';
       crispText(text, W / 2, H / 2, 36, '#888', 0.5, CRISP_FONT_ALT);
-      return;
-    }
-    if (ds.phase === 'wake') {
+    } else if (ds.phase === 'wake') {
       const t = Math.min(1, (now - ds.wakeStart) / 1500);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.globalAlpha = t;
       if (SKELETON_SHEET.loaded) {
@@ -2955,9 +2937,7 @@ function drawCombat() {
         if (t >= 1) crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
       }
       ctx.restore();
-      return;
     }
-    } catch(err) { console.error('[DRAW DEATH ERROR]', err); }
     return;
   }
   
@@ -4742,7 +4722,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.27', canvas.width - 8, 14);
+  ctx.fillText('v2.28', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5297,8 +5277,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.27-fix
-  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.27 LOADED ==='); }
+  // Cache buster: v2.28-fix
+  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.28 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5395,45 +5375,18 @@ function gameLoop(time) {
     
     // Death sequence — freeze combat, run cinematic
     if (c.playerDied) {
-      try {
       if (!c.deathSequence) {
+        battleMusic.pause();
+        battleMusic.currentTime = 0;
         c.deathSequence = {
-          phase: 'fade',
-          fadeStart: performance.now(),
-          fadeDuration: 1500,
+          phase: 'dots',
           dots: ['.  .  .', '.  .  .  .  .  .', '.  .  .  .  .  .  .  .  .'],
-          dotIndex: -1,
-          deathFacing: state.facing || 'down',
+          dotIndex: 0,
         };
         c.phase = 'dead';
         c.waiting = false;
         c.enemyWaiting = false;
       }
-      const ds = c.deathSequence;
-      const now = performance.now();
-      if (ds.phase === 'fade') {
-        const fadeT = (now - ds.fadeStart) / ds.fadeDuration;
-        battleMusic.volume = Math.max(0, 0.30 * (1 - fadeT));
-        if (fadeT >= 1) {
-          battleMusic.pause();
-          battleMusic.currentTime = 0;
-          battleMusic.volume = 0.30;
-          ds.phase = 'black';
-          ds.blackStart = now;
-        }
-      }
-      if (ds.phase === 'black') {
-        if (now - ds.blackStart >= 800) {
-          ds.phase = 'dots';
-          ds.dotIndex = 0;
-        }
-      }
-      if (ds.phase === 'wake') {
-        if (now - ds.wakeStart >= 1500 && !ds.done) {
-          ds.done = true;
-        }
-      }
-      } catch(err) { console.error('[DEATH UPDATE ERROR]', err); }
       return; // Skip normal combat updates
     }
     
