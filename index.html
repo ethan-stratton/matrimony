@@ -1024,26 +1024,6 @@ document.addEventListener('keydown', (e) => {
   // Z = Confirm
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
-    // Overworld death sequence Z handling
-    if (state.overWorldDeath) {
-      const ds = state.overWorldDeath;
-      if (ds.phase === 'dots') {
-        ds.dotIndex++;
-        if (ds.dotIndex >= ds.dots.length) {
-          ds.phase = 'wake';
-          ds.wakeStart = performance.now();
-        }
-        return;
-      }
-      if (ds.phase === 'wake' && ds.done) {
-        state.isSkeleton = true;
-        state.overWorldDeath = null;
-        state.playerDeathAnim = null;
-        state.player.hp = 15;
-        return;
-      }
-      return;
-    }
     if (state.weaponTransformPrompt) {
       acceptWeaponTransform();
       playTick();
@@ -1112,7 +1092,22 @@ document.addEventListener('keydown', (e) => {
       const c = state.combat;
       // Death sequence — Z advances through "..." dialogue
       if (c.playerDied && c.deathSequence) {
-        return; // handled by overWorldDeath now
+        const ds = c.deathSequence;
+        if (ds.phase === 'dots') {
+          ds.dotIndex++;
+          if (ds.dotIndex >= ds.dots.length) {
+            ds.phase = 'wake';
+            ds.wakeStart = performance.now();
+          }
+          return;
+        }
+        if (ds.phase === 'wake' && ds.done) {
+          state.isSkeleton = true;
+          state.player.hp = 15;
+          exitCombat();
+          return;
+        }
+        return;
       }
       // Win state — Z exits immediately
       if (c.winState) {
@@ -1381,7 +1376,7 @@ function findNearestWalkable(x, y, axis) {
 }
 
 function tryMove(dx, dy) {
-  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying || state.flyTransition || state.overWorldDeath) return;
+  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying || state.flyTransition) return;
   
   // Set facing
   if (dx < 0) state.facing = 'left';
@@ -2907,7 +2902,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.23', W - 8, H - 8);
+  ctx.fillText('v2.24', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2921,15 +2916,10 @@ function drawCombat() {
   if (c.playerDied && c.deathSequence) {
     const ds = c.deathSequence;
     if (ds.phase === 'fade') {
-      // Draw normal combat underneath, then fade to black
       drawCombatNormal(c, W, H, now, elapsed);
       const t = Math.min(1, (now - ds.fadeStart) / ds.fadeDuration);
       ctx.fillStyle = `rgba(0,0,0,${t})`;
       ctx.fillRect(0, 0, W, H);
-      return;
-    }
-    if (ds.phase === 'overworld_death') {
-      // Don't draw combat — overworld renders underneath, death anim plays there
       return;
     }
     if (ds.phase === 'black') {
@@ -2960,9 +2950,7 @@ function drawCombat() {
       if (t > 0.5) {
         ctx.globalAlpha = (t - 0.5) * 2;
         crispText('You are still here.', W / 2, H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
-        if (t >= 1) {
-          crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
-        }
+        if (t >= 1) crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
       }
       ctx.restore();
       return;
@@ -4750,7 +4738,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.23', canvas.width - 8, 14);
+  ctx.fillText('v2.24', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5193,33 +5181,6 @@ function drawPlayer(ctx, x, y) {
     return;
   }
   
-  // Death animation override
-  if (state.playerDeathAnim) {
-    const da = state.playerDeathAnim;
-    const t = Math.min(1, (performance.now() - da.startTime) / da.duration);
-    let dir = da.facing;
-    let flip = false;
-    if (dir === 'left') { dir = 'right'; flip = true; }
-    if (dir === 'up') { dir = 'down'; }
-    const animName = 'death_' + dir;
-    const anim = sheet.anims[animName] || sheet.anims['death_down'];
-    if (anim) {
-      const frame = Math.min(anim.frames - 1, Math.floor(t * anim.frames));
-      const srcX = frame * sheet.frameW;
-      const srcY = anim.row * sheet.frameH;
-      ctx.save();
-      if (flip) {
-        ctx.translate(x + s, y);
-        ctx.scale(-1, 1);
-        ctx.drawImage(sheet.img, srcX, srcY, sheet.frameW, sheet.frameH, 0, 0, s, s);
-      } else {
-        ctx.drawImage(sheet.img, srcX, srcY, sheet.frameW, sheet.frameH, x, y, s, s);
-      }
-      ctx.restore();
-      return;
-    }
-  }
-  
   // Left uses right's rows but flipped
   let dir = state.facing;
   let flip = false;
@@ -5421,41 +5382,12 @@ function gameLoop(time) {
     updateEnemyAI(time);
     updateFishStream(time);
   }
-  // Overworld death sequence (after combat fade-out)
-  if (state.overWorldDeath) {
-    const ds = state.overWorldDeath;
-    const now = performance.now();
-    console.log('Death phase:', ds.phase, 'dotIndex:', ds.dotIndex);
-    if (ds.phase === 'overworld_death') {
-      // Death anim playing on overworld
-      if (now - ds.deathAnimStart >= ds.deathAnimDuration) {
-        // Hold on last frame briefly, then fade to black
-        if (!ds.holdStart) ds.holdStart = now;
-        if (now - ds.holdStart >= 600) {
-          ds.phase = 'black';
-          ds.blackStart = now;
-        }
-      }
-    }
-    if (ds.phase === 'black') {
-      if (now - ds.blackStart >= 800) {
-        ds.phase = 'dots';
-        ds.dotIndex = 0;
-      }
-    }
-    if (ds.phase === 'wake') {
-      if (now - ds.wakeStart >= 1500 && !ds.done) {
-        ds.done = true;
-      }
-    }
-  }
   // Update combat wait countdowns + animations
   if (state.combat) {
     const c = state.combat;
     
     // Death sequence — freeze combat, run cinematic
     if (c.playerDied) {
-      console.log('[COMBAT DEATH] phase:', c.deathSequence?.phase, 'hp:', c.playerHp, 'fadeT:', c.deathSequence ? (performance.now() - c.deathSequence.fadeStart) / c.deathSequence.fadeDuration : 'N/A');
       if (!c.deathSequence) {
         c.deathSequence = {
           phase: 'fade',
@@ -5476,26 +5408,25 @@ function gameLoop(time) {
         const fadeT = (now - ds.fadeStart) / ds.fadeDuration;
         battleMusic.volume = Math.max(0, 0.30 * (1 - fadeT));
         if (fadeT >= 1) {
-          // Stop battle music completely
           battleMusic.pause();
           battleMusic.currentTime = 0;
           battleMusic.volume = 0.30;
-          // Exit combat, return to overworld with death anim
-          ds.phase = 'overworld_death';
-          ds.deathAnimStart = now;
-          ds.deathAnimDuration = 800; // ~3 frames at slow pace
-          // Kill combat rendering of sprites but keep the sequence alive
-          state.overWorldDeath = ds; // transfer to overworld
-          state.combat = null; // end combat
-          // Set player anim to death
-          state.playerDeathAnim = {
-            facing: ds.deathFacing,
-            startTime: now,
-            duration: 800,
-          };
+          ds.phase = 'black';
+          ds.blackStart = now;
         }
       }
-      if (ds.phase !== 'fade') return; // other phases handled outside combat
+      if (ds.phase === 'black') {
+        if (now - ds.blackStart >= 800) {
+          ds.phase = 'dots';
+          ds.dotIndex = 0;
+        }
+      }
+      if (ds.phase === 'wake') {
+        if (now - ds.wakeStart >= 1500 && !ds.done) {
+          ds.done = true;
+        }
+      }
+      return; // Skip normal combat updates
     }
     
     // Update player attack animation
@@ -5591,7 +5522,6 @@ function gameLoop(time) {
           }
           // Check for death
           if (c.playerHp <= 0) {
-            console.log('[DEATH TRIGGER] playerHp reached 0');
             c.playerDied = true;
             c.deathTime = time;
           }
@@ -5697,44 +5627,6 @@ function gameLoop(time) {
   }
   if (state.combat) {
     drawCombat(); // Overlay combat on top
-  }
-  // Overworld death sequence overlay (after combat ends)
-  if (state.overWorldDeath) {
-    const ds = state.overWorldDeath;
-    const W = canvas.width, H = canvas.height;
-    const now = performance.now();
-    console.log('[DRAW] death overlay phase:', ds.phase, 'dotIndex:', ds.dotIndex);
-    if (ds.phase === 'overworld_death') {
-      // Death anim is visible on overworld — no overlay needed, it plays naturally
-    }
-    if (ds.phase === 'black') {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-    } else if (ds.phase === 'dots') {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-      const text = ds.dots[ds.dotIndex] || '.  .  .';
-      crispText(text, W / 2, H / 2, 36, '#888', 0.5, CRISP_FONT_ALT);
-    } else if (ds.phase === 'wake') {
-      const t = Math.min(1, (now - ds.wakeStart) / 1500);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-      ctx.save();
-      ctx.globalAlpha = t;
-      if (SKELETON_SHEET.loaded) {
-        const anim = PLAYER_SHEET.anims['idle_down'];
-        const sz = 96;
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(SKELETON_SHEET.img, 0, anim.row * 32, 32, 32,
-          W / 2 - sz / 2, H / 2 - sz / 2 - 20, sz, sz);
-      }
-      if (t > 0.5) {
-        ctx.globalAlpha = (t - 0.5) * 2;
-        crispText('You are still here.', W / 2, H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
-        if (t >= 1) crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
-      }
-      ctx.restore();
-    }
   }
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
