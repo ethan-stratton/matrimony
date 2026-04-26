@@ -490,6 +490,22 @@ loadSprite('Enemy1', 'sprites/FireElemental.png');
 loadSprite('Enemy2', 'sprites/IceGolem.png');
 loadSprite('Enemy3', 'sprites/SwoopingBat.png');
 
+// Ground item sprites
+const GROUND_ITEM_SPRITES = {};
+const GROUND_ITEM_MAP = {
+  'Shortbow': 'sprites/items/shortbow.png',
+  'Rusty Shortsword': 'sprites/items/rusty_shortsword.png',
+  'Buckler': 'sprites/items/buckler.png',
+  'Thunder': 'sprites/items/thunder_scroll.png',
+  'Heal': 'sprites/items/heal_scroll.png',
+};
+for (const [name, src] of Object.entries(GROUND_ITEM_MAP)) {
+  const img = new Image();
+  img.src = src;
+  GROUND_ITEM_SPRITES[name] = { img, loaded: false };
+  img.onload = () => { GROUND_ITEM_SPRITES[name].loaded = true; };
+}
+
 // ══════════════════════════════════
 // GAME STATE
 // ══════════════════════════════════
@@ -724,7 +740,7 @@ async function loadLevel(levelIdentifier) {
   
   // Clear defeated enemies for this level (they respawn on re-entry)
   for (const e of state.entities) {
-    if (e.type !== 'Chest') {
+    if (e.type !== 'Chest' && e.type !== 'GroundItem') {
       delete state.defeatedEnemies[e.id];
       e.deathAnim = null;
     }
@@ -1551,7 +1567,7 @@ function tryMove(dx, dy) {
   // Entity collision — check 1×1 box overlap
   const blocking = state.entities.find(e => {
     if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
-    if (e.type === 'Stream') return false; // streams don't block movement
+    if (e.type === 'Stream' || e.type === 'GroundItem') return false; // non-blocking entities
     // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
     return nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y;
   });
@@ -1796,7 +1812,13 @@ function getFacingTile() {
 function interact() {
   const { x, y } = getFacingTile();
   // Use AABB overlap: player facing tile is (x,y) to (x+1,y+1), entity is (e.x,e.y) to (e.x+1,e.y+1)
-  const entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
+  let entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
+  // Also check player's current tile for GroundItems (pick up by standing on them)
+  if (!entity) {
+    const px = state.player.x, py = state.player.y;
+    entity = state.entities.find(e => e.type === 'GroundItem' && !state.openedChests[e.id] &&
+      px < e.x + 1 && px + 1 > e.x && py < e.y + 1 && py + 1 > e.y);
+  }
   if (entity) {
     handleEntityContact(entity);
   }
@@ -1831,6 +1853,14 @@ if (!state.encounterCounts) state.encounterCounts = {};
 function handleEntityContact(entity) {
   if (state.weaponTransformPrompt) return; // don't start combat during transform prompt
   if (entity.type === 'Stream') return; // stream entities are visual only
+  if (entity.type === 'GroundItem') {
+    if (!state.openedChests[entity.id]) {
+      const item = entity.fields.Item || 'Unknown';
+      playChestOpen();
+      state.chestInteraction = { step: 'reveal', item: item, entityId: entity.id, isGroundItem: true };
+    }
+    return;
+  }
   const data = ENEMY_DATA[entity.type];
   if (data) {
     const dialogues = ENEMY_DIALOGUE[entity.type];
@@ -1851,6 +1881,12 @@ function handleEntityContact(entity) {
       state.chestInteraction = { step: 'reveal', item: item, entityId: entity.id };
     } else {
       showDialogue('', 'The chest is empty.');
+    }
+  } else if (entity.type === 'GroundItem') {
+    if (!state.openedChests[entity.id]) {
+      const item = entity.fields.Item || 'Unknown';
+      playChestOpen();
+      state.chestInteraction = { step: 'reveal', item: item, entityId: entity.id, isGroundItem: true };
     }
   } else {
     showDialogue('', 'Nothing happens.');
@@ -2988,7 +3024,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.37', W - 8, H - 8);
+  ctx.fillText('v2.38', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4222,7 +4258,7 @@ function updateEnemyAI(time) {
       state.combatTransition || state.inventoryOpen || state.saveMenu || state.weaponTransformPrompt || state.deathOverworld) return;
 
   for (const e of state.entities) {
-    if (e.type === 'Chest' || e.type === 'Stream') continue;
+    if (e.type === 'Chest' || e.type === 'Stream' || e.type === 'GroundItem') continue;
     if (state.defeatedEnemies[e.id] || e.deathAnim) continue;
 
     // Initialize AI state
@@ -4842,7 +4878,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.37', canvas.width - 8, 14);
+  ctx.fillText('v2.38', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5335,6 +5371,40 @@ const EXPLOSION_FRAME_W = 64, EXPLOSION_FRAME_H = 64, EXPLOSION_FRAMES = 7, EXPL
 
 function drawEntity(ctx, entity, x, y) {
   if (entity.type === 'Stream') return; // stream entities are invisible anchors
+  if (entity.type === 'GroundItem') {
+    if (state.openedChests[entity.id]) return; // already picked up
+    const itemName = entity.fields.Item || '';
+    const spr = GROUND_ITEM_SPRITES[itemName];
+    const s = TILE * SCALE;
+    const now = performance.now();
+    // Gentle hover bob
+    const bob = Math.sin(now / 500) * 2 * SCALE;
+    // Sparkle shimmer — small bright pixel that orbits
+    const sparkAngle = (now / 800) % (Math.PI * 2);
+    const sparkR = s * 0.4;
+    const sparkX = x + s / 2 + Math.cos(sparkAngle) * sparkR;
+    const sparkY = y + s / 2 + bob + Math.sin(sparkAngle) * sparkR * 0.6;
+    // Draw shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x + s / 2, y + s - 2, s * 0.3, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Draw sprite
+    if (spr && spr.loaded) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(spr.img, x + s * 0.125, y + bob + s * 0.125, s * 0.75, s * 0.75);
+      ctx.imageSmoothingEnabled = true;
+    } else {
+      // Fallback colored square
+      ctx.fillStyle = '#c8a040';
+      ctx.fillRect(x + s * 0.25, y + bob + s * 0.25, s * 0.5, s * 0.5);
+    }
+    // Sparkle
+    const sparkAlpha = 0.4 + 0.4 * Math.sin(now / 200);
+    ctx.fillStyle = `rgba(255,255,200,${sparkAlpha})`;
+    ctx.fillRect(Math.round(sparkX), Math.round(sparkY), 2, 2);
+    return;
+  }
   if (entity.type === 'Chest') {
     const s = TILE * SCALE;
     const img = state.openedChests[entity.id] ? CHEST_OPEN : CHEST_CLOSED;
@@ -5397,8 +5467,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.37-fix
-  if (!window._v237) { window._v237 = true; console.warn('=== MATRIMONY v2.37 LOADED ==='); }
+  // Cache buster: v2.38-fix
+  if (!window._v238) { window._v238 = true; console.warn('=== MATRIMONY v2.38 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
