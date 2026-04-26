@@ -1567,7 +1567,8 @@ function tryMove(dx, dy) {
   // Entity collision — check 1×1 box overlap
   const blocking = state.entities.find(e => {
     if (state.defeatedEnemies[e.id] || e.deathAnim) return false;
-    if (e.type === 'Stream' || e.type === 'GroundItem') return false; // non-blocking entities
+    if (e.type === 'Stream') return false; // streams don't block movement
+    if (e.type === 'GroundItem') return !state.openedChests[e.id]; // block until picked up
     // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
     return nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y;
   });
@@ -1812,13 +1813,7 @@ function getFacingTile() {
 function interact() {
   const { x, y } = getFacingTile();
   // Use AABB overlap: player facing tile is (x,y) to (x+1,y+1), entity is (e.x,e.y) to (e.x+1,e.y+1)
-  let entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
-  // Also check player's current tile for GroundItems (pick up by standing on them)
-  if (!entity) {
-    const px = state.player.x, py = state.player.y;
-    entity = state.entities.find(e => e.type === 'GroundItem' && !state.openedChests[e.id] &&
-      px < e.x + 1 && px + 1 > e.x && py < e.y + 1 && py + 1 > e.y);
-  }
+  const entity = state.entities.find(e => !state.defeatedEnemies[e.id] && x < e.x + 1 && x + 1 > e.x && y < e.y + 1 && y + 1 > e.y);
   if (entity) {
     handleEntityContact(entity);
   }
@@ -3024,7 +3019,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.38', W - 8, H - 8);
+  ctx.fillText('v2.39', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4878,7 +4873,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.38', canvas.width - 8, 14);
+  ctx.fillText('v2.39', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5377,27 +5372,22 @@ function drawEntity(ctx, entity, x, y) {
     const spr = GROUND_ITEM_SPRITES[itemName];
     const s = TILE * SCALE;
     const now = performance.now();
-    // Gentle hover bob
-    const bob = Math.sin(now / 500) * 2 * SCALE;
     // Sparkle shimmer — small bright pixel that orbits
     const sparkAngle = (now / 800) % (Math.PI * 2);
-    const sparkR = s * 0.4;
+    const sparkR = s * 0.35;
     const sparkX = x + s / 2 + Math.cos(sparkAngle) * sparkR;
-    const sparkY = y + s / 2 + bob + Math.sin(sparkAngle) * sparkR * 0.6;
-    // Draw shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath();
-    ctx.ellipse(x + s / 2, y + s - 2, s * 0.3, s * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Draw sprite
+    const sparkY = y + s / 2 + Math.sin(sparkAngle) * sparkR * 0.6;
+    // Draw sprite — pixel-perfect, no sub-pixel movement
     if (spr && spr.loaded) {
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(spr.img, x + s * 0.125, y + bob + s * 0.125, s * 0.75, s * 0.75);
+      const drawSize = Math.round(s * 0.75);
+      const ox = Math.round(x + (s - drawSize) / 2);
+      const oy = Math.round(y + (s - drawSize) / 2);
+      ctx.drawImage(spr.img, ox, oy, drawSize, drawSize);
       ctx.imageSmoothingEnabled = true;
     } else {
-      // Fallback colored square
       ctx.fillStyle = '#c8a040';
-      ctx.fillRect(x + s * 0.25, y + bob + s * 0.25, s * 0.5, s * 0.5);
+      ctx.fillRect(Math.round(x + s * 0.25), Math.round(y + s * 0.25), Math.round(s * 0.5), Math.round(s * 0.5));
     }
     // Sparkle
     const sparkAlpha = 0.4 + 0.4 * Math.sin(now / 200);
@@ -5467,8 +5457,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.38-fix
-  if (!window._v238) { window._v238 = true; console.warn('=== MATRIMONY v2.38 LOADED ==='); }
+  // Cache buster: v2.39-fix
+  if (!window._v239) { window._v239 = true; console.warn('=== MATRIMONY v2.39 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;

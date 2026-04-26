@@ -630,22 +630,6 @@
 							"__worldY": 139
 						},
 						{
-							"__identifier": "Chest",
-							"__grid": [5,4],
-							"__pivot": [0,0],
-							"__tags": [],
-							"__tile": null,
-							"__smartColor": "#EAD4AA",
-							"iid": "b5aabc10-21a0-11f1-92ef-b75b792e035f",
-							"width": 16,
-							"height": 16,
-							"defUid": 11,
-							"px": [80,68],
-							"fieldInstances": [],
-							"__worldX": 80,
-							"__worldY": 68
-						},
-						{
 							"__identifier": "GroundItem",
 							"__grid": [6,3],
 							"__pivot": [0,0],
