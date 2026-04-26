@@ -2907,7 +2907,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.19', W - 8, H - 8);
+  ctx.fillText('v2.20', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -3276,12 +3276,16 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     // Determine which animation to show
     let animName = playerAttacking ? 'walk_right' : 'idle_right';
     let animSpeed = 400;
+    let hurtElapsed = 0;
     if (c.playerHurtAnim && (now - c.playerHurtAnim.startTime < c.playerHurtAnim.duration)) {
       animName = 'hurt_right';
-      animSpeed = 120; // fast flash
+      animSpeed = 200;
+      hurtElapsed = now - c.playerHurtAnim.startTime;
     }
     const anim = getPlayerSheet().anims[animName] || getPlayerSheet().anims['idle_right'];
-    const frame = Math.floor(now / animSpeed) % anim.frames;
+    const frame = hurtElapsed > 0 
+      ? Math.min(anim.frames - 1, Math.floor(hurtElapsed / animSpeed))
+      : Math.floor(now / 400) % anim.frames;
     const srcX = frame * getPlayerSheet().frameW;
     const srcY = anim.row * getPlayerSheet().frameH;
     ctx.imageSmoothingEnabled = false;
@@ -4746,7 +4750,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.19', canvas.width - 8, 14);
+  ctx.fillText('v2.20', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5466,7 +5470,14 @@ function gameLoop(time) {
       const ds = c.deathSequence;
       const now = performance.now();
       if (ds.phase === 'fade') {
-        if ((now - ds.fadeStart) / ds.fadeDuration >= 1) {
+        // Fade out battle music with the screen
+        const fadeT = (now - ds.fadeStart) / ds.fadeDuration;
+        battleMusic.volume = Math.max(0, 0.30 * (1 - fadeT));
+        if (fadeT >= 1) {
+          // Stop battle music completely
+          battleMusic.pause();
+          battleMusic.currentTime = 0;
+          battleMusic.volume = 0.30;
           // Exit combat, return to overworld with death anim
           ds.phase = 'overworld_death';
           ds.deathAnimStart = now;
@@ -5683,6 +5694,43 @@ function gameLoop(time) {
   }
   if (state.combat) {
     drawCombat(); // Overlay combat on top
+  }
+  // Overworld death sequence overlay (after combat ends)
+  if (state.overWorldDeath) {
+    const ds = state.overWorldDeath;
+    const W = canvas.width, H = canvas.height;
+    const now = performance.now();
+    if (ds.phase === 'overworld_death') {
+      // Death anim is visible on overworld — no overlay needed, it plays naturally
+    }
+    if (ds.phase === 'black') {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+    } else if (ds.phase === 'dots') {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      const text = ds.dots[ds.dotIndex] || '.  .  .';
+      crispText(text, W / 2, H / 2, 36, '#888', 0.5, CRISP_FONT_ALT);
+    } else if (ds.phase === 'wake') {
+      const t = Math.min(1, (now - ds.wakeStart) / 1500);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.globalAlpha = t;
+      if (SKELETON_SHEET.loaded) {
+        const anim = PLAYER_SHEET.anims['idle_down'];
+        const sz = 96;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(SKELETON_SHEET.img, 0, anim.row * 32, 32, 32,
+          W / 2 - sz / 2, H / 2 - sz / 2 - 20, sz, sz);
+      }
+      if (t > 0.5) {
+        ctx.globalAlpha = (t - 0.5) * 2;
+        crispText('You are still here.', W / 2, H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
+        if (t >= 1) crispText('[ Z ]', W / 2, H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
+      }
+      ctx.restore();
+    }
   }
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
