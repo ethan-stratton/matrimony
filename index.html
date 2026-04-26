@@ -1038,6 +1038,29 @@ document.addEventListener('keydown', (e) => {
   // Z = Confirm
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
+    if (state.deathOverworld) {
+      const ds = state.deathOverworld;
+      if (ds.phase === 'dots') {
+        ds.dotIndex++;
+        if (ds.dotIndex >= ds.dots.length) {
+          ds.phase = 'wake';
+          ds.wakeStart = performance.now();
+        }
+        return;
+      }
+      if (ds.phase === 'wake') {
+        state.isSkeleton = true;
+        state.player.hp = 15;
+        // Clear all enemies in this level
+        for (const e of state.entities) {
+          state.defeatedEnemies[e.id] = true;
+        }
+        state.entities = state.entities.filter(e => !state.defeatedEnemies[e.id]);
+        state.deathOverworld = null;
+        return;
+      }
+      return; // block Z during other phases
+    }
     if (state.weaponTransformPrompt) {
       acceptWeaponTransform();
       playTick();
@@ -1106,22 +1129,7 @@ document.addEventListener('keydown', (e) => {
       const c = state.combat;
       // Death sequence — Z advances through "..." dialogue
       if (c.playerDied && c.deathSequence) {
-        const ds = c.deathSequence;
-        if (ds.phase === 'dots') {
-          ds.dotIndex++;
-          if (ds.dotIndex >= ds.dots.length) {
-            ds.phase = 'wake';
-            ds.wakeStart = performance.now();
-          }
-          return;
-        }
-        if (ds.phase === 'wake') {
-          state.isSkeleton = true;
-          state.player.hp = 15;
-          exitCombat();
-          return;
-        }
-        return;
+        return; // Z does nothing during combat death phases — auto-advance
       }
       // Win state — Z exits immediately
       if (c.winState) {
@@ -1390,7 +1398,7 @@ function findNearestWalkable(x, y, axis) {
 }
 
 function tryMove(dx, dy) {
-  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying || state.flyTransition) return;
+  if (state.moving || state.dialogue || state.combat || state.combatTransition || state.inventoryOpen || state.chestInteraction || state.flying || state.flyTransition || state.deathOverworld) return;
   
   // Set facing
   if (dx < 0) state.facing = 'left';
@@ -2916,7 +2924,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.30', W - 8, H - 8);
+  ctx.fillText('v2.31', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -2929,36 +2937,16 @@ function drawCombat() {
   // Death sequence rendering
   if (c.playerDied && c.deathSequence) {
     const ds = c.deathSequence;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-    if (ds.phase === 'dots') {
-      const text = ds.dots[ds.dotIndex] || '.  .  .';
-      // Measure text width for centering
-      ctx.font = '36px "RM2000Alt"';
-      const tw = ctx.measureText(text).width;
-      crispText(text, Math.round(W / 2 - tw / 2), Math.round(H / 2 - 18), 36, '#888', 0.5, CRISP_FONT_ALT);
-    } else if (ds.phase === 'wake') {
-      const t = Math.min(1, (now - ds.wakeStart) / 1500);
-      ctx.save();
-      ctx.globalAlpha = t;
-      if (SKELETON_SHEET.loaded) {
-        const anim = PLAYER_SHEET.anims['idle_down'];
-        const sz = 96;
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(SKELETON_SHEET.img, 0, anim.row * 32, 32, 32,
-          W / 2 - sz / 2, H / 2 - sz / 2 - 20, sz, sz);
-      }
-      if (t > 0.5) {
-        ctx.globalAlpha = (t - 0.5) * 2;
-        ctx.font = '28px "RM2000Alt"';
-        const tw2 = ctx.measureText('You are still here.').width;
-        crispText('You are still here.', Math.round(W / 2 - tw2 / 2), H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
-        if (t >= 1) {
-          const tw3 = ctx.measureText('[ Z ]').width;
-          crispText('[ Z ]', Math.round(W / 2 - tw3 / 2), H / 2 + 85, 22, '#666', 0.5, CRISP_FONT_ALT);
-        }
-      }
-      ctx.restore();
+    if (ds.phase === 'combat_death') {
+      drawCombatNormal(c, W, H, now, elapsed);
+      return;
+    }
+    if (ds.phase === 'combat_fade') {
+      drawCombatNormal(c, W, H, now, elapsed);
+      const t = Math.min(1, (now - ds.startTime) / 800);
+      ctx.fillStyle = `rgba(0,0,0,${t})`;
+      ctx.fillRect(0, 0, W, H);
+      return;
     }
     return;
   }
@@ -3271,7 +3259,11 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     let animName = playerAttacking ? 'walk_right' : 'idle_right';
     let animSpeed = 400;
     let hurtElapsed = 0;
-    if (c.playerHurtAnim && (now - c.playerHurtAnim.startTime < c.playerHurtAnim.duration)) {
+    if (c.playerDied && c.deathSequence) {
+      animName = 'death_right';
+      animSpeed = 300;
+      hurtElapsed = now - c.deathSequence.startTime;
+    } else if (c.playerHurtAnim && (now - c.playerHurtAnim.startTime < c.playerHurtAnim.duration)) {
       animName = 'hurt_down';
       animSpeed = 200;
       hurtElapsed = now - c.playerHurtAnim.startTime;
@@ -4121,7 +4113,7 @@ function drawFishStream(ctx) {
 
 function updateEnemyAI(time) {
   if (state.transitioning || state.dialogue || state.combat || state.chestInteraction ||
-      state.combatTransition || state.inventoryOpen || state.saveMenu || state.weaponTransformPrompt) return;
+      state.combatTransition || state.inventoryOpen || state.saveMenu || state.weaponTransformPrompt || state.deathOverworld) return;
 
   for (const e of state.entities) {
     if (e.type === 'Chest' || e.type === 'Stream') continue;
@@ -4744,7 +4736,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.30', canvas.width - 8, 14);
+  ctx.fillText('v2.31', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5299,8 +5291,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.30-fix
-  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.30 LOADED ==='); }
+  // Cache buster: v2.31-fix
+  if (!window._v227) { window._v227 = true; console.warn('=== MATRIMONY v2.31 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5391,6 +5383,26 @@ function gameLoop(time) {
     updateEnemyAI(time);
     updateFishStream(time);
   }
+  // Death overworld sequence
+  if (state.deathOverworld) {
+    const ds = state.deathOverworld;
+    const now = performance.now();
+    if (ds.phase === 'overworld') {
+      if (now - ds.startTime >= 2500) {
+        ds.phase = 'black';
+        ds.startTime = now;
+      }
+    }
+    if (ds.phase === 'black') {
+      if (now - ds.startTime >= 800) {
+        ds.phase = 'dots';
+        ds.dotIndex = 0;
+      }
+    }
+    if (ds.phase === 'wake') {
+      // Just wait for Z press
+    }
+  }
   // Update combat wait countdowns + animations
   if (state.combat) {
     const c = state.combat;
@@ -5398,16 +5410,47 @@ function gameLoop(time) {
     // Death sequence — freeze combat, run cinematic
     if (c.playerDied) {
       if (!c.deathSequence) {
-        battleMusic.pause();
-        battleMusic.currentTime = 0;
         c.deathSequence = {
-          phase: 'dots',
+          phase: 'combat_death',
+          startTime: performance.now(),
           dots: ['.  .  .', '.  .  .  .  .  .', '.  .  .  .  .  .  .  .  .'],
-          dotIndex: 0,
+          dotIndex: -1,
+          enemyType: c.enemy?.type,
+          enemyId: c.enemy?.id,
         };
         c.phase = 'dead';
         c.waiting = false;
         c.enemyWaiting = false;
+      }
+      const ds = c.deathSequence;
+      const now = performance.now();
+      const elapsed = now - ds.startTime;
+
+      if (ds.phase === 'combat_death') {
+        // Fade battle music
+        const fadeT = Math.min(1, elapsed / 1200);
+        battleMusic.volume = Math.max(0, 0.30 * (1 - fadeT));
+        if (elapsed >= 1200) {
+          ds.phase = 'combat_fade';
+          ds.startTime = now;
+        }
+      }
+      if (ds.phase === 'combat_fade') {
+        if (now - ds.startTime >= 800) {
+          battleMusic.pause();
+          battleMusic.currentTime = 0;
+          battleMusic.volume = 0.30;
+          // Transfer to overworld
+          state.deathOverworld = {
+            phase: 'overworld',
+            startTime: performance.now(),
+            dots: ds.dots,
+            dotIndex: -1,
+            enemyType: ds.enemyType,
+            enemyId: ds.enemyId,
+          };
+          state.combat = null;
+        }
       }
       // Skip normal combat updates but DON'T return — need to reach draw() below
     } else {
@@ -5505,8 +5548,13 @@ function gameLoop(time) {
           }
           // Check for death
           if (c.playerHp <= 0) {
-            c.playerDied = true;
-            c.deathTime = time;
+            if (state.isSkeleton) {
+              c.playerHp = 1;
+              c.playerBark = { text: '...', startTime: time, duration: 800 };
+            } else {
+              c.playerDied = true;
+              c.deathTime = time;
+            }
           }
         } else {
           // Full block — hitstop + shield sheen
@@ -5611,6 +5659,63 @@ function gameLoop(time) {
   }
   if (state.combat) {
     drawCombat(); // Overlay combat on top
+  }
+  // Death overworld overlay
+  if (state.deathOverworld) {
+    const ds = state.deathOverworld;
+    const W = canvas.width, H = canvas.height;
+    const now = performance.now();
+    if (ds.phase === 'overworld') {
+      // Player death sprite on ground — draw last frame of death_down
+      const sheet = PLAYER_SHEET; // dying as human
+      if (sheet.loaded) {
+        const anim = sheet.anims['death_down'];
+        if (anim) {
+          const frame = anim.frames - 1; // last frame
+          const srcX = frame * sheet.frameW;
+          const srcY = anim.row * sheet.frameH;
+          const px = Math.round(state.player.x * state.tileSize - getCameraOffset().x);
+          const py = Math.round(state.player.y * state.tileSize - getCameraOffset().y);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(sheet.img, srcX, srcY, sheet.frameW, sheet.frameH, px, py, state.tileSize, state.tileSize);
+        }
+      }
+      // Fade to signal transition coming
+      const t = Math.min(1, (now - ds.startTime) / 2500);
+      if (t > 0.6) {
+        ctx.fillStyle = `rgba(0,0,0,${(t - 0.6) / 0.4})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+    if (ds.phase === 'black' || ds.phase === 'dots' || ds.phase === 'wake') {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (ds.phase === 'dots') {
+      const text = ds.dots[ds.dotIndex] || '.  .  .';
+      ctx.font = '36px "RM2000Alt"';
+      const tw = ctx.measureText(text).width;
+      crispText(text, Math.round(W / 2 - tw / 2), Math.round(H / 2 - 18), 36, '#888', 0.5, CRISP_FONT_ALT);
+    }
+    if (ds.phase === 'wake') {
+      const t = Math.min(1, (now - ds.wakeStart) / 1500);
+      ctx.save();
+      ctx.globalAlpha = t;
+      if (SKELETON_SHEET.loaded) {
+        const anim = SKELETON_SHEET.anims['idle_down'];
+        const sz = 96;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(SKELETON_SHEET.img, 0, anim.row * 32, 32, 32,
+          W / 2 - sz / 2, H / 2 - sz / 2 - 20, sz, sz);
+      }
+      if (t > 0.5) {
+        ctx.globalAlpha = (t - 0.5) * 2;
+        ctx.font = '28px "RM2000Alt"';
+        const tw2 = ctx.measureText('You are still here.').width;
+        crispText('You are still here.', Math.round(W / 2 - tw2 / 2), H / 2 + 50, 28, '#a0a0a0', 0.5, CRISP_FONT_ALT);
+      }
+      ctx.restore();
+    }
   }
   if (state.dialogue) {
     drawDialogue(); // Dialogue box on canvas
