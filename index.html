@@ -102,7 +102,7 @@ const DISPLAY_SCALE = 1.4; // CSS scale for display
 const CANVAS_TILES_X = Math.ceil(CANVAS_W / (TILE * SCALE)) + 1;
 const CANVAS_TILES_Y = Math.ceil(CANVAS_H / (TILE * SCALE)) + 1;
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 canvas.width = CANVAS_W;
 canvas.height = CANVAS_H;
 
@@ -2934,7 +2934,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.33', W - 8, H - 8);
+  ctx.fillText('v2.34', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4773,7 +4773,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.33', canvas.width - 8, 14);
+  ctx.fillText('v2.34', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5328,8 +5328,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.33-fix
-  if (!window._v233) { window._v233 = true; console.warn('=== MATRIMONY v2.33 LOADED ==='); }
+  // Cache buster: v2.34-fix
+  if (!window._v234) { window._v234 = true; console.warn('=== MATRIMONY v2.34 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5364,7 +5364,10 @@ function gameLoop(time) {
       }
       const osc = state.titleToGame._offscreen;
       const osctx = state.titleToGame._offCtx;
-      osc.width = canvas.width; osc.height = canvas.height;
+      if (osc.width !== canvas.width || osc.height !== canvas.height) {
+        osc.width = canvas.width; osc.height = canvas.height;
+      }
+      osctx.clearRect(0, 0, osc.width, osc.height);
       // Temporarily swap ctx to draw everything to offscreen
       const realCtx = ctx;
       ctx = osctx;
