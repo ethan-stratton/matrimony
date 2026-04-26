@@ -2907,7 +2907,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.21', W - 8, H - 8);
+  ctx.fillText('v2.22', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -4750,7 +4750,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.21', canvas.width - 8, 14);
+  ctx.fillText('v2.22', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5455,6 +5455,7 @@ function gameLoop(time) {
     
     // Death sequence — freeze combat, run cinematic
     if (c.playerDied) {
+      console.log('[COMBAT DEATH] phase:', c.deathSequence?.phase, 'hp:', c.playerHp);
       if (!c.deathSequence) {
         c.deathSequence = {
           phase: 'fade',
@@ -5590,6 +5591,7 @@ function gameLoop(time) {
           }
           // Check for death
           if (c.playerHp <= 0) {
+            console.log('[DEATH TRIGGER] playerHp reached 0');
             c.playerDied = true;
             c.deathTime = time;
           }
