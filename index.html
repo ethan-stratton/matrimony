@@ -1570,7 +1570,7 @@ function tryMove(dx, dy) {
     if (e.type === 'Stream') return false; // streams don't block movement
     // Player box: (nx, ny) to (nx+1, ny+1). Entity box: (e.x, e.y) to (e.x+1, e.y+1)
     if (!(nx < e.x + 1 && nx + 1 > e.x && ny < e.y + 1 && ny + 1 > e.y)) return false;
-    if (e.type === 'GroundItem') return !state.openedChests[e.id]; // block until picked up
+    if (e.type === 'GroundItem') return !state.openedChests[e.id] && e.id !== state.groundItemPassthrough; // block until picked up (or passed through)
     return true;
   });
   if (blocking) {
@@ -1795,6 +1795,13 @@ function handleMovement(now) {
     const stepScale = state.moveStepScale || 1;
     if (state.moveTimer >= (state.lockedMoveDuration || getMoveDuration()) * stepScale) {
       state.moving = false;
+      // Clear GroundItem passthrough once player has moved off
+      if (state.groundItemPassthrough) {
+        const passEntity = state.entities.find(e => e.id === state.groundItemPassthrough);
+        if (!passEntity || Math.floor(state.player.x) !== Math.floor(passEntity.x) || Math.floor(state.player.y) !== Math.floor(passEntity.y)) {
+          state.groundItemPassthrough = null;
+        }
+      }
       state.justStartedRunning = state.wasWalking && keys['Shift'];
       // Chain movement immediately if key held — no gap between steps
       if (keys['ArrowLeft']) tryMove(-1, 0);
@@ -3972,6 +3979,10 @@ function handleChestInput(key) {
     }
     if (key === 'x' || key === 'X') {
       // Leave it — close without taking
+      // If standing on this GroundItem, mark it pass-through until player steps off
+      if (ci.isGroundItem) {
+        state.groundItemPassthrough = ci.entityId;
+      }
       state.chestInteraction = null;
       return true;
     }
