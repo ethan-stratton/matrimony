@@ -498,6 +498,7 @@ const GROUND_ITEM_MAP = {
   'Buckler': 'sprites/items/buckler.png',
   'Thunder': 'sprites/items/thunder_scroll.png',
   'Heal': 'sprites/items/heal_scroll.png',
+  'Copy': 'sprites/items/copy_mirror.png',
 };
 for (const [name, src] of Object.entries(GROUND_ITEM_MAP)) {
   const img = new Image();
@@ -1025,6 +1026,33 @@ document.addEventListener('keydown', (e) => {
         c.targetSelf = !c.targetSelf;
         e.preventDefault(); return;
       }
+    } else if (c.copyMenu) {
+      // Copy menu slot navigation — same 2x4 grid as actions
+      const numSlots = Math.min((c.actions || []).length, 8);
+      if (numSlots > 0) {
+        const sel = c.copyMenu.selectedSlot || 0;
+        const col = sel % 2;
+        const row = Math.floor(sel / 2);
+        if (e.key === 'ArrowUp') {
+          const newRow = row - 1;
+          if (newRow >= 0) { const newIdx = newRow * 2 + col; c.copyMenu.selectedSlot = newIdx < numSlots ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowDown') {
+          const newRow = row + 1;
+          const newIdx = newRow * 2 + col;
+          c.copyMenu.selectedSlot = newIdx < numSlots ? newIdx : sel;
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowLeft') {
+          if (col === 1) { const newIdx = row * 2; c.copyMenu.selectedSlot = newIdx < numSlots ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+        if (e.key === 'ArrowRight') {
+          if (col === 0) { const newIdx = row * 2 + 1; c.copyMenu.selectedSlot = newIdx < numSlots ? newIdx : sel; }
+          e.preventDefault(); return;
+        }
+      }
     } else if (c.phase === 'action') {
       // Action selection phase — 2x4 grid navigation
       const numActions = Math.min((c.actions || []).length, 8);
@@ -1206,6 +1234,35 @@ document.addEventListener('keydown', (e) => {
         exitCombat();
         return;
       }
+      // Copy menu — player selects slot to replace with copied move
+      if (c.copyMenu) {
+        const slot = c.copyMenu.selectedSlot || 0;
+        const actions = c.actions || [];
+        const copiedMove = c.copyMenu.enemyMove;
+        if (copiedMove && actions.length > 0) {
+          // Replace the selected slot in inventory and action list
+          const oldItem = actions[slot];
+          actions[slot] = copiedMove;
+          // Update actual inventory
+          const invIdx = state.inventory.indexOf(oldItem);
+          if (invIdx !== -1) state.inventory[invIdx] = copiedMove;
+          else state.inventory.push(copiedMove);
+          // Update action order if it exists
+          if (state.actionOrder) {
+            const aoIdx = state.actionOrder.indexOf(oldItem);
+            if (aoIdx !== -1) state.actionOrder[aoIdx] = copiedMove;
+          }
+          // Register the copied move in COMBAT_ACTIONS if not already there
+          if (!COMBAT_ACTIONS[copiedMove]) {
+            COMBAT_ACTIONS[copiedMove] = { eff: 5, def: 0, wait: 6 }; // fallback stats
+          }
+        }
+        c.copyMenu = null;
+        c.phase = 'action';
+        c.attackText = null;
+        playChestOpen(); // satisfying confirmation sound
+        return;
+      }
       if (c.phase === 'target') {
         // Confirm enemy target → move to action selection
         c.phase = 'action';
@@ -1273,6 +1330,16 @@ document.addEventListener('keydown', (e) => {
       return;
     }
     if (state.combat) {
+      // Copy menu can be cancelled — go back to action select
+      if (state.combat.copyMenu) {
+        state.combat.copyMenu = null;
+        state.combat.phase = 'action';
+        state.combat.waiting = false;
+        state.combat.attackText = null;
+        state.combat.waitCountdown = -1;
+        playTick();
+        return;
+      }
       // No cancelling once committed — you're locked in
     } else if (state.inventoryOpen) {
       // Close inventory or back out of sub-menu/ordering
@@ -2186,6 +2253,7 @@ const COMBAT_ACTIONS = {
   'Swoop':       { eff: 9, def: 0, wait: 5 },
   'Screech':     { eff: 0, def: 6, wait: 4 },
   'Bone Throw':  { eff: 7, def: 0, wait: 4, pierce: 1 },
+  'Copy':        { eff: 0, def: 0, wait: 12, copy: true },
 };
 
 // ── Load editor overrides from localStorage ──
@@ -3660,6 +3728,51 @@ function drawCombatNormal(c, W, H, now, elapsed) {
   
   // Hints removed — no cancelling once committed
   
+  // ── COPY MENU OVERLAY ──
+  if (c.copyMenu) {
+    // Darken background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Title
+    const COPY_GRADIENT = [[0, '#6040b0'], [0.3, '#a080ff'], [0.5, '#e0d0ff'], [0.7, '#a080ff'], [1, '#6040b0']];
+    const titleText = 'Copy: ' + c.copyMenu.enemyMove;
+    crispGradientText(titleText, Math.round(W / 2 - 100), 30, 32, COPY_GRADIENT, 0, CRISP_FONT_ALT);
+    crispText('Replace which slot?', Math.round(W / 2 - 80), 60, 32, '#908880', 0, CRISP_FONT_ALT);
+    
+    // Draw slots in same 2x4 grid layout
+    const copyActions = c.actions || [];
+    const copyGridX = Math.round(W * 0.2);
+    const copyGridY = 100;
+    const copyRowH = 38;
+    const copyColW = Math.round(W * 0.3);
+    const copySelected = c.copyMenu.selectedSlot || 0;
+    
+    for (let i = 0; i < copyActions.length && i < 8; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const ax = copyGridX + col * copyColW;
+      const ay = copyGridY + row * copyRowH;
+      const isSelected = i === copySelected;
+      
+      if (isSelected) {
+        ctx.fillStyle = 'rgba(160, 80, 255, 0.25)';
+        ctx.fillRect(ax, ay, copyColW - 8, copyRowH - 4);
+        // Border
+        ctx.strokeStyle = 'rgba(180, 140, 255, 0.6)';
+        ctx.strokeRect(ax, ay, copyColW - 8, copyRowH - 4);
+      }
+      
+      const color = isSelected ? '#ffffff' : '#808080';
+      crispText(copyActions[i], ax + 4, ay + 4, 32, color, 0, CRISP_FONT_ALT);
+    }
+    
+    // Show stats of the move being copied
+    const copiedAct = COMBAT_ACTIONS[c.copyMenu.enemyMove] || {};
+    const infoY = copyGridY + 4 * copyRowH + 20;
+    crispText('Copying: Eff ' + (copiedAct.eff || 0) + '  Def ' + (copiedAct.def || 0) + '  Wait ' + (copiedAct.wait || 0), copyGridX, infoY, 32, '#b89cff', 0, CRISP_FONT_ALT);
+  }
+  
   // Win state overlay
   if (c.winState && c.enemyDisplayHp <= 0.5) {
     const ws = c.winState;
@@ -4921,7 +5034,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.39', canvas.width - 8, 14);
+  ctx.fillText('v2.40', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5887,7 +6000,7 @@ function gameLoop(time) {
     // Tick system — ticks when both committed, not during animations
     const anyCountdown = (c.waitCountdown > 0) || (c.enemyWaitCountdown > 0);
     const animPlaying = c.playerAttackAnim || c.playerBark || c.enemyAttackAnim || c.enemyBark;
-    if (c.waiting && c.enemyWaiting && anyCountdown && !animPlaying && !c.winState) {
+    if (c.waiting && c.enemyWaiting && anyCountdown && !animPlaying && !c.winState && !c.copyMenu) {
       const dt = time - c.lastWaitTick;
       c.lastWaitTick = time;
       c.waitAccumulator += dt;
@@ -5904,7 +6017,12 @@ function gameLoop(time) {
         if (c.waitCountdown <= 0 && !c.playerAttackAnim && !c.playerBark) {
           c.waitAccumulator = 0;
           const pAct = COMBAT_ACTIONS[c.attackText || ''] || {};
-          if ((pAct.eff || 0) === 0) {
+          if (pAct.copy) {
+            // Copy resolves — freeze combat & show slot-select menu
+            c.copyMenu = { enemyMove: c.enemyAction, selectedSlot: 0 };
+            c.waiting = false;
+            c.waitCountdown = -1;
+          } else if ((pAct.eff || 0) === 0) {
             // Non-damaging move (Defend, etc.) — bark instead of rushing
             c.playerBark = { text: c.attackText, startTime: time, duration: 800 };
           } else {
