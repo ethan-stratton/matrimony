@@ -3123,7 +3123,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.40', W - 8, H - 8);
+  ctx.fillText('v2.41', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -5034,7 +5034,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.40', canvas.width - 8, 14);
+  ctx.fillText('v2.41', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
@@ -5651,8 +5651,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.40
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.40 LOADED ==='); }
+  // Cache buster: v2.41
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.41 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -5845,8 +5845,23 @@ function gameLoop(time) {
       const t = time - a.startTime;
       if (t >= a.totalDuration) {
         c.playerAttackAnim = null;
+        // Copy resolution — add move to empty slot
+        if (c.copyTarget) {
+          const copiedMove = c.copyTarget;
+          c.copyTarget = null;
+          c.actions.push(copiedMove);
+          state.inventory.push(copiedMove);
+          if (state.actionOrder) state.actionOrder.push(copiedMove);
+          // Show bark with copied move name
+          c.playerBark = { text: '» ' + copiedMove, startTime: time, duration: 1000 };
+          playChestOpen();
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
         // Apply damage to enemy (or heal if heal action)
-        if (c.attackText) {
+        else if (c.attackText) {
           const act = COMBAT_ACTIONS[c.attackText] || {};
           if (act.heal) {
             // Heal player — amount equals EFF stat
@@ -6018,10 +6033,26 @@ function gameLoop(time) {
           c.waitAccumulator = 0;
           const pAct = COMBAT_ACTIONS[c.attackText || ''] || {};
           if (pAct.copy) {
-            // Copy resolves — freeze combat & show slot-select menu
-            c.copyMenu = { enemyMove: c.enemyAction, selectedSlot: 0 };
-            c.waiting = false;
-            c.waitCountdown = -1;
+            const copiedMove = c.enemyAction;
+            // Register copied move in COMBAT_ACTIONS if not already there
+            if (copiedMove && !COMBAT_ACTIONS[copiedMove]) {
+              COMBAT_ACTIONS[copiedMove] = { eff: 5, def: 0, wait: 6 };
+            }
+            if (c.actions.length < 8) {
+              // Has space — rush animation toward enemy, then add move
+              c.copyTarget = copiedMove;
+              c.playerAttackAnim = {
+                startTime: time,
+                rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+              };
+              c.waiting = false;
+              c.waitCountdown = -1;
+            } else {
+              // Full — show slot-select menu
+              c.copyMenu = { enemyMove: copiedMove, selectedSlot: 0 };
+              c.waiting = false;
+              c.waitCountdown = -1;
+            }
           } else if ((pAct.eff || 0) === 0) {
             // Non-damaging move (Defend, etc.) — bark instead of rushing
             c.playerBark = { text: c.attackText, startTime: time, duration: 800 };
