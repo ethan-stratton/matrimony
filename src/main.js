@@ -634,11 +634,24 @@ function gameLoop(time) {
           }
           } // end else (not heal)
         }
-        // PAUSE — player picks new action. Enemy keeps their countdown (if 0, fires on next commit).
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        // If enemy countdown also reached 0 (simultaneous resolution), trigger enemy attack now
+        if (c.enemyWaitCountdown <= 0 && !c.winState) {
+          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          if ((enemyAct.eff || 0) > 0) {
+            c.enemyAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          } else {
+            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+          }
+        } else {
+          // PAUSE — player picks new action.
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
@@ -647,12 +660,23 @@ function gameLoop(time) {
       const t = time - c.playerBark.startTime;
       if (t >= c.playerBark.duration) {
         c.playerBark = null;
-        // If enemy countdown is also at 0, trigger their attack before pausing
-        // Return to action select — enemy countdown stays at 0, fires on next commit
-        c.phase = 'action';
-        c.waiting = false;
-        c.attackText = null;
-        c.waitCountdown = -1;
+        // If enemy countdown also reached 0 (simultaneous resolution), trigger enemy attack now
+        if (c.enemyWaitCountdown <= 0 && !c.winState) {
+          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
+          if ((enemyAct.eff || 0) > 0) {
+            c.enemyAttackAnim = {
+              startTime: time,
+              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+            };
+          } else {
+            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
+          }
+        } else {
+          c.phase = 'action';
+          c.waiting = false;
+          c.attackText = null;
+          c.waitCountdown = -1;
+        }
       }
     }
     
