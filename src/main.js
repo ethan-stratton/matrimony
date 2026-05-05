@@ -389,8 +389,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.42
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.42 LOADED ==='); }
+  // Cache buster: v2.43
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.43 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
