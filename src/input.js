@@ -438,7 +438,8 @@ document.addEventListener('keydown', (e) => {
         c.phase = 'action';
         c.selectedAction = 0;
       } else if (c.phase === 'action' && !c.waiting) {
-        const action = (c.actions || [])[c.selectedAction || 0];
+        const actionList = c.actions && c.actions.length > 0 ? c.actions : ['Stand Still'];
+        const action = actionList[c.selectedAction || 0];
         if (action) {
           // Combo system: track consecutive Rusty Shortsword uses
           if (!c.comboCount) c.comboCount = 0;
