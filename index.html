@@ -2238,7 +2238,7 @@ const COMBAT_ACTIONS = {
   'Rusty Shortsword': { eff: 12, def: 4, wait: 5 },
   'Slash!': { eff: 16, def: 4, wait: 5 },
   'Buckler': { eff: 0, def: 10, wait: 6, guard: true },
-  'Thunder': { eff: 25, def: 0, wait: 15, pierce: true },
+  'Thunder': { eff: 25, def: 0, wait: 15, pierce: true, stun: 3 },
   'Heal': { eff: 10, def: 0, wait: 8, heal: true },
   'Stand Still': { eff: 0, def: 0, wait: 10 },
   'Do Nothing':  { eff: 0, def: 0, wait: 10 },
@@ -2264,7 +2264,7 @@ const COMBAT_ACTIONS = {
     // Override weapons/actions
     if (ed.weapons) {
       for (const w of ed.weapons) {
-        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0, pierce: !!w.pierce };
+        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0, pierce: !!w.pierce, stun: w.stun||0 };
       }
     }
     // Override enemies
@@ -2275,7 +2275,7 @@ const COMBAT_ACTIONS = {
           const name = typeof a === 'string' ? a : a.name;
           // Also register enemy action stats
           if (typeof a === 'object' && a.name) {
-            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0, pierce: !!a.pierce };
+            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0, pierce: !!a.pierce, stun: a.stun||0 };
           }
           return name;
         });
@@ -2283,6 +2283,7 @@ const COMBAT_ACTIONS = {
           name: e.name || e.sprite,
           sprite: e.sprite,
           maxHp: e.maxHp || 100,
+          exp: e.exp || ENEMY_DATA[e.sprite]?.exp || 0,
           actions: actionNames,
           startsWithCharge: e.startsWithCharge || false,
         };
@@ -2522,7 +2523,7 @@ function drawInventory() {
   ctx.beginPath(); ctx.moveTo(0, topH - 0.5); ctx.lineTo(W, topH - 0.5); ctx.stroke();
   
   // EXP display
-  crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  crispText('EXP: ' + (state.player.exp || 0), pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
   crispText('Shift : Save', W - pad - 170, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
@@ -2678,6 +2679,12 @@ function drawInventory() {
     if (act.heal) {
       const HEAL_GRADIENT = [[0, '#20a040'], [0.2, '#40d060'], [0.35, '#80ff90'], [0.5, '#ffffff'], [0.65, '#80ff90'], [0.8, '#40d060'], [1, '#20a040']];
       sx += crispGradientText('Heal', sx, statsY, 32, HEAL_GRADIENT, 0, CRISP_FONT_ALT) + 12;
+    }
+    // Stun tag with gradient
+    if (act.stun) {
+      const STUN_GRADIENT = [[0, '#c08000'], [0.2, '#e0a020'], [0.35, '#ffd060'], [0.5, '#ffffff'], [0.65, '#ffd060'], [0.8, '#e0a020'], [1, '#c08000']];
+      sx += crispGradientText('Stun', sx, statsY, 32, STUN_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      sx += crispText(String(act.stun), sx, statsY, 32, '#ffd060', 0, CRISP_FONT_ALT) + 12;
     }
     
     // Item description — two lines below stats
@@ -3278,6 +3285,12 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
       sx += crispGradientText('Pierce', sx, statY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 12;
     }
+    // Stun tag
+    if (act.stun) {
+      const STUN_GRADIENT = [[0, '#c08000'], [0.2, '#e0a020'], [0.35, '#ffd060'], [0.5, '#ffffff'], [0.65, '#ffd060'], [0.8, '#e0a020'], [1, '#c08000']];
+      sx += crispGradientText('Stun', sx, statY, 32, STUN_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      sx += crispText(String(act.stun), sx, statY, 32, '#ffd060', 0, CRISP_FONT_ALT) + 12;
+    }
   }
   
   // ── ARENA ──
@@ -3435,6 +3448,18 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     ctx.globalAlpha = Math.max(0, bAlpha);
     crispText(c.enemyBark.text, enemyArenaX + enemyCombatSize / 2 - 30, enemyArenaY - 20 + bobY, 32, '#ffdc50');
     ctx.globalAlpha = 1;
+  }
+  // Stun bark (yellow/orange flash text)
+  if (c.stunBark) {
+    const bt = (now - c.stunBark.startTime) / c.stunBark.duration;
+    if (bt >= 1) { c.stunBark = null; }
+    else {
+      const bAlpha = bt < 0.1 ? bt / 0.1 : bt > 0.7 ? (1 - bt) / 0.3 : 1;
+      const bobY = -Math.sin(bt * Math.PI) * 10;
+      ctx.globalAlpha = Math.max(0, bAlpha);
+      crispText(c.stunBark.text, enemyArenaX + enemyCombatSize / 2 - 40, enemyArenaY - 45 + bobY, 32, '#ff8800');
+      ctx.globalAlpha = 1;
+    }
   }
   
   // Draw persistent "Defend" text above player while waiting with Defend
@@ -5890,6 +5915,13 @@ function gameLoop(time) {
                 enemy: true,
               });
             }
+          }
+          // Stun: add wait ticks to enemy countdown
+          const stunTicks = act.stun || 0;
+          if (stunTicks > 0 && dmg > 0) {
+            c.enemyWaitCountdown = (c.enemyWaitCountdown > 0 ? c.enemyWaitCountdown : 0) + stunTicks;
+            c.stunFlash = { startTime: performance.now(), duration: 600 };
+            c.stunBark = { text: 'STUNNED +' + stunTicks, startTime: performance.now(), duration: 1200 };
           }
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
