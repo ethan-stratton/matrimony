@@ -139,7 +139,7 @@ function drawInventory() {
   ctx.beginPath(); ctx.moveTo(0, topH - 0.5); ctx.lineTo(W, topH - 0.5); ctx.stroke();
   
   // EXP display
-  crispText('EXP: 0', pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
+  crispText('EXP: ' + (state.player.exp || 0), pad + 8, Math.round(topH / 2) - 10, 32, '#e8e0d0', 0, CRISP_FONT_ALT);
   crispText('Shift : Save', W - pad - 170, Math.round(topH / 2) - 10, 32, '#8c828c', 0, CRISP_FONT_ALT);
   
   // ── BOTTOM BAR ──
@@ -296,6 +296,12 @@ function drawInventory() {
       const HEAL_GRADIENT = [[0, '#20a040'], [0.2, '#40d060'], [0.35, '#80ff90'], [0.5, '#ffffff'], [0.65, '#80ff90'], [0.8, '#40d060'], [1, '#20a040']];
       sx += crispGradientText('Heal', sx, statsY, 32, HEAL_GRADIENT, 0, CRISP_FONT_ALT) + 12;
     }
+    // Stun tag with gradient
+    if (act.stun) {
+      const STUN_GRADIENT = [[0, '#c08000'], [0.2, '#e0a020'], [0.35, '#ffd060'], [0.5, '#ffffff'], [0.65, '#ffd060'], [0.8, '#e0a020'], [1, '#c08000']];
+      sx += crispGradientText('Stun', sx, statsY, 32, STUN_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      sx += crispText(String(act.stun), sx, statsY, 32, '#ffd060', 0, CRISP_FONT_ALT) + 12;
+    }
     
     // Item description — two lines below stats
     const ACTION_DESCRIPTIONS = {
@@ -304,6 +310,7 @@ function drawInventory() {
       'Rusty Shortsword': ['A worn blade, still sharp.', 'Good offense with some guard.'],
       'Buckler': ['A small but sturdy shield.', 'Brace and endure.'],
       'Thunder': ['A crackling bolt from above.', 'Pierces all armor. Slow to charge.'],
+      'Supersonic': ['A disorienting sonic pulse.', 'Low damage but stuns the target.'],
       'Heal': ['Mend your wounds.', 'Restores HP equal to EFF.'],
       'Bone Throw': ['A fragment of yourself,', 'hurled with hollow conviction.'],
       'Slash!': ['A fierce follow-up strike!', 'Combo finisher.'],
@@ -740,7 +747,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.41', W - 8, H - 8);
+  ctx.fillText('v2.42', W - 8, H - 8);
   ctx.textAlign = 'left';
 }
 function drawCombat() {
@@ -894,6 +901,12 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     if (act.pierce) {
       const PIERCE_GRADIENT = [[0, '#40a0d0'], [0.2, '#60d0ff'], [0.35, '#a0f0ff'], [0.5, '#ffffff'], [0.65, '#a0f0ff'], [0.8, '#60d0ff'], [1, '#40a0d0']];
       sx += crispGradientText('Pierce', sx, statY, 32, PIERCE_GRADIENT, 0, CRISP_FONT_ALT) + 12;
+    }
+    // Stun tag
+    if (act.stun) {
+      const STUN_GRADIENT = [[0, '#c08000'], [0.2, '#e0a020'], [0.35, '#ffd060'], [0.5, '#ffffff'], [0.65, '#ffd060'], [0.8, '#e0a020'], [1, '#c08000']];
+      sx += crispGradientText('Stun', sx, statY, 32, STUN_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      sx += crispText(String(act.stun), sx, statY, 32, '#ffd060', 0, CRISP_FONT_ALT) + 12;
     }
   }
   
@@ -1052,6 +1065,18 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     ctx.globalAlpha = Math.max(0, bAlpha);
     crispText(c.enemyBark.text, enemyArenaX + enemyCombatSize / 2 - 30, enemyArenaY - 20 + bobY, 32, '#ffdc50');
     ctx.globalAlpha = 1;
+  }
+  // Stun bark (yellow/orange flash text)
+  if (c.stunBark) {
+    const bt = (now - c.stunBark.startTime) / c.stunBark.duration;
+    if (bt >= 1) { c.stunBark = null; }
+    else {
+      const bAlpha = bt < 0.1 ? bt / 0.1 : bt > 0.7 ? (1 - bt) / 0.3 : 1;
+      const bobY = -Math.sin(bt * Math.PI) * 10;
+      ctx.globalAlpha = Math.max(0, bAlpha);
+      crispText(c.stunBark.text, enemyArenaX + enemyCombatSize / 2 - 40, enemyArenaY - 45 + bobY, 32, '#ff8800');
+      ctx.globalAlpha = 1;
+    }
   }
   
   // Draw persistent "Defend" text above player while waiting with Defend
@@ -1340,6 +1365,12 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     if (act.heal) {
       const HEAL_GRADIENT = [[0, '#20a040'], [0.2, '#40d060'], [0.35, '#80ff90'], [0.5, '#ffffff'], [0.65, '#80ff90'], [0.8, '#40d060'], [1, '#20a040']];
       sx += crispGradientText('Heal', sx, statsY, 32, HEAL_GRADIENT, 0, CRISP_FONT_ALT) + 12;
+    }
+    // Stun tag
+    if (act.stun) {
+      const STUN_GRADIENT = [[0, '#c08000'], [0.2, '#e0a020'], [0.35, '#ffd060'], [0.5, '#ffffff'], [0.65, '#ffd060'], [0.8, '#e0a020'], [1, '#c08000']];
+      sx += crispGradientText('Stun', sx, statsY, 32, STUN_GRADIENT, 0, CRISP_FONT_ALT) + 2;
+      sx += crispText(String(act.stun), sx, statsY, 32, '#ffd060', 0, CRISP_FONT_ALT) + 12;
     }
   }
   
@@ -2193,7 +2224,7 @@ function draw() {
   ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
   ctx.font = '10px "JetBrains Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('v2.41', canvas.width - 8, 14);
+  ctx.fillText('v2.42', canvas.width - 8, 14);
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {

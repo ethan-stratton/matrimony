@@ -108,7 +108,7 @@ const ENEMY_DATA = {
     sprite: 'Enemy3',
     maxHp: 120, eff: 6, def: 1, wait: 3,
     exp: 8,
-    actions: ['Bite', 'Swoop', 'Screech'],
+    actions: ['Bite', 'Swoop', 'Screech', 'Supersonic'],
     ai: 'smart',
     patrolRange: 4,
     flying: true,
@@ -274,6 +274,7 @@ const COMBAT_ACTIONS = {
   'Screech':     { eff: 0, def: 6, wait: 4 },
   'Bone Throw':  { eff: 7, def: 0, wait: 4, pierce: 1 },
   'Copy':        { eff: 0, def: 0, wait: 12, copy: true },
+  'Supersonic':  { eff: 3, def: 0, wait: 6, stun: 4 },
 };
 
 // ── Load editor overrides from localStorage ──
@@ -284,7 +285,7 @@ const COMBAT_ACTIONS = {
     // Override weapons/actions
     if (ed.weapons) {
       for (const w of ed.weapons) {
-        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0, pierce: !!w.pierce };
+        if (w.name) COMBAT_ACTIONS[w.name] = { eff: w.eff||0, def: w.def||0, wait: w.wait||0, pierce: !!w.pierce, stun: w.stun||0 };
       }
     }
     // Override enemies
@@ -295,7 +296,7 @@ const COMBAT_ACTIONS = {
           const name = typeof a === 'string' ? a : a.name;
           // Also register enemy action stats
           if (typeof a === 'object' && a.name) {
-            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0, pierce: !!a.pierce };
+            COMBAT_ACTIONS[a.name] = { eff: a.eff||0, def: a.def||0, wait: a.wait||0, pierce: !!a.pierce, stun: a.stun||0 };
           }
           return name;
         });
@@ -303,6 +304,7 @@ const COMBAT_ACTIONS = {
           name: e.name || e.sprite,
           sprite: e.sprite,
           maxHp: e.maxHp || 100,
+          exp: e.exp || ENEMY_DATA[e.sprite]?.exp || 0,
           actions: actionNames,
           startsWithCharge: e.startsWithCharge || false,
         };

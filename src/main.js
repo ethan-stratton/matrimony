@@ -389,8 +389,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.41
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.41 LOADED ==='); }
+  // Cache buster: v2.42
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.42 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -628,6 +628,13 @@ function gameLoop(time) {
                 enemy: true,
               });
             }
+          }
+          // Stun: add wait ticks to enemy countdown
+          const stunTicks = act.stun || 0;
+          if (stunTicks > 0 && dmg > 0) {
+            c.enemyWaitCountdown = (c.enemyWaitCountdown > 0 ? c.enemyWaitCountdown : 0) + stunTicks;
+            c.stunFlash = { startTime: performance.now(), duration: 600 };
+            c.stunBark = { text: 'STUNNED +' + stunTicks, startTime: performance.now(), duration: 1200 };
           }
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
