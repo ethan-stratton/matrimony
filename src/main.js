@@ -389,8 +389,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.44
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.44 LOADED ==='); }
+  // Cache buster: v2.45
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.45 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -641,24 +641,12 @@ function gameLoop(time) {
           }
           } // end else (not heal)
         }
-        // If enemy countdown also reached 0 (simultaneous resolution), trigger enemy attack now
-        if (c.enemyWaitCountdown <= 0 && !c.winState) {
-          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          if ((enemyAct.eff || 0) > 0) {
-            c.enemyAttackAnim = {
-              startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-            };
-          } else {
-            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
-          }
-        } else {
-          // PAUSE — player picks new action.
+                // PAUSE — player always picks next action first, even on simultaneous resolution.
+        // Enemy countdown stays at 0; their attack fires after player's next commit.
           c.phase = 'action';
           c.waiting = false;
           c.attackText = null;
           c.waitCountdown = -1;
-        }
       }
     }
     
@@ -667,23 +655,11 @@ function gameLoop(time) {
       const t = time - c.playerBark.startTime;
       if (t >= c.playerBark.duration) {
         c.playerBark = null;
-        // If enemy countdown also reached 0 (simultaneous resolution), trigger enemy attack now
-        if (c.enemyWaitCountdown <= 0 && !c.winState) {
-          const enemyAct = COMBAT_ACTIONS[c.enemyAction] || {};
-          if ((enemyAct.eff || 0) > 0) {
-            c.enemyAttackAnim = {
-              startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
-            };
-          } else {
-            c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
-          }
-        } else {
+        // PAUSE — player picks next action first, even on simultaneous resolution.
           c.phase = 'action';
           c.waiting = false;
           c.attackText = null;
           c.waitCountdown = -1;
-        }
       }
     }
     

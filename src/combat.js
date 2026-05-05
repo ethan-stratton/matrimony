@@ -67,6 +67,11 @@ function pickEnemyAction(c) {
     // Prefer faster moves slightly (lower wait = resolves sooner)
     score -= (act.wait || 0) * 0.5;
 
+    // Stun value — delaying the player is always useful
+    if (act.stun) {
+      score += act.stun * 3;
+    }
+
     // Charging provides some defense while building up
     if (name === 'Charging...' && (act.def || 0) > 0) {
       score += 5;
