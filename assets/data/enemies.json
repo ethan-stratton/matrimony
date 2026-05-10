@@ -45,5 +45,21 @@
       "move": null,
       "breath": null
     }
+  },
+  "GlowingWisp": {
+    "name": "Glowing Wisp",
+    "sprite": "GlowingWisp",
+    "spriteFile": "assets/enemies/glowing_wisp.png",
+    "maxHp": 80, "eff": 7, "def": 1, "wait": 4,
+    "exp": 12,
+    "actions": ["Drain", "Flash", "Flicker", "Spirit Burst"],
+    "ai": "smart",
+    "patrolRange": 6,
+    "flying": true,
+    "particles": {
+      "idle": { "type": "ember", "interval": 400 },
+      "move": { "type": "fire_burst", "count": 2 },
+      "breath": null
+    }
   }
 }

@@ -20,5 +20,9 @@
   "Screech": { "eff": 0, "def": 6, "wait": 4 },
   "Bone Throw": { "eff": 7, "def": 0, "wait": 4, "pierce": 1 },
   "Copy": { "eff": 0, "def": 0, "wait": 12, "copy": true },
-  "Supersonic": { "eff": 3, "def": 0, "wait": 6, "stun": 4 }
+  "Supersonic": { "eff": 3, "def": 0, "wait": 6, "stun": 4 },
+  "Drain": { "eff": 7, "def": 2, "wait": 5, "heal": true },
+  "Flash": { "eff": 2, "def": 0, "wait": 4, "stun": 3 },
+  "Flicker": { "eff": 0, "def": 8, "wait": 3 },
+  "Spirit Burst": { "eff": 14, "def": 0, "wait": 10, "pierce": true }
 }

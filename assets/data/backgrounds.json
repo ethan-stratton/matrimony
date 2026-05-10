@@ -30,6 +30,7 @@
   "enemyBackgrounds": {
     "FireElemental": "Giygas",
     "IceGolem": "Frozen",
-    "SwoopingBat": "Deep Dark"
+    "SwoopingBat": "Deep Dark",
+    "GlowingWisp": "Moonside"
   }
 }
