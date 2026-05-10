@@ -193,39 +193,28 @@ function playBattleStart() {
   g2.connect(ac.destination);
   src.start(t + 0.25);
 }
-// ── Earthbound-style battle backgrounds ──
-const EB_PALETTES = {
-  fire: [[20,0,0],[80,0,0],[160,30,0],[220,80,0],[255,160,20],[255,220,80],[255,255,180],[255,220,80]],
-  void: [[0,0,0],[20,0,40],[50,0,80],[80,20,120],[50,0,80],[20,0,40],[5,0,10],[0,0,0]],
-  neon: [[255,0,100],[255,0,255],[100,0,255],[0,100,255],[0,255,200],[0,255,100],[255,255,0],[255,0,100]],
-  ocean: [[0,5,30],[0,20,80],[0,60,140],[0,120,180],[40,180,220],[120,220,255],[200,240,255],[40,180,220]],
-  psychedelic: [[148,0,211],[75,0,130],[0,0,255],[0,255,0],[255,255,0],[255,127,0],[255,0,0],[148,0,211]],
-  frost: [[10,20,40],[20,50,100],[40,100,160],[80,160,220],[140,210,250],[200,235,255],[240,248,255],[140,210,250]],
-  candy: [[255,100,150],[255,150,200],[200,150,255],[150,200,255],[150,255,200],[200,255,150],[255,255,150],[255,200,150]],
-  aurora: [[0,10,20],[0,40,40],[0,120,80],[0,200,100],[80,255,140],[0,200,180],[40,80,160],[0,20,60]],
-};
+// ── Earthbound-style battle backgrounds (loaded from JSON) ──
+let EB_PALETTES = {};
+let EB_PRESETS = {};
+let ENEMY_BG = {};
 
-const EB_PRESETS = {
-  'Giygas': {
-    l1: { palette: 'fire', distType: 2, amp: 12, freq: 0.04, speed: 0.015, scrollX: 0, scrollY: 0.4, palSpeed: 0.5, scale: 0.8 },
-    l2: { palette: 'void', distType: 1, amp: 8, freq: 0.03, speed: 0.01, scrollX: 0.1, scrollY: -0.1, palSpeed: 0.4, scale: 1.2, opacity: 0.6 }
-  },
-  'Moonside': {
-    l1: { palette: 'psychedelic', distType: 1, amp: 6, freq: 0.035, speed: 0.05, scrollX: 0.3, scrollY: 0.3, palSpeed: 2.5, scale: 0.6 },
-    l2: { palette: 'neon', distType: 2, amp: 10, freq: 0.02, speed: 0.03, scrollX: -0.8, scrollY: 1.0, palSpeed: 1.8, scale: 1.0, opacity: 0.55 }
-  },
-  'Deep Dark': {
-    l1: { palette: 'void', distType: 2, amp: 8, freq: 0.05, speed: 0.04, scrollX: 0, scrollY: 0.8, palSpeed: 0.5, scale: 1.0 },
-    l2: { palette: 'ocean', distType: 1, amp: 4, freq: 0.03, speed: 0.02, scrollX: 0.3, scrollY: -0.3, palSpeed: 0.8, scale: 1.8, opacity: 0.35 }
-  },
-  'Frozen': {
-    l1: { palette: 'frost', distType: 1, amp: 6, freq: 0.03, speed: 0.008, scrollX: -0.2, scrollY: 0.5, palSpeed: 0.3, scale: 1.0 },
-    l2: { palette: 'ocean', distType: 2, amp: 10, freq: 0.025, speed: 0.015, scrollX: 0.4, scrollY: -0.2, palSpeed: 0.6, scale: 1.5, opacity: 0.45 }
-  },
-};
-
-// Map enemy types to background presets
-const ENEMY_BG = { 'Enemy1': 'Giygas', 'Enemy2': 'Frozen', 'Enemy3': 'Deep Dark' };
+// ── Load all game data from JSON files ──
+async function loadGameData() {
+  const v = '?v=' + Date.now();
+  const [bgData, enemyData, actionData] = await Promise.all([
+    fetch('assets/data/backgrounds.json' + v).then(r => r.json()),
+    fetch('assets/data/enemies.json' + v).then(r => r.json()),
+    fetch('assets/data/actions.json' + v).then(r => r.json()),
+  ]);
+  // Populate background globals
+  Object.assign(EB_PALETTES, bgData.palettes);
+  Object.assign(EB_PRESETS, bgData.presets);
+  Object.assign(ENEMY_BG, bgData.enemyBackgrounds);
+  // Populate combat globals
+  Object.assign(ENEMY_DATA, enemyData);
+  Object.assign(COMBAT_ACTIONS, actionData);
+  console.log('[Data] Loaded', Object.keys(ENEMY_DATA).length, 'enemies,', Object.keys(COMBAT_ACTIONS).length, 'actions,', Object.keys(EB_PRESETS).length, 'BG presets');
+}
 
 function ebSampleColors(colors, t) {
   const n = colors.length;

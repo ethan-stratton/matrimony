@@ -1,0 +1,46 @@
+{
+  "Enemy1": {
+    "name": "Fire Elemental",
+    "sprite": "Enemy1",
+    "maxHp": 220, "eff": 10, "def": 2, "wait": 12,
+    "exp": 10,
+    "actions": ["Ember", "Defend", "Charging...", "Fire Punch"],
+    "startsWithCharge": true,
+    "ai": "smart",
+    "particles": {
+      "idle": { "type": "ember", "interval": 700 },
+      "move": { "type": "fire_burst", "count": 3 },
+      "breath": null
+    }
+  },
+  "Enemy2": {
+    "name": "Ice Golem",
+    "sprite": "Enemy2",
+    "maxHp": 300, "eff": 8, "def": 5, "wait": 16,
+    "exp": 15,
+    "actions": ["Defend", "Ice Shard", "Charging...", "Frost Slam"],
+    "startsWithCharge": true,
+    "ai": "smart",
+    "patrolRange": 10,
+    "particles": {
+      "idle": { "type": "ice", "interval": 500 },
+      "move": { "type": "ice_puff", "count": 3 },
+      "breath": { "type": "steam", "interval": 2500, "count": 3 }
+    }
+  },
+  "Enemy3": {
+    "name": "Swooping Bat",
+    "sprite": "Enemy3",
+    "maxHp": 120, "eff": 6, "def": 1, "wait": 3,
+    "exp": 8,
+    "actions": ["Bite", "Swoop", "Screech", "Supersonic"],
+    "ai": "smart",
+    "patrolRange": 4,
+    "flying": true,
+    "particles": {
+      "idle": null,
+      "move": null,
+      "breath": null
+    }
+  }
+}

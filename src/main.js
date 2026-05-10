@@ -161,6 +161,61 @@ function updateFishStream(time) {
 }
 
 
+// ── Data-driven enemy particle spawning ──
+function spawnEnemyIdleParticles(e, time) {
+  const cfg = ENEMY_DATA[e.type]?.particles?.idle;
+  if (!cfg || !cfg.type) return;
+  if (!e._lastIdleParticleTime) e._lastIdleParticleTime = time;
+  if (time - e._lastIdleParticleTime <= cfg.interval) return;
+  e._lastIdleParticleTime = time;
+  if (cfg.type === 'ember') {
+    state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, initialLife: 2.0, size: 1, ember: true });
+  } else if (cfg.type === 'ice') {
+    state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: (Math.random()-0.5)*0.15, vy: Math.random()*0.2+0.05, life: 1.8, initialLife: 1.8, size: 1, ice: true });
+  }
+}
+
+function spawnEnemyBreathParticles(e, time) {
+  const cfg = ENEMY_DATA[e.type]?.particles?.breath;
+  if (!cfg || !cfg.type) return;
+  if (!e._lastBreathTime) e._lastBreathTime = time;
+  if (time - e._lastBreathTime <= cfg.interval + Math.random() * 1500) return;
+  e._lastBreathTime = time;
+  if (cfg.type === 'steam') {
+    for (let bp = 0; bp < cfg.count; bp++) {
+      const bx = e.facing === 'left' ? -0.15 : e.facing === 'right' ? 1.15 : 0.5;
+      const by = 0.15 + bp * 0.05;
+      state.burnParticles.push({ x: e.x + bx + (Math.random()-0.5)*0.1, y: e.y + by, vx: (e.facing === 'left' ? -0.3 : e.facing === 'right' ? 0.3 : (Math.random()-0.5)*0.2), vy: -Math.random()*0.2-0.1, life: 1.0 + Math.random()*0.5, initialLife: 1.5, size: 1, steam: true });
+    }
+  }
+}
+
+function spawnEnemyMoveParticles(e) {
+  const cfg = ENEMY_DATA[e.type]?.particles?.move;
+  if (!cfg || !cfg.type) return;
+  const side = e.footsteps ? e.footsteps.length % 2 : 0;
+  if (cfg.type === 'fire_burst') {
+    // Active foot fire burst
+    const footX = side === 0 ? 0.25 : 0.75;
+    const footY = side === 0 ? 0.7 : 0.8;
+    state.burnParticles.push({ x: e.x + footX, y: e.y + footY, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
+    // Big random fire chunks
+    state.burnParticles.push({ x: e.x + Math.random(), y: e.y + 0.5 + Math.random()*0.3, vx: (Math.random()-0.5)*0.5, vy: -Math.random()*0.6-0.3, life: 2.0, initialLife: 2.0, size: 1 });
+    // Embers floating with wind
+    for (let bp = 0; bp < 1; bp++) {
+      state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, initialLife: 2.5, size: 1+Math.random()*1.5, ember: true });
+    }
+  } else if (cfg.type === 'ice_puff') {
+    // Active foot snow puff
+    const footX = side === 0 ? 0.25 : 0.65;
+    state.burnParticles.push({ x: e.x + footX, y: e.y + 0.6 + Math.random()*0.2, vx: (Math.random()-0.5)*0.3, vy: Math.random()*0.15+0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), ice: true });
+    // Snow flakes drifting off body
+    for (let bp = 0; bp < 2; bp++) {
+      state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: (Math.random()-0.5)*0.2, vy: Math.random()*0.3+0.1, life: 1.8, initialLife: 1.8, size: 1, ice: true });
+    }
+  }
+}
+
 function updateEnemyAI(time) {
   if (state.transitioning || state.dialogue || state.combat || state.chestInteraction ||
       state.combatTransition || state.inventoryOpen || state.saveMenu || state.weaponTransformPrompt || state.deathOverworld) return;
@@ -190,34 +245,12 @@ function updateEnemyAI(time) {
     e.aiTimer += (time - (e._lastAITime || time));
     e._lastAITime = time;
 
-    // Fire elemental: periodic idle ember flake-off
-    if (e.type === 'Enemy1' && !e.aiMoving) {
-      if (!e._lastEmberTime) e._lastEmberTime = time;
-      if (time - e._lastEmberTime > 700) { // every 700ms
-        e._lastEmberTime = time;
-        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, initialLife: 2.0, size: 1, ember: true });
-      }
+    // Data-driven idle particles
+    if (!e.aiMoving) {
+      spawnEnemyIdleParticles(e, time);
     }
-    // Ice golem: periodic idle snow drift
-    if (e.type === 'Enemy2' && !e.aiMoving) {
-      if (!e._lastSnowTime) e._lastSnowTime = time;
-      if (time - e._lastSnowTime > 500) {
-        e._lastSnowTime = time;
-        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: (Math.random()-0.5)*0.15, vy: Math.random()*0.2+0.05, life: 1.8, initialLife: 1.8, size: 1, ice: true });
-      }
-    }
-    // Ice golem: periodic steam breath
-    if (e.type === 'Enemy2') {
-      if (!e._lastBreathTime) e._lastBreathTime = time;
-      if (time - e._lastBreathTime > 2500 + Math.random() * 1500) {
-        e._lastBreathTime = time;
-        for (let bp = 0; bp < 3; bp++) {
-          const bx = e.facing === 'left' ? -0.15 : e.facing === 'right' ? 1.15 : 0.5;
-          const by = 0.15 + bp * 0.05;
-          state.burnParticles.push({ x: e.x + bx + (Math.random()-0.5)*0.1, y: e.y + by, vx: (e.facing === 'left' ? -0.3 : e.facing === 'right' ? 0.3 : (Math.random()-0.5)*0.2), vy: -Math.random()*0.2-0.1, life: 1.0 + Math.random()*0.5, initialLife: 1.5, size: 1, steam: true });
-        }
-      }
-    }
+    // Data-driven breath particles
+    spawnEnemyBreathParticles(e, time);
 
     const px = state.player.x;
     const py = state.player.y;
@@ -329,31 +362,8 @@ function updateEnemyAI(time) {
       if (!e.footsteps) e.footsteps = [];
       e.footsteps.push({ x: e.prevX, y: e.prevY, time: time, side: e.footsteps.length % 2 });
       if (e.footsteps.length > 8) e.footsteps.shift();
-      // Spawn burn particles for Fire Elemental — alternating footstep + embers
-      if (e.type === 'Enemy1') {
-        const side = e.footsteps ? e.footsteps.length % 2 : 0;
-        // Active foot fire burst (alternates left/right)
-        const footX = side === 0 ? 0.25 : 0.75;
-        const footY = side === 0 ? 0.7 : 0.8;
-        state.burnParticles.push({ x: e.x + footX, y: e.y + footY, vx: (Math.random()-0.5)*0.2, vy: -Math.random()*0.4-0.2, life: 1.5, initialLife: 1.5, size: 2+Math.random()*2 });
-        // Big random fire chunks on movement
-        state.burnParticles.push({ x: e.x + Math.random(), y: e.y + 0.5 + Math.random()*0.3, vx: (Math.random()-0.5)*0.5, vy: -Math.random()*0.6-0.3, life: 2.0, initialLife: 2.0, size: 1 });
-        // Embers floating with wind (rightward, matching ambient wind)
-        for (let bp = 0; bp < 1; bp++) {
-          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: 0.3+Math.random()*0.4, vy: -Math.random()*0.3-0.1, life: 2.5, initialLife: 2.5, size: 1+Math.random()*1.5, ember: true });
-        }
-      }
-      // Spawn ice particles for Ice Golem — alternating snow puffs
-      if (e.type === 'Enemy2') {
-        const side = e.footsteps ? e.footsteps.length % 2 : 0;
-        // Active foot snow puff (alternates)
-        const footX = side === 0 ? 0.25 : 0.65;
-        state.burnParticles.push({ x: e.x + footX, y: e.y + 0.6 + Math.random()*0.2, vx: (Math.random()-0.5)*0.3, vy: Math.random()*0.15+0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), ice: true });
-        // Snow flakes drifting off body
-        for (let bp = 0; bp < 2; bp++) {
-          state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: (Math.random()-0.5)*0.2, vy: Math.random()*0.3+0.1, life: 1.8, initialLife: 1.8, size: 1, ice: true });
-        }
-      }
+      // Data-driven move particles
+      spawnEnemyMoveParticles(e);
       e.x += bestDir.dx;
       e.y += bestDir.dy;
       e.aiMoving = true;
@@ -390,7 +400,7 @@ let lastTime = 0;
 function gameLoop(time) {
   try {
   // Cache buster: v2.45
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.45 LOADED ==='); }
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.46 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -980,7 +990,10 @@ function gameLoop(time) {
 // ══════════════════════════════════
 // INIT
 // ══════════════════════════════════
-loadLevel().then(() => {
+loadGameData().then(() => {
+  loadEditorData();
+  return loadLevel();
+}).then(() => {
   // Wait for fonts before first render to prevent flash
   Promise.all([
     document.fonts.load('32px "RM2000"'),

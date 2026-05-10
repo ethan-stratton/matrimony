@@ -88,37 +88,7 @@ function pickEnemyAction(c) {
 }
 
 // ══════════════════════════════════
-const ENEMY_DATA = {
-  'Enemy1': {
-    name: 'Fire Elemental',
-    sprite: 'Enemy1',
-    maxHp: 220, eff: 10, def: 2, wait: 12,
-    exp: 10,
-    actions: ['Ember', 'Defend', 'Charging...', 'Fire Punch'],
-    startsWithCharge: true,
-    ai: 'smart',
-  },
-  'Enemy2': {
-    name: 'Ice Golem',
-    sprite: 'Enemy2',
-    maxHp: 300, eff: 8, def: 5, wait: 16,
-    exp: 15,
-    actions: ['Defend', 'Ice Shard', 'Charging...', 'Frost Slam'],
-    startsWithCharge: true,
-    ai: 'smart',
-    patrolRange: 10,
-  },
-  'Enemy3': {
-    name: 'Swooping Bat',
-    sprite: 'Enemy3',
-    maxHp: 120, eff: 6, def: 1, wait: 3,
-    exp: 8,
-    actions: ['Bite', 'Swoop', 'Screech', 'Supersonic'],
-    ai: 'smart',
-    patrolRange: 4,
-    flying: true,
-  },
-};
+let ENEMY_DATA = {};
 
 // Battle music
 const battleMusic = new Audio('assets/audio/battle.mp3');
@@ -257,33 +227,10 @@ function rejectWeaponTransform() {
 }
 
 // Combat action data
-const COMBAT_ACTIONS = {
-  'Shortbow': { eff: 10, def: 2, wait: 3 },
-  'Shortbow ★': { eff: 10, def: 2, wait: 3, pierce: 1 },
-  'Rusty Shortsword': { eff: 12, def: 4, wait: 5 },
-  'Slash!': { eff: 16, def: 4, wait: 5 },
-  'Buckler': { eff: 0, def: 10, wait: 6, guard: true },
-  'Thunder': { eff: 25, def: 0, wait: 15, pierce: true },
-  'Heal': { eff: 10, def: 0, wait: 8, heal: true },
-  'Stand Still': { eff: 0, def: 0, wait: 10 },
-  'Do Nothing':  { eff: 0, def: 0, wait: 10 },
-  'Charging...': { eff: 0, def: 3, wait: 6 },
-  'Fire Punch':  { eff: 10, def: 2, wait: 12 },
-  'Ember':       { eff: 4, def: 1, wait: 4 },
-  'Guard': { eff: 0, def: 12, wait: 10 },
-  'Defend': { eff: 0, def: 12, wait: 10, guard: true },
-  'Ice Shard':   { eff: 5, def: 0, wait: 6, pierce: true },
-  'Frost Slam':  { eff: 12, def: 3, wait: 10 },
-  'Bite':        { eff: 6, def: 1, wait: 3 },
-  'Swoop':       { eff: 9, def: 0, wait: 5 },
-  'Screech':     { eff: 0, def: 6, wait: 4 },
-  'Bone Throw':  { eff: 7, def: 0, wait: 4, pierce: 1 },
-  'Copy':        { eff: 0, def: 0, wait: 12, copy: true },
-  'Supersonic':  { eff: 3, def: 0, wait: 6, stun: 4 },
-};
+let COMBAT_ACTIONS = {};
 
 // ── Load editor overrides from localStorage ──
-(function loadEditorData() {
+function loadEditorData() {
   try {
     const ed = JSON.parse(localStorage.getItem('matrimony_editor_data'));
     if (!ed) return;
@@ -317,5 +264,5 @@ const COMBAT_ACTIONS = {
     }
     console.log('[Editor] Loaded overrides:', ed.weapons?.length, 'weapons,', ed.enemies?.length, 'enemies');
   } catch (e) { console.warn('[Editor] Failed to load:', e); }
-})();
+}
 
