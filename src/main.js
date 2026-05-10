@@ -172,6 +172,11 @@ function spawnEnemyIdleParticles(e, time) {
     state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: 0.2+Math.random()*0.3, vy: -Math.random()*0.2-0.05, life: 2.0, initialLife: 2.0, size: 1, ember: true });
   } else if (cfg.type === 'ice') {
     state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.3, vx: (Math.random()-0.5)*0.15, vy: Math.random()*0.2+0.05, life: 1.8, initialLife: 1.8, size: 1, ice: true });
+  } else if (cfg.type === 'wisp') {
+    // Soft glowing orbs that float upward and fade — ethereal aura
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 0.2 + Math.random() * 0.3;
+    state.burnParticles.push({ x: e.x + 0.5 + Math.cos(angle)*dist, y: e.y + 0.3 + Math.sin(angle)*dist, vx: (Math.random()-0.5)*0.1, vy: -Math.random()*0.15-0.05, life: 1.2, initialLife: 1.2, size: 1+Math.random(), wisp: true });
   }
 }
 
@@ -212,6 +217,11 @@ function spawnEnemyMoveParticles(e) {
     // Snow flakes drifting off body
     for (let bp = 0; bp < 2; bp++) {
       state.burnParticles.push({ x: e.x + Math.random(), y: e.y + Math.random()*0.5, vx: (Math.random()-0.5)*0.2, vy: Math.random()*0.3+0.1, life: 1.8, initialLife: 1.8, size: 1, ice: true });
+    }
+  } else if (cfg.type === 'wisp_trail') {
+    // Lingering afterimage glow left behind — stays in place and fades
+    for (let bp = 0; bp < (cfg.count || 2); bp++) {
+      state.burnParticles.push({ x: e.prevX + 0.3 + Math.random()*0.4, y: e.prevY + 0.2 + Math.random()*0.4, vx: (Math.random()-0.5)*0.05, vy: -Math.random()*0.08, life: 1.5, initialLife: 1.5, size: 1.5+Math.random(), wisp: true });
     }
   }
 }
@@ -292,7 +302,8 @@ function updateEnemyAI(time) {
       e.aggroed = false;
     }
     const chasing = e.aggroed;
-    const interval = chasing ? 550 : e.aiInterval;
+    const chaseSpeed = ENEMY_DATA[e.type]?.chaseInterval || 550;
+    const interval = chasing ? chaseSpeed : e.aiInterval;
 
     if (e.aiTimer < interval) continue;
     e.aiTimer = 0;
@@ -400,7 +411,7 @@ let lastTime = 0;
 function gameLoop(time) {
   try {
   // Cache buster: v2.45
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.47 LOADED ==='); }
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.48 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;

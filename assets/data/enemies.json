@@ -56,9 +56,10 @@
     "ai": "smart",
     "patrolRange": 6,
     "flying": true,
+    "chaseInterval": 350,
     "particles": {
-      "idle": { "type": "ember", "interval": 400 },
-      "move": { "type": "fire_burst", "count": 2 },
+      "idle": { "type": "wisp", "interval": 300 },
+      "move": { "type": "wisp_trail", "count": 2 },
       "breath": null
     }
   }

@@ -2019,6 +2019,11 @@ function draw() {
       p.y += p.vy * 1.0 * fdt;
       p.vx *= (1 - 0.5 * fdt); // slow horizontal drift
       p.life -= 1.0 * fdt;
+    } else if (p.wisp) {
+      // Wisp: gentle float upward, slight wobble, slow fade
+      p.x += p.vx * fdt + Math.sin(p.life * 5) * 0.02 * fdt;
+      p.y += p.vy * fdt;
+      p.life -= 0.9 * fdt;
     } else if (p.life > p.initialLife * 0.6) {
       p.x += p.vx * 1.44 * fdt;
       p.y += p.vy * 2.88 * fdt;
@@ -2046,6 +2051,10 @@ function draw() {
       if (lifeRatio > 0.6) color = '#e0e8f0';
       else if (lifeRatio > 0.3) color = '#a0a8b0';
       else color = '#707880';
+    } else if (p.wisp) {
+      if (lifeRatio > 0.7) color = '#e0f0ff';
+      else if (lifeRatio > 0.4) color = '#80c0ff';
+      else color = '#4080c0';
     } else if (lifeRatio > 0.95) color = '#ffeecc';
     else if (lifeRatio > 0.5) color = '#ff6600';
     else if (lifeRatio > 0.2) color = '#cc2200';
