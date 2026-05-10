@@ -744,11 +744,6 @@ function drawTitle() {
   }
 
   
-  ctx.fillStyle = 'rgba(200, 192, 184, 0.25)';
-  ctx.font = '10px "JetBrains Mono", monospace';
-  ctx.textAlign = 'right';
-
-  ctx.textAlign = 'left';
 }
 function drawCombat() {
   const c = state.combat;
@@ -2229,11 +2224,6 @@ function draw() {
     }
   }
   
-  // Version number (top right)
-  ctx.fillStyle = 'rgba(200, 192, 184, 0.4)';
-  ctx.font = '10px "JetBrains Mono", monospace';
-  ctx.textAlign = 'right';
-
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
   if (state.showFontTest) {
