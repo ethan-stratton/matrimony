@@ -28,8 +28,8 @@
     }
   },
   "enemyBackgrounds": {
-    "Enemy1": "Giygas",
-    "Enemy2": "Frozen",
-    "Enemy3": "Deep Dark"
+    "FireElemental": "Giygas",
+    "IceGolem": "Frozen",
+    "SwoopingBat": "Deep Dark"
   }
 }

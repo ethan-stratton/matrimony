@@ -67,11 +67,17 @@ async function loadLevel(levelIdentifier) {
           state.player.x = gx;
           state.player.y = gy;
         } else {
+          // For generic Enemy entities, read the EnemyType field to get the actual type
+          let entityType = e.__identifier;
+          if (e.__identifier === 'Enemy' && e.fieldInstances) {
+            const typeField = e.fieldInstances.find(f => f.__identifier === 'EnemyType');
+            if (typeField && typeField.__value) entityType = typeField.__value;
+          }
           state.entities.push({
-            type: e.__identifier,
+            type: entityType,
             x: gx, y: gy,
             origX: gx, origY: gy,
-            id: `${e.__identifier}_${gx}_${gy}`,
+            id: `${entityType}_${gx}_${gy}`,
             fields: e.fieldInstances ? Object.fromEntries(e.fieldInstances.map(f => [f.__identifier, f.__value])) : {},
             widthTiles: (e.width || TILE) / TILE,
             heightTiles: (e.height || TILE) / TILE,

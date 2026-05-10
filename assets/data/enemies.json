@@ -1,7 +1,8 @@
 {
-  "Enemy1": {
+  "FireElemental": {
     "name": "Fire Elemental",
-    "sprite": "Enemy1",
+    "sprite": "FireElemental",
+    "spriteFile": "assets/enemies/fire_elemental.png",
     "maxHp": 220, "eff": 10, "def": 2, "wait": 12,
     "exp": 10,
     "actions": ["Ember", "Defend", "Charging...", "Fire Punch"],
@@ -13,9 +14,10 @@
       "breath": null
     }
   },
-  "Enemy2": {
+  "IceGolem": {
     "name": "Ice Golem",
-    "sprite": "Enemy2",
+    "sprite": "IceGolem",
+    "spriteFile": "assets/enemies/ice_golem.png",
     "maxHp": 300, "eff": 8, "def": 5, "wait": 16,
     "exp": 15,
     "actions": ["Defend", "Ice Shard", "Charging...", "Frost Slam"],
@@ -28,9 +30,10 @@
       "breath": { "type": "steam", "interval": 2500, "count": 3 }
     }
   },
-  "Enemy3": {
+  "SwoopingBat": {
     "name": "Swooping Bat",
-    "sprite": "Enemy3",
+    "sprite": "SwoopingBat",
+    "spriteFile": "assets/enemies/swooping_bat.png",
     "maxHp": 120, "eff": 6, "def": 1, "wait": 3,
     "exp": 8,
     "actions": ["Bite", "Swoop", "Screech", "Supersonic"],

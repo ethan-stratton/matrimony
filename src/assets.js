@@ -95,10 +95,14 @@ function getPlayerSheet() {
   return (state.isSkeleton && SKELETON_SHEET.loaded) ? SKELETON_SHEET : PLAYER_SHEET;
 }
 
-// Enemy sprites (DeepDive 16x16, 4-frame strips)
-loadSprite('Enemy1', 'assets/enemies/fire_elemental.png');
-loadSprite('Enemy2', 'assets/enemies/ice_golem.png');
-loadSprite('Enemy3', 'assets/enemies/swooping_bat.png');
+// Enemy sprites — loaded dynamically from ENEMY_DATA after loadGameData() completes.
+// Called from main.js init, NOT at parse time, because ENEMY_DATA isn't populated yet.
+function loadEnemySprites() {
+  if (typeof ENEMY_DATA === 'undefined') return;
+  for (const [key, entry] of Object.entries(ENEMY_DATA)) {
+    if (entry.spriteFile) loadSprite(key, entry.spriteFile);
+  }
+}
 
 // Ground item sprites
 const GROUND_ITEM_SPRITES = {};

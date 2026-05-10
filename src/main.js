@@ -400,7 +400,7 @@ let lastTime = 0;
 function gameLoop(time) {
   try {
   // Cache buster: v2.45
-  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.46 LOADED ==='); }
+  if (!window._v240) { window._v240 = true; console.warn('=== MATRIMONY v2.47 LOADED ==='); }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -992,6 +992,7 @@ function gameLoop(time) {
 // ══════════════════════════════════
 loadGameData().then(() => {
   loadEditorData();
+  loadEnemySprites();
   return loadLevel();
 }).then(() => {
   // Wait for fonts before first render to prevent flash

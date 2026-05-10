@@ -1938,8 +1938,8 @@ function draw() {
   // Draw enemy footsteps
   for (const e of state.entities) {
     if (!e.footsteps || state.defeatedEnemies[e.id]) continue;
-    const isFireElemental = e.type === 'Enemy1';
-    const isIceGolem = e.type === 'Enemy2';
+    const isFireElemental = e.type === 'FireElemental';
+    const isIceGolem = e.type === 'IceGolem';
     const fadeMs = isFireElemental ? 6000 : isIceGolem ? 5000 : footFadeMs;
     for (let i = e.footsteps.length - 1; i >= 0; i--) {
       const f = e.footsteps[i];
