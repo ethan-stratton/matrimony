@@ -1152,9 +1152,9 @@ function drawCombatNormal(c, W, H, now, elapsed) {
 
   // Draw ghost companion in combat
   if (c.allyPresent && getPlayerSheet().loaded) {
-    const allySize = 72;
-    let allyX = playerArenaX - 30;
-    let allyY = playerArenaY + playerCombatSize - allySize - 8;
+    const allySize = playerCombatSize;
+    let allyX = playerArenaX - 40;
+    let allyY = playerArenaY;
 
     // Attack flash/rush animation
     if (c.allyAttackAnim) {

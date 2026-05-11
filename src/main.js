@@ -21,7 +21,8 @@ function updateCompanion(time) {
   // Movement (follow phase only)
   if (c.phase === 'follow') {
     if (!c.lastMoveTime) c.lastMoveTime = time;
-    if (time - c.lastMoveTime > 300) {
+    const moveInterval = MOVE_DURATION + 20; // slightly longer than move anim to avoid overlap
+    if (!c.aiMoving && time - c.lastMoveTime > moveInterval) {
       c.lastMoveTime = time;
       const dx = state.player.x - c.x;
       const dy = state.player.y - c.y;
