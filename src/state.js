@@ -141,5 +141,6 @@ const state = {
   // Combat
   combat: null, // { enemy, enemyHp, enemyMaxHp, enemyEff, enemyDef, enemyWait, playerHp, playerMaxHp, playerEff, playerDef, playerWait, attackText }
   combatTransition: null, // { type: 'in'|'out', startTime, duration }
+  companion: null, // { x, y, facing, opacity, phase, combatHelpUsed, fadeStart }
 };
 

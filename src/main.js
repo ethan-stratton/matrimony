@@ -1,4 +1,81 @@
 // ══════════════════════════════════
+// GHOST COMPANION AI
+// ══════════════════════════════════
+function updateCompanion(time) {
+  const c = state.companion;
+  if (!c) return;
+
+  const now = performance.now();
+  const elapsed = now - c.fadeStart;
+
+  // Fade logic
+  if (c.phase === 'fadein') {
+    c.opacity = Math.min(0.6, (elapsed / 2000) * 0.6);
+    if (elapsed >= 2000) { c.phase = 'follow'; c.opacity = 0.6; }
+  } else if (c.phase === 'fadeout') {
+    c.opacity = Math.max(0, 0.6 * (1 - elapsed / 2000));
+    if (elapsed >= 2000) { state.companion = null; return; }
+    // Don't follow during fadeout
+  }
+
+  // Movement (follow phase only)
+  if (c.phase === 'follow') {
+    if (!c.lastMoveTime) c.lastMoveTime = time;
+    if (time - c.lastMoveTime > 300) {
+      c.lastMoveTime = time;
+      const dx = state.player.x - c.x;
+      const dy = state.player.y - c.y;
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist > 2.5) {
+        // Pick direction that reduces distance most
+        let bestDir = null, bestDist = Infinity;
+        const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+        for (const d of dirs) {
+          const nx = c.x + d.dx, ny = c.y + d.dy;
+          if (nx < 0 || ny < 0 || nx >= state.mapW || ny >= state.mapH) continue;
+          if (isTileBlocked(nx, ny, false)) continue;
+          const nd = Math.abs(state.player.x - nx) + Math.abs(state.player.y - ny);
+          if (nd < bestDist) { bestDist = nd; bestDir = d; }
+        }
+        if (bestDir) {
+          c.prevX = c.x; c.prevY = c.y;
+          c.x += bestDir.dx; c.y += bestDir.dy;
+          c.moveStart = now;
+          c.aiMoving = true;
+          if (bestDir.dx < 0) c.facing = 'left';
+          else if (bestDir.dx > 0) c.facing = 'right';
+          else if (bestDir.dy < 0) c.facing = 'up';
+          else c.facing = 'down';
+        }
+      } else if (dist <= 2.5) {
+        // Face same direction as player when idle
+        c.facing = state.facing;
+      }
+    }
+    // Finish movement animation
+    if (c.aiMoving && now - c.moveStart >= MOVE_DURATION) {
+      c.aiMoving = false;
+    }
+  }
+
+  // Ghost particles
+  if (c.opacity > 0) {
+    if (!c._lastParticleTime) c._lastParticleTime = 0;
+    if (now - c._lastParticleTime > 500) {
+      c._lastParticleTime = now;
+      state.burnParticles.push({
+        x: c.x + 0.3 + Math.random() * 0.4,
+        y: c.y + 0.2 + Math.random() * 0.3,
+        vx: (Math.random() - 0.5) * 0.08,
+        vy: -Math.random() * 0.15 - 0.05,
+        life: 1.2, initialLife: 1.2,
+        size: 1 + Math.random() * 0.5, ghost: true,
+      });
+    }
+  }
+}
+
+// ══════════════════════════════════
 // ENEMY AI — Patrol + Chase
 // ══════════════════════════════════
 // ══════════════════════════════════
@@ -517,6 +594,7 @@ function gameLoop(time) {
     }
     handleMovement(time);
     updateEnemyAI(time);
+    updateCompanion(time);
     updateFishStream(time);
   }
   // Death overworld sequence
@@ -772,6 +850,21 @@ function gameLoop(time) {
         }
       }
     }
+
+    // Ally (ghost companion) attack animation
+    if (c.allyAttackAnim) {
+      const t = time - c.allyAttackAnim.startTime;
+      if (t >= c.allyAttackAnim.duration) {
+        c.allyAttackAnim = null;
+        // Apply Ghost Strike damage (pierce: true, eff: 8)
+        const allyDmg = 8; // pierce ignores defense
+        c.enemyHp = Math.max(0, c.enemyHp - allyDmg);
+        c.screenShake = { startTime: performance.now(), duration: 200, intensity: 3 };
+        if (c.enemyHp <= 0 && !c.winState) {
+          c.winState = { startTime: performance.now() };
+        }
+      }
+    }
     
     // Hitstop — freeze everything briefly
     if (c.hitstop && (time - c.hitstop.startTime < c.hitstop.duration)) {
@@ -793,6 +886,7 @@ function gameLoop(time) {
         
         if (c.waitCountdown > 0) c.waitCountdown--;
         if (c.enemyWaitCountdown > 0) c.enemyWaitCountdown--;
+        if (c.allyPresent && c.allyWaitCountdown > 0) c.allyWaitCountdown--;
         
         // Player hit zero first (or tie — player priority)
         if (c.waitCountdown <= 0 && !c.playerAttackAnim && !c.playerBark) {
@@ -841,6 +935,11 @@ function gameLoop(time) {
               rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
             };
           }
+        }
+        // Ally (ghost companion) hit zero — auto-attack enemy
+        else if (c.allyPresent && c.allyWaitCountdown <= 0 && !c.allyAttackAnim) {
+          c.allyAttackAnim = { startTime: time, duration: 600 };
+          c.allyWaitCountdown = 6; // reset for next attack
         }
       }
     }

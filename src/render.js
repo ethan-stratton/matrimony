@@ -1149,6 +1149,55 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     }
     ctx.imageSmoothingEnabled = true;
   }
+
+  // Draw ghost companion in combat
+  if (c.allyPresent && getPlayerSheet().loaded) {
+    const allySize = 72;
+    let allyX = playerArenaX - 30;
+    let allyY = playerArenaY + playerCombatSize - allySize - 8;
+
+    // Attack flash/rush animation
+    if (c.allyAttackAnim) {
+      const at = (now - c.allyAttackAnim.startTime) / c.allyAttackAnim.duration;
+      if (at < 0.3) allyX -= (at / 0.3) * 60; // rush toward enemy
+      else if (at < 0.5) allyX -= 60;
+      else allyX -= 60 * (1 - (at - 0.5) / 0.5); // return
+      // Flash
+      if (at > 0.25 && at < 0.45) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#c0e0ff';
+        ctx.fillRect(0, arenaY, W, arenaH);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.imageSmoothingEnabled = false;
+    const allyAnim = getPlayerSheet().anims['idle_right'] || getPlayerSheet().anims['idle_down'];
+    const allyFrame = Math.floor(now / 400) % allyAnim.frames;
+    const allySrcX = allyFrame * getPlayerSheet().frameW;
+    const allySrcY = allyAnim.row * getPlayerSheet().frameH;
+    // Face left (mirror)
+    ctx.translate(allyX + allySize, allyY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(getPlayerSheet().img, allySrcX, allySrcY, getPlayerSheet().frameW, getPlayerSheet().frameH,
+      0, 0, allySize, allySize);
+    ctx.restore();
+
+    // Ghost label and wait bar
+    ctx.globalAlpha = 0.7;
+    crispText('Ghost', allyX, allyY - 14, 12, '#a0c8ff', 0, CRISP_FONT_ALT);
+    // Wait bar
+    const barW = 40, barH = 4;
+    const barX = allyX, barY = allyY - 4;
+    ctx.fillStyle = 'rgba(60, 80, 120, 0.5)';
+    ctx.fillRect(barX, barY, barW, barH);
+    const waitFill = Math.max(0, 1 - c.allyWaitCountdown / 6);
+    ctx.fillStyle = '#80b0ff';
+    ctx.fillRect(barX, barY, barW * waitFill, barH);
+    ctx.globalAlpha = 1;
+  }
   
   // Block sheen — white sweep across player pixels only on full block
   if (c.blockSheen && getPlayerSheet().loaded) {
@@ -2019,6 +2068,11 @@ function draw() {
       p.x += p.vx * fdt + Math.sin(p.life * 5) * 0.02 * fdt;
       p.y += p.vy * fdt;
       p.life -= 0.9 * fdt;
+    } else if (p.ghost) {
+      // Ghost: gentle float upward, fade
+      p.x += p.vx * fdt + Math.sin(p.life * 4) * 0.01 * fdt;
+      p.y += p.vy * fdt;
+      p.life -= 0.8 * fdt;
     } else if (p.life > p.initialLife * 0.6) {
       p.x += p.vx * 1.44 * fdt;
       p.y += p.vy * 2.88 * fdt;
@@ -2050,6 +2104,10 @@ function draw() {
       if (lifeRatio > 0.7) color = '#e0f0ff';
       else if (lifeRatio > 0.4) color = '#80c0ff';
       else color = '#4080c0';
+    } else if (p.ghost) {
+      if (lifeRatio > 0.7) color = '#e8f0ff';
+      else if (lifeRatio > 0.4) color = '#b0d0ff';
+      else color = '#6090c0';
     } else if (lifeRatio > 0.95) color = '#ffeecc';
     else if (lifeRatio > 0.5) color = '#ff6600';
     else if (lifeRatio > 0.2) color = '#cc2200';
@@ -2089,6 +2147,21 @@ function draw() {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+
+  // Draw ghost companion (before player so player draws on top)
+  if (state.companion && state.companion.opacity > 0) {
+    const comp = state.companion;
+    let cx = comp.x, cy = comp.y;
+    if (comp.aiMoving && comp.moveStart) {
+      const t = Math.min(1, (performance.now() - comp.moveStart) / MOVE_DURATION);
+      cx = comp.prevX + (comp.x - comp.prevX) * t;
+      cy = comp.prevY + (comp.y - comp.prevY) * t;
+    }
+    const compDrawX = Math.round((cx - camX) * TILE * SCALE);
+    const compDrawY = Math.round((cy - camY) * TILE * SCALE);
+    drawCompanion(ctx, compDrawX, compDrawY, comp.facing, comp.aiMoving, comp.opacity);
+  }
+
   drawPlayer(ctx, playerDrawX, playerDrawY);
 
   // Debug hitbox overlay
@@ -2703,6 +2776,56 @@ function drawPlayer(ctx, x, y) {
   }
   
   ctx.imageSmoothingEnabled = true;
+}
+
+function drawCompanion(ctx, x, y, facing, moving, opacity) {
+  const s = TILE * SCALE;
+  const sheet = getPlayerSheet();
+  if (!sheet.loaded) return;
+
+  // Glow effect
+  ctx.save();
+  ctx.globalAlpha = 0.15 * (opacity / 0.6);
+  const glowX = x + s / 2;
+  const glowY = y + s / 2;
+  const grad = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, s * 1.2);
+  grad.addColorStop(0, 'rgba(200, 220, 255, 1)');
+  grad.addColorStop(1, 'rgba(200, 220, 255, 0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(glowX, glowY, s * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  let dir = facing;
+  let flip = false;
+  if (dir === 'left') { dir = 'right'; flip = true; }
+
+  const animName = (moving ? 'walk_' : 'idle_') + dir;
+  const anim = sheet.anims[animName] || sheet.anims['idle_down'];
+  const speed = moving ? 120 : 400;
+  const frame = Math.floor(performance.now() / speed) % anim.frames;
+
+  const srcX = frame * sheet.frameW;
+  const srcY = anim.row * sheet.frameH;
+  const drawSize = s * 2;
+  const drawX = Math.round(x - s / 2);
+  const drawY = Math.round(y - s / 2);
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.imageSmoothingEnabled = false;
+
+  if (flip) {
+    ctx.translate(drawX + drawSize, drawY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(sheet.img, srcX, srcY, sheet.frameW, sheet.frameH, 0, 0, drawSize, drawSize);
+  } else {
+    ctx.drawImage(sheet.img, srcX, srcY, sheet.frameW, sheet.frameH, drawX, drawY, drawSize, drawSize);
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.restore();
 }
 
 // Load chest sprites

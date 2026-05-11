@@ -149,6 +149,20 @@ function startCombat(entity, enemyStats) {
   };
   // Enemy always starts with first action (Charging for Fire Elemental)
   const c = state.combat;
+
+  // Ghost companion ally
+  if (state.companion && !state.companion.combatHelpUsed) {
+    c.allyPresent = true;
+    c.allyWait = 6;
+    c.allyWaiting = true;
+    c.allyWaitCountdown = 6;
+    c.allyAction = 'Ghost Strike';
+    c.lastAllyWaitTick = performance.now();
+    // Register Ghost Strike action
+    if (!COMBAT_ACTIONS['Ghost Strike']) {
+      COMBAT_ACTIONS['Ghost Strike'] = { eff: 8, def: 0, wait: 6, pierce: true };
+    }
+  }
   const initialActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
   c.enemyAction = initialActions[0];
   const initAct = COMBAT_ACTIONS[c.enemyAction] || {};
@@ -159,6 +173,10 @@ function startCombat(entity, enemyStats) {
 
 function exitCombat(ranAway) {
   const enemy = state.combat.enemy;
+  // Mark companion as having helped
+  if (state.combat.allyPresent && state.companion) {
+    state.companion.combatHelpUsed = true;
+  }
   battleMusic.pause();
   battleMusic.currentTime = 0;
   if (ranAway && enemy) {

@@ -629,6 +629,32 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.footsteps = [];
   updateCamera();
   prepopulateFish();
+
+  // Ghost companion: spawn in Forgotten_Plains_III, fadeout when leaving
+  if (state.levelName === 'Forgotten_Plains_III' && !state.companion) {
+    state.companion = {
+      x: state.player.x + 3, y: state.player.y,
+      facing: 'left', opacity: 0, phase: 'fadein',
+      fadeStart: performance.now(), combatHelpUsed: false,
+      lastMoveTime: 0,
+    };
+  } else if (state.companion && state.levelName !== 'Forgotten_Plains_III') {
+    if (state.companion.phase !== 'fadeout') {
+      state.companion.phase = 'fadeout';
+      state.companion.fadeStart = performance.now();
+      // Burst of ghost particles on farewell
+      for (let i = 0; i < 12; i++) {
+        state.burnParticles.push({
+          x: state.companion.x + 0.3 + Math.random() * 0.4,
+          y: state.companion.y + 0.2 + Math.random() * 0.4,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: -Math.random() * 0.3 - 0.1,
+          life: 1.5 + Math.random(), initialLife: 2.5,
+          size: 1.5 + Math.random(), ghost: true,
+        });
+      }
+    }
+  }
   
   // Fade in
   state.screenFade = { type: 'in', startTime: performance.now(), duration: fadeDuration };
