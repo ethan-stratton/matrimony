@@ -569,6 +569,37 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   state.fishParticles = [];
   state.fishSpawnTimer = 0;
   
+  // --- Persistent enemy transfer: collect enemies near the edge the player is leaving ---
+  state.transferEntities = [];
+  for (const e of state.entities) {
+    if (e.type === 'Chest' || e.type === 'GroundItem') continue;
+    const eData = ENEMY_DATA[e.type];
+    if (!eData || !eData.persistent) continue;
+    // Check if enemy is near the edge the player is leaving FROM (opposite of fromDir)
+    let nearEdge = false;
+    if (fromDir === 'e') nearEdge = e.x >= state.mapW - 3;
+    else if (fromDir === 'w') nearEdge = e.x <= 2;
+    else if (fromDir === 'n') nearEdge = e.y <= 2;
+    else if (fromDir === 's') nearEdge = e.y >= state.mapH - 3;
+    if (!nearEdge) continue;
+    const leash = (e.chaseLeash != null) ? e.chaseLeash : 2;
+    if (leash <= 0) continue;
+    state.transferEntities.push({
+      type: e.type,
+      relativeOffset: { x: e.x - oldPlayerX, y: e.y - oldPlayerY },
+      chaseLeash: leash - 1,
+    });
+  }
+
+  // --- Ghost companion transfer ---
+  let transferCompanion = null;
+  if (state.companion && state.companion.phase === 'follow') {
+    transferCompanion = {
+      relativeOffset: { x: state.companion.x - oldPlayerX, y: state.companion.y - oldPlayerY },
+      combatHelpUsed: state.companion.combatHelpUsed,
+    };
+  }
+  
   // Load new level
   await loadLevel(targetLevelIid);
   
@@ -630,30 +661,51 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   updateCamera();
   prepopulateFish();
 
-  // Ghost companion: spawn in Forgotten_Plains_III, fadeout when leaving
-  if (state.levelName === 'Forgotten_Plains_III' && !state.companion) {
+  // Ghost companion: spawn in Forgotten_Plains_III, persist across levels once spawned
+  if (state.levelName === 'Forgotten_Plains_III' && !state.companion && !transferCompanion) {
     state.companion = {
       x: state.player.x + 3, y: state.player.y,
       facing: 'left', opacity: 0, phase: 'fadein',
       fadeStart: performance.now(), combatHelpUsed: false,
       lastMoveTime: 0,
     };
-  } else if (state.companion && state.levelName !== 'Forgotten_Plains_III') {
-    if (state.companion.phase !== 'fadeout') {
-      state.companion.phase = 'fadeout';
-      state.companion.fadeStart = performance.now();
-      // Burst of ghost particles on farewell
-      for (let i = 0; i < 12; i++) {
-        state.burnParticles.push({
-          x: state.companion.x + 0.3 + Math.random() * 0.4,
-          y: state.companion.y + 0.2 + Math.random() * 0.4,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: -Math.random() * 0.3 - 0.1,
-          life: 1.5 + Math.random(), initialLife: 2.5,
-          size: 1.5 + Math.random(), ghost: true,
-        });
-      }
+  } else if (transferCompanion) {
+    // Companion followed the player across levels
+    let cx = state.player.x + transferCompanion.relativeOffset.x;
+    let cy = state.player.y + transferCompanion.relativeOffset.y;
+    cx = Math.max(0, Math.min(state.mapW - 1, Math.round(cx)));
+    cy = Math.max(0, Math.min(state.mapH - 1, Math.round(cy)));
+    state.companion = {
+      x: cx, y: cy,
+      facing: 'left', opacity: 1, phase: 'follow',
+      fadeStart: 0, combatHelpUsed: transferCompanion.combatHelpUsed,
+      lastMoveTime: 0,
+    };
+  } else if (!state.companion) {
+    // No companion, do nothing
+  }
+
+  // --- Inject transferred persistent enemies ---
+  if (state.transferEntities && state.transferEntities.length > 0) {
+    for (const te of state.transferEntities) {
+      let ex = state.player.x + te.relativeOffset.x;
+      let ey = state.player.y + te.relativeOffset.y;
+      ex = Math.max(0, Math.min(state.mapW - 1, Math.round(ex)));
+      ey = Math.max(0, Math.min(state.mapH - 1, Math.round(ey)));
+      const id = `transfer_${te.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      state.entities.push({
+        type: te.type,
+        x: ex, y: ey,
+        origX: ex, origY: ey,
+        id: id,
+        fields: {},
+        widthTiles: 1,
+        heightTiles: 1,
+        aiMoving: false,
+        chaseLeash: te.chaseLeash,
+      });
     }
+    state.transferEntities = [];
   }
   
   // Fade in
