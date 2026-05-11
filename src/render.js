@@ -1153,8 +1153,8 @@ function drawCombatNormal(c, W, H, now, elapsed) {
   // Draw ghost companion in combat
   if (c.allyPresent && getPlayerSheet().loaded) {
     const allySize = playerCombatSize;
-    let allyX = playerArenaX - 40;
-    let allyY = playerArenaY;
+    let allyX = playerArenaX + 28;
+    let allyY = playerArenaY + 20;
 
     // Attack flash/rush animation
     if (c.allyAttackAnim) {
@@ -1185,10 +1185,8 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       0, 0, allySize, allySize);
     ctx.restore();
 
-    // Ally action label and wait bar
+    // Wait bar only (no label)
     ctx.globalAlpha = 0.8;
-    crispText(c.allyAction || '', allyX + allySize / 2 - 20, allyY - 22, 32, '#d0c0a0');
-    // Wait bar
     const barW = allySize, barH = 5;
     const barX = allyX, barY = allyY - 6;
     ctx.fillStyle = 'rgba(60, 80, 120, 0.5)';
