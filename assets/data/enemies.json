@@ -3,40 +3,82 @@
     "name": "Fire Elemental",
     "sprite": "FireElemental",
     "spriteFile": "assets/enemies/fire_elemental.png",
-    "maxHp": 220, "eff": 10, "def": 2, "wait": 12,
+    "maxHp": 220,
+    "eff": 10,
+    "def": 2,
+    "wait": 12,
     "exp": 10,
-    "actions": ["Ember", "Defend", "Charging...", "Fire Punch"],
+    "actions": [
+      "Ember",
+      "Defend",
+      "Charging...",
+      "Fire Punch"
+    ],
     "startsWithCharge": true,
     "ai": "smart",
     "particles": {
-      "idle": { "type": "ember", "interval": 700 },
-      "move": { "type": "fire_burst", "count": 3 },
+      "idle": {
+        "type": "ember",
+        "interval": 700
+      },
+      "move": {
+        "type": "fire_burst",
+        "count": 3
+      },
       "breath": null
-    }
+    },
+    "persistent": true
   },
   "IceGolem": {
     "name": "Ice Golem",
     "sprite": "IceGolem",
     "spriteFile": "assets/enemies/ice_golem.png",
-    "maxHp": 300, "eff": 8, "def": 5, "wait": 16,
+    "maxHp": 300,
+    "eff": 8,
+    "def": 5,
+    "wait": 16,
     "exp": 15,
-    "actions": ["Defend", "Ice Shard", "Charging...", "Frost Slam"],
+    "actions": [
+      "Defend",
+      "Ice Shard",
+      "Charging...",
+      "Frost Slam"
+    ],
     "startsWithCharge": true,
     "ai": "smart",
     "patrolRange": 10,
     "particles": {
-      "idle": { "type": "ice", "interval": 500 },
-      "move": { "type": "ice_puff", "count": 3 },
-      "breath": { "type": "steam", "interval": 2500, "count": 3 }
-    }
+      "idle": {
+        "type": "ice",
+        "interval": 500
+      },
+      "move": {
+        "type": "ice_puff",
+        "count": 3
+      },
+      "breath": {
+        "type": "steam",
+        "interval": 2500,
+        "count": 3
+      }
+    },
+    "persistent": true
   },
   "SwoopingBat": {
     "name": "Swooping Bat",
     "sprite": "SwoopingBat",
     "spriteFile": "assets/enemies/swooping_bat.png",
-    "maxHp": 120, "eff": 6, "def": 1, "wait": 3,
+    "maxHp": 120,
+    "eff": 6,
+    "def": 1,
+    "wait": 3,
     "exp": 8,
-    "actions": ["Bite", "Swoop", "Screech", "Supersonic"],
+    "actions": [
+      "Bite",
+      "Swoop",
+      "Screech",
+      "Supersonic"
+    ],
     "ai": "smart",
     "patrolRange": 4,
     "flying": true,
@@ -50,16 +92,30 @@
     "name": "Glowing Wisp",
     "sprite": "GlowingWisp",
     "spriteFile": "assets/enemies/glowing_wisp.png",
-    "maxHp": 80, "eff": 7, "def": 1, "wait": 4,
+    "maxHp": 80,
+    "eff": 7,
+    "def": 1,
+    "wait": 4,
     "exp": 12,
-    "actions": ["Drain", "Flash", "Flicker", "Spirit Burst"],
+    "actions": [
+      "Drain",
+      "Flash",
+      "Flicker",
+      "Spirit Burst"
+    ],
     "ai": "smart",
     "patrolRange": 6,
     "flying": true,
     "chaseInterval": 350,
     "particles": {
-      "idle": { "type": "wisp", "interval": 300 },
-      "move": { "type": "wisp_trail", "count": 2 },
+      "idle": {
+        "type": "wisp",
+        "interval": 300
+      },
+      "move": {
+        "type": "wisp_trail",
+        "count": 2
+      },
       "breath": null
     }
   }
