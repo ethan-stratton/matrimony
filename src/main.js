@@ -476,7 +476,7 @@ let lastTime = 0;
 function gameLoop(time) {
   try {
   // Cache buster: v2.45
-  if (!window._v240) { window._v240 = true; const _ver = 'v2.49'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
+  if (!window._v240) { window._v240 = true; const _ver = 'v2.50'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
