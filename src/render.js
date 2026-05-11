@@ -2152,6 +2152,12 @@ function draw() {
   if (state.companion && state.companion.opacity > 0) {
     const comp = state.companion;
     let cx = comp.x, cy = comp.y;
+    if (comp.aiMoving && comp.moveStart != null && comp.prevX != null) {
+      const t = Math.min(1, (performance.now() - comp.moveStart) / MOVE_DURATION);
+      const ease = t * t * (3 - 2 * t); // smoothstep
+      cx = comp.prevX + (comp.x - comp.prevX) * ease;
+      cy = comp.prevY + (comp.y - comp.prevY) * ease;
+    }
     const compDrawX = Math.round((cx - camX) * TILE * SCALE);
     const compDrawY = Math.round((cy - camY) * TILE * SCALE);
     drawCompanion(ctx, compDrawX, compDrawY, comp.facing, comp.aiMoving, comp.opacity);

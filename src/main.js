@@ -18,31 +18,44 @@ function updateCompanion(time) {
     // Don't follow during fadeout
   }
 
-  // Movement (follow phase only) — smooth float toward player
+  // Movement (follow phase only) — grid-based like player
   if (c.phase === 'follow') {
-    const dx = state.player.x - c.x;
-    const dy = state.player.y - c.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist > 2.5) {
-      // Smoothly glide toward player
-      const speed = 0.03; // tiles per ms — slightly slower than player
-      const step = Math.min(speed * 16, dist - 2.0); // don't get closer than 2 tiles
-      if (step > 0.01) {
-        c.x += (dx / dist) * step;
-        c.y += (dy / dist) * step;
-        c.aiMoving = true;
-        // Update facing based on dominant direction
-        if (Math.abs(dx) > Math.abs(dy)) {
-          c.facing = dx > 0 ? 'right' : 'left';
-        } else {
-          c.facing = dy > 0 ? 'down' : 'up';
-        }
+    // If currently mid-move, wait for it to finish
+    if (c.aiMoving) {
+      if (now - c.moveStart >= MOVE_DURATION) {
+        c.aiMoving = false;
       }
-    } else {
-      c.aiMoving = false;
-      // Face same direction as player when idle
-      c.facing = state.facing;
+    }
+    
+    if (!c.aiMoving) {
+      const dx = state.player.x - c.x;
+      const dy = state.player.y - c.y;
+      const dist = Math.abs(dx) + Math.abs(dy);
+      
+      if (dist > 2.5) {
+        // Pick direction that reduces distance most
+        let bestDir = null, bestDist = Infinity;
+        const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+        for (const d of dirs) {
+          const nx = c.x + d.dx, ny = c.y + d.dy;
+          if (nx < 0 || ny < 0 || nx >= state.mapW || ny >= state.mapH) continue;
+          const nd = Math.abs(state.player.x - nx) + Math.abs(state.player.y - ny);
+          if (nd < bestDist) { bestDist = nd; bestDir = d; }
+        }
+        if (bestDir) {
+          c.prevX = c.x; c.prevY = c.y;
+          c.x += bestDir.dx; c.y += bestDir.dy;
+          c.moveStart = now;
+          c.aiMoving = true;
+          if (bestDir.dx < 0) c.facing = 'left';
+          else if (bestDir.dx > 0) c.facing = 'right';
+          else if (bestDir.dy < 0) c.facing = 'up';
+          else c.facing = 'down';
+        }
+      } else {
+        // Face same direction as player when idle
+        c.facing = state.facing;
+      }
     }
   }
 
