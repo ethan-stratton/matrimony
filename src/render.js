@@ -1185,9 +1185,9 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       0, 0, allySize, allySize);
     ctx.restore();
 
-    // Ghost label and wait bar
+    // Ally action label and wait bar
     ctx.globalAlpha = 0.8;
-    crispText('Ghost', allyX + allySize / 2 - 20, allyY - 22, 14, '#a0c8ff', 0, CRISP_FONT_ALT);
+    crispText(c.allyAction || '', allyX + allySize / 2 - 20, allyY - 22, 14, '#a0c8ff', 0, CRISP_FONT_ALT);
     // Wait bar
     const barW = allySize, barH = 5;
     const barX = allyX, barY = allyY - 6;
