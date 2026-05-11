@@ -312,6 +312,10 @@ function updateEnemyAI(time) {
     if (e.type === 'Chest' || e.type === 'Stream' || e.type === 'GroundItem') continue;
     if (state.defeatedEnemies[e.id] || e.deathAnim) continue;
 
+    // Stun delay — skip AI while stunned
+    if (e.stunUntil && time < e.stunUntil) continue;
+    if (e.stunUntil) { delete e.stunUntil; }
+
     // Initialize AI state
     if (e.aiTimer === undefined) {
       e.aiTimer = 0;

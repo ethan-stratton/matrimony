@@ -688,11 +688,15 @@ async function doScreenTransition(targetLevelIid, fromDir) {
   // --- Inject transferred persistent enemies ---
   if (state.transferEntities && state.transferEntities.length > 0) {
     for (const te of state.transferEntities) {
-      let ex = state.player.x + te.relativeOffset.x;
-      let ey = state.player.y + te.relativeOffset.y;
-      ex = Math.max(0, Math.min(state.mapW - 1, Math.round(ex)));
-      ey = Math.max(0, Math.min(state.mapH - 1, Math.round(ey)));
+      // Spawn at the edge they're entering from, not on top of the player
+      let ex, ey;
+      if (fromDir === 'e') { ex = state.mapW - 1; ey = Math.max(0, Math.min(state.mapH - 1, Math.round(state.player.y + te.relativeOffset.y))); }
+      else if (fromDir === 'w') { ex = 0; ey = Math.max(0, Math.min(state.mapH - 1, Math.round(state.player.y + te.relativeOffset.y))); }
+      else if (fromDir === 'n') { ey = state.mapH - 1; ex = Math.max(0, Math.min(state.mapW - 1, Math.round(state.player.x + te.relativeOffset.x))); }
+      else if (fromDir === 's') { ey = 0; ex = Math.max(0, Math.min(state.mapW - 1, Math.round(state.player.x + te.relativeOffset.x))); }
+      else { ex = Math.max(0, Math.min(state.mapW - 1, Math.round(state.player.x + te.relativeOffset.x))); ey = Math.max(0, Math.min(state.mapH - 1, Math.round(state.player.y + te.relativeOffset.y))); }
       const id = `transfer_${te.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const entryTime = performance.now();
       state.entities.push({
         type: te.type,
         x: ex, y: ey,
@@ -703,6 +707,11 @@ async function doScreenTransition(targetLevelIid, fromDir) {
         heightTiles: 1,
         aiMoving: false,
         chaseLeash: te.chaseLeash,
+        // Stun delay — enemy pauses before chasing in the new screen
+        stunUntil: entryTime + 1200,
+        // Alert bark to warn the player
+        alertBark: { startTime: entryTime + 400, duration: 800 },
+        alertHop: { startTime: entryTime + 400, duration: 400 },
       });
     }
     state.transferEntities = [];
