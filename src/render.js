@@ -1186,11 +1186,11 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     ctx.restore();
 
     // Ghost label and wait bar
-    ctx.globalAlpha = 0.7;
-    crispText('Ghost', allyX, allyY - 14, 12, '#a0c8ff', 0, CRISP_FONT_ALT);
+    ctx.globalAlpha = 0.8;
+    crispText('Ghost', allyX + allySize / 2 - 20, allyY - 22, 14, '#a0c8ff', 0, CRISP_FONT_ALT);
     // Wait bar
-    const barW = 40, barH = 4;
-    const barX = allyX, barY = allyY - 4;
+    const barW = allySize, barH = 5;
+    const barX = allyX, barY = allyY - 6;
     ctx.fillStyle = 'rgba(60, 80, 120, 0.5)';
     ctx.fillRect(barX, barY, barW, barH);
     const waitFill = Math.max(0, 1 - c.allyWaitCountdown / 6);
@@ -2152,11 +2152,6 @@ function draw() {
   if (state.companion && state.companion.opacity > 0) {
     const comp = state.companion;
     let cx = comp.x, cy = comp.y;
-    if (comp.aiMoving && comp.moveStart) {
-      const t = Math.min(1, (performance.now() - comp.moveStart) / MOVE_DURATION);
-      cx = comp.prevX + (comp.x - comp.prevX) * t;
-      cy = comp.prevY + (comp.y - comp.prevY) * t;
-    }
     const compDrawX = Math.round((cx - camX) * TILE * SCALE);
     const compDrawY = Math.round((cy - camY) * TILE * SCALE);
     drawCompanion(ctx, compDrawX, compDrawY, comp.facing, comp.aiMoving, comp.opacity);

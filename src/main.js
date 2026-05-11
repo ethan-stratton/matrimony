@@ -18,44 +18,31 @@ function updateCompanion(time) {
     // Don't follow during fadeout
   }
 
-  // Movement (follow phase only)
+  // Movement (follow phase only) — smooth float toward player
   if (c.phase === 'follow') {
-    if (!c.lastMoveTime) c.lastMoveTime = time;
-    const moveInterval = MOVE_DURATION + 20; // slightly longer than move anim to avoid overlap
-    if (!c.aiMoving && time - c.lastMoveTime > moveInterval) {
-      c.lastMoveTime = time;
-      const dx = state.player.x - c.x;
-      const dy = state.player.y - c.y;
-      const dist = Math.abs(dx) + Math.abs(dy);
-      if (dist > 2.5) {
-        // Pick direction that reduces distance most
-        let bestDir = null, bestDist = Infinity;
-        const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
-        for (const d of dirs) {
-          const nx = c.x + d.dx, ny = c.y + d.dy;
-          if (nx < 0 || ny < 0 || nx >= state.mapW || ny >= state.mapH) continue;
-          if (isTileBlocked(nx, ny, false)) continue;
-          const nd = Math.abs(state.player.x - nx) + Math.abs(state.player.y - ny);
-          if (nd < bestDist) { bestDist = nd; bestDir = d; }
+    const dx = state.player.x - c.x;
+    const dy = state.player.y - c.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 2.5) {
+      // Smoothly glide toward player
+      const speed = 0.03; // tiles per ms — slightly slower than player
+      const step = Math.min(speed * 16, dist - 2.0); // don't get closer than 2 tiles
+      if (step > 0.01) {
+        c.x += (dx / dist) * step;
+        c.y += (dy / dist) * step;
+        c.aiMoving = true;
+        // Update facing based on dominant direction
+        if (Math.abs(dx) > Math.abs(dy)) {
+          c.facing = dx > 0 ? 'right' : 'left';
+        } else {
+          c.facing = dy > 0 ? 'down' : 'up';
         }
-        if (bestDir) {
-          c.prevX = c.x; c.prevY = c.y;
-          c.x += bestDir.dx; c.y += bestDir.dy;
-          c.moveStart = now;
-          c.aiMoving = true;
-          if (bestDir.dx < 0) c.facing = 'left';
-          else if (bestDir.dx > 0) c.facing = 'right';
-          else if (bestDir.dy < 0) c.facing = 'up';
-          else c.facing = 'down';
-        }
-      } else if (dist <= 2.5) {
-        // Face same direction as player when idle
-        c.facing = state.facing;
       }
-    }
-    // Finish movement animation
-    if (c.aiMoving && now - c.moveStart >= MOVE_DURATION) {
+    } else {
       c.aiMoving = false;
+      // Face same direction as player when idle
+      c.facing = state.facing;
     }
   }
 
