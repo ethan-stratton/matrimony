@@ -1187,7 +1187,7 @@ function drawCombatNormal(c, W, H, now, elapsed) {
 
     // Ally action label and wait bar
     ctx.globalAlpha = 0.8;
-    crispText(c.allyAction || '', allyX + allySize / 2 - 20, allyY - 22, 14, '#a0c8ff', 0, CRISP_FONT_ALT);
+    crispText(c.allyAction || '', allyX + allySize / 2 - 20, allyY - 22, 32, '#d0c0a0');
     // Wait bar
     const barW = allySize, barH = 5;
     const barX = allyX, barY = allyY - 6;
