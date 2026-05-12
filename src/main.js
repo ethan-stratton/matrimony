@@ -492,8 +492,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.52
-  if (!window._v240) { window._v240 = true; const _ver = 'v2.52'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
+  // Cache buster: v2.53
+  if (!window._v253) { window._v253 = true; const _ver = 'v2.53'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -853,9 +853,10 @@ function gameLoop(time) {
             }
           }
         } else {
-          // Full block — hitstop + shield sheen
+          // Full block — hitstop + shield sheen + bark
           c.hitstop = { startTime: time, duration: 120 };
           c.blockSheen = { startTime: time, duration: 350 };
+          c.playerBark = { text: 'BLOCKED', startTime: time, duration: 900 };
           playHit(false); // lighter hit sound for blocked
         }
         // Enemy immediately picks next action + starts new countdown — NO PAUSE
