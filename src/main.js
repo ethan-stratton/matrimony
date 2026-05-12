@@ -492,8 +492,8 @@ let lastTime = 0;
 
 function gameLoop(time) {
   try {
-  // Cache buster: v2.45
-  if (!window._v240) { window._v240 = true; const _ver = 'v2.51'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
+  // Cache buster: v2.52
+  if (!window._v240) { window._v240 = true; const _ver = 'v2.52'; console.warn('=== MATRIMONY ' + _ver + ' LOADED ==='); const _vl = document.getElementById('version-label'); if (_vl) _vl.textContent = _ver; }
   // Splash screen
   if (state.screen === 'splash') {
     if (windNode) windNode.gain.gain.value = 0;
@@ -759,6 +759,8 @@ function gameLoop(time) {
           }
           if (c.enemyHp <= 0 && !c.winState) {
             c.winState = { startTime: performance.now() };
+            c.enemyDeathAnim = { startTime: performance.now(), duration: 625 };
+            c.screenShake = { startTime: performance.now(), duration: 400, intensity: 8 };
           }
           } // end else (not heal)
         }
@@ -905,6 +907,8 @@ function gameLoop(time) {
         c.screenShake = { startTime: performance.now(), duration: 200, intensity: 3 };
         if (c.enemyHp <= 0 && !c.winState) {
           c.winState = { startTime: performance.now() };
+          c.enemyDeathAnim = { startTime: performance.now(), duration: 625 };
+          c.screenShake = { startTime: performance.now(), duration: 400, intensity: 8 };
         }
       }
     }

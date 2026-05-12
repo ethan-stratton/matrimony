@@ -1013,6 +1013,19 @@ function drawCombatNormal(c, W, H, now, elapsed) {
   }
   
   // Draw enemy
+  // Enemy death fade
+  if (c.enemyDeathAnim) {
+    const dt = (now - c.enemyDeathAnim.startTime) / c.enemyDeathAnim.duration;
+    if (dt < 1) {
+      if (dt < 0.3) {
+        if (Math.floor(dt * 20) % 2 === 0) ctx.globalAlpha = 0.3;
+      } else {
+        ctx.globalAlpha = Math.max(0, 1 - (dt - 0.3) / 0.7);
+      }
+    } else {
+      ctx.globalAlpha = 0;
+    }
+  }
   if (spr && spr.loaded) {
     const frame = Math.floor(now / ANIM_SPEED) % SPRITE_FRAMES;
     ctx.imageSmoothingEnabled = false;
@@ -1050,6 +1063,25 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       }
     }
     ctx.imageSmoothingEnabled = true;
+  }
+  if (c.enemyDeathAnim) ctx.globalAlpha = 1;
+  // Death poof animation
+  if (c.enemyDeathAnim && DEATH_POOF_IMG.complete) {
+    const dt = now - c.enemyDeathAnim.startTime;
+    if (dt < c.enemyDeathAnim.duration) {
+      const frame = Math.min(DEATH_POOF_FRAMES - 1, Math.floor(dt / (1000 / DEATH_POOF_FPS)));
+      const srcX = frame * DEATH_POOF_FRAME_W;
+      const srcY = DEATH_POOF_ROW * DEATH_POOF_FRAME_H;
+      const poofSize = Math.round(enemyCombatSize * 1.8);
+      const poofX = enemyArenaX + enemyCombatSize / 2 - poofSize / 2;
+      const poofY = enemyArenaY + enemyCombatSize / 2 - poofSize / 2;
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(DEATH_POOF_IMG, srcX, srcY, DEATH_POOF_FRAME_W, DEATH_POOF_FRAME_H,
+        Math.round(poofX), Math.round(poofY), poofSize, poofSize);
+      ctx.globalAlpha = 1;
+      ctx.imageSmoothingEnabled = true;
+    }
   }
   
   // Enemy damage flash (sharp white pulse)
@@ -2970,6 +3002,8 @@ const CHEST_OPEN = new Image(); CHEST_OPEN.src = 'assets/ui/chests/chest_open.pn
 // Explosion sprite sheet — 8x9 grid of 64x64, row 0 = fire, 7 frames
 const EXPLOSION_IMG = new Image(); EXPLOSION_IMG.src = 'assets/effects/explosion.png';
 const EXPLOSION_FRAME_W = 64, EXPLOSION_FRAME_H = 64, EXPLOSION_FRAMES = 7, EXPLOSION_FPS = 14;
+const DEATH_POOF_IMG = new Image(); DEATH_POOF_IMG.src = 'assets/effects/death_poof.png';
+const DEATH_POOF_FRAME_W = 64, DEATH_POOF_FRAME_H = 64, DEATH_POOF_FRAMES = 10, DEATH_POOF_FPS = 16, DEATH_POOF_ROW = 7;
 
 function drawEntity(ctx, entity, x, y) {
   if (entity.type === 'Stream') return; // stream entities are invisible anchors
