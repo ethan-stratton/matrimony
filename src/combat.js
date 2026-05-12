@@ -90,6 +90,15 @@ function pickEnemyAction(c) {
 // ══════════════════════════════════
 let ENEMY_DATA = {};
 
+// Key items — special non-combat pickups
+const KEY_ITEMS = {
+  'Severed Wing': {
+    description: 'A fragment of ascension.',
+    description2: 'You feel lighter... unbound.',
+    effect: 'unlockFly',
+  },
+};
+
 // Battle music
 const battleMusic = new Audio('assets/audio/battle.mp3');
 battleMusic.loop = true;

@@ -1337,6 +1337,16 @@ function handleChestInput(key) {
     }
   } else if (ci.step === 'stats') {
     if (key === 'z' || key === 'Z') {
+      // Key item — doesn't go in inventory
+      if (KEY_ITEMS[ci.item]) {
+        const ki = KEY_ITEMS[ci.item];
+        if (ki.effect === 'unlockFly') state.canFly = true;
+        state.openedChests[ci.entityId] = true;
+        state.chestInteraction = null;
+        // Show a special message
+        state.keyItemMessage = { text: ki.description, text2: ki.description2, startTime: performance.now(), duration: 3000 };
+        return true;
+      }
       // Take it
       if (state.inventory.length >= 8) {
         ci.step = 'inventoryFull';

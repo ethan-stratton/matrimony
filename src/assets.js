@@ -113,6 +113,7 @@ const GROUND_ITEM_MAP = {
   'Thunder': 'assets/items/thunder_scroll.png',
   'Heal': 'assets/items/heal_scroll.png',
   'Copy': 'assets/items/copy_mirror.png',
+  'Severed Wing': 'assets/items/severed_wing.png',
 };
 for (const [name, src] of Object.entries(GROUND_ITEM_MAP)) {
   const img = new Image();

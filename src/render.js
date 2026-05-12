@@ -2407,6 +2407,29 @@ function draw() {
       state.screenFlash = null;
     }
   }
+
+  // Key item message
+  if (state.keyItemMessage) {
+    const ki = state.keyItemMessage;
+    const elapsed = performance.now() - ki.startTime;
+    if (elapsed < ki.duration) {
+      const fadeIn = Math.min(1, elapsed / 500);
+      const fadeOut = Math.max(0, 1 - (elapsed - ki.duration + 800) / 800);
+      const alpha = Math.min(fadeIn, fadeOut);
+      ctx.globalAlpha = alpha;
+      const W = canvas.width;
+      // Centered text with glow feel
+      const tw1 = ki.text.length * 8;
+      crispGradientText(ki.text, Math.round(W / 2 - tw1 / 2), 60, 28, [[0, '#60a0d0'], [0.5, '#c0e0ff'], [1, '#60a0d0']], 0.5, CRISP_FONT_ALT);
+      if (ki.text2) {
+        const tw2 = ki.text2.length * 7;
+        crispText(ki.text2, Math.round(W / 2 - tw2 / 2), 90, 24, '#80b0d0', 0, CRISP_FONT_ALT);
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      state.keyItemMessage = null;
+    }
+  }
   
   
   // Font comparison overlay (press F to toggle, scroll with mousewheel or drag)
