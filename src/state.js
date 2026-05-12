@@ -28,6 +28,16 @@ function saveGame(slot) {
     flying: state.flying || false,
     flyX: state.flying ? state.flyX : null,
     flyY: state.flying ? state.flyY : null,
+    canFly: state.canFly || false,
+    equipment: state.equipment || [null, null],
+    companion: state.companion ? {
+      x: state.companion.x,
+      y: state.companion.y,
+      facing: state.companion.facing,
+      opacity: state.companion.opacity,
+      phase: state.companion.phase,
+      combatHelpUsed: state.companion.combatHelpUsed || false,
+    } : null,
     timestamp: Date.now(),
   };
   try {
@@ -71,6 +81,21 @@ async function applySave(slot) {
   state.rejectedTransforms = data.rejectedTransforms || {};
   state.isSkeleton = data.isSkeleton || false;
   state.flying = data.flying || false;
+  state.canFly = data.canFly !== undefined ? data.canFly : false;
+  state.equipment = data.equipment || [null, null];
+  if (data.companion) {
+    state.companion = {
+      ...data.companion,
+      aiMoving: false,
+      moveStart: 0,
+      prevX: data.companion.x,
+      prevY: data.companion.y,
+      fadeStart: data.companion.phase === 'fadeout' ? performance.now() : 0,
+      _lastParticleTime: 0,
+    };
+  } else {
+    state.companion = null;
+  }
   if (state.flying && data.flyX != null) {
     state.flyX = data.flyX;
     state.flyY = data.flyY;
@@ -108,7 +133,7 @@ const state = {
   moveFrom: { x: 0, y: 0 },
   dialogue: null,
   flags: {},
-  canFly: true, // TODO: event flag, true for testing
+  canFly: false, // Set via event flag
   flying: false,
   flyX: 0,
   flyY: 0,

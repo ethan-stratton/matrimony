@@ -717,6 +717,23 @@ function gameLoop(time) {
           const dmg = act.pierce === true ? (act.eff || 0) : Math.max(pierceDmg, (act.eff || 0) - (enemyAct.def || 0));
           c.enemyHp = Math.max(0, c.enemyHp - dmg);
           playHit(false);
+          // Hit reactions on enemy
+          if (dmg > 0) {
+            const recoilDist = Math.min(16, 6 + dmg * 1.5);
+            c.enemyHitRecoil = { startTime: performance.now(), duration: 200, distance: recoilDist };
+            c.enemyDamageFlash = { startTime: performance.now(), duration: 60 };
+            if (!c.hitParticles) c.hitParticles = [];
+            const pCount = 4 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < pCount; i++) {
+              c.hitParticles.push({
+                x: 0, y: 0, enemy: true,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                life: 0.4, size: 2 + Math.random() * 2,
+                color: '#ffdd44',
+              });
+            }
+          }
           // Screen shake on enemy hit (lighter than player hit)
           if (dmg > 0) {
             c.screenShake = { startTime: performance.now(), duration: 200, intensity: 3 };
@@ -744,6 +761,12 @@ function gameLoop(time) {
             c.winState = { startTime: performance.now() };
           }
           } // end else (not heal)
+        }
+        // Record action for combo detection
+        if (c.attackText) {
+          c.actionHistory.push(c.attackText);
+          if (c.actionHistory.length > 5) c.actionHistory.shift();
+          checkCombos(c);
         }
                 // PAUSE — player always picks next action first, even on simultaneous resolution.
         // Enemy countdown stays at 0; their attack fires after player's next commit.
@@ -789,6 +812,21 @@ function gameLoop(time) {
         if (enemyDmg > 0) {
           c.playerHp = Math.max(0, c.playerHp - enemyDmg);
           playHit(true);
+          // Hit reactions on player
+          const playerRecoilDist = Math.min(16, 6 + enemyDmg * 1.5);
+          c.playerHitRecoil = { startTime: performance.now(), duration: 200, distance: playerRecoilDist };
+          c.playerDamageFlash = { startTime: performance.now(), duration: 60 };
+          if (!c.hitParticles) c.hitParticles = [];
+          const pCount2 = 4 + Math.floor(Math.random() * 5);
+          for (let i = 0; i < pCount2; i++) {
+            c.hitParticles.push({
+              x: 0, y: 0, enemy: false,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              life: 0.4, size: 2 + Math.random() * 2,
+              color: '#ffffff',
+            });
+          }
           c.playerHurtAnim = { startTime: time, duration: 400 };
           // HP chip particles from player health bar
           if (!c.hpChipParticles) c.hpChipParticles = [];
@@ -922,9 +960,11 @@ function gameLoop(time) {
             // Non-damaging move (Defend, etc.) — bark instead of rushing
             c.playerBark = { text: c.attackText, startTime: time, duration: 800 };
           } else {
+            const pActEff = (pAct.eff || 0);
+            const scaledHitPause = Math.min(200, 60 + pActEff * 8);
             c.playerAttackAnim = {
               startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+              rushDuration: 200, hitPause: scaledHitPause, returnDuration: 200, totalDuration: 400 + scaledHitPause,
             };
           }
         }
@@ -935,9 +975,11 @@ function gameLoop(time) {
           if ((enemyAct.eff || 0) === 0) {
             c.enemyBark = { text: c.enemyAction, startTime: time, duration: 800 };
           } else {
+            const eActEff = (enemyAct.eff || 0);
+            const scaledHitPause = Math.min(200, 60 + eActEff * 8);
             c.enemyAttackAnim = {
               startTime: time,
-              rushDuration: 200, hitPause: 100, returnDuration: 200, totalDuration: 500,
+              rushDuration: 200, hitPause: scaledHitPause, returnDuration: 200, totalDuration: 400 + scaledHitPause,
             };
           }
         }

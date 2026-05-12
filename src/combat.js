@@ -163,6 +163,8 @@ function startCombat(entity, enemyStats) {
       COMBAT_ACTIONS['Ghost Strike'] = { eff: 8, def: 0, wait: 6, pierce: true };
     }
   }
+  c.actionHistory = [];
+  c.hitParticles = [];
   const initialActions = ENEMY_DATA[c.enemy.type]?.actions || ['Stand Still'];
   c.enemyAction = initialActions[0];
   const initAct = COMBAT_ACTIONS[c.enemyAction] || {};
@@ -173,9 +175,11 @@ function startCombat(entity, enemyStats) {
 
 function exitCombat(ranAway) {
   const enemy = state.combat.enemy;
-  // Mark companion as having helped
+  // Mark companion as having helped — trigger fadeout
   if (state.combat.allyPresent && state.companion) {
     state.companion.combatHelpUsed = true;
+    state.companion.phase = 'fadeout';
+    state.companion.fadeStart = performance.now();
   }
   battleMusic.pause();
   battleMusic.currentTime = 0;
@@ -246,6 +250,44 @@ function rejectWeaponTransform() {
 
 // Combat action data
 let COMBAT_ACTIONS = {};
+
+// ══════════════════════════════════
+// COMBO SYSTEM
+// ══════════════════════════════════
+const COMBO_TABLE = [
+  { name: 'Shattered Guard', sequence: ['Stun Mace', '*'], bonusEff: 5, description: 'Stun then strike!' },
+  { name: 'Flurry', sequence: ['Shortbow', 'Shortbow', 'Shortbow'], bonusEff: 0, multiplier: 2, description: 'Triple shot!' },
+  { name: 'Shield Bash', sequence: ['Defend', 'Broadsword'], bonusEff: 3, pierce: true, description: 'Guard then crush!' },
+];
+
+function checkCombos(c) {
+  for (const combo of COMBO_TABLE) {
+    const seq = combo.sequence;
+    const hist = c.actionHistory;
+    if (hist.length < seq.length) continue;
+    const recent = hist.slice(-seq.length);
+    let match = true;
+    for (let i = 0; i < seq.length; i++) {
+      if (seq[i] !== '*' && seq[i] !== recent[i]) { match = false; break; }
+    }
+    if (match) {
+      c.comboTriggered = {
+        name: combo.name,
+        startTime: performance.now(),
+        duration: 2000,
+        bonusEff: combo.bonusEff || 0,
+        description: combo.description,
+      };
+      if (combo.bonusEff) {
+        c.enemyHp = Math.max(0, c.enemyHp - combo.bonusEff);
+        c.screenShake = { startTime: performance.now(), duration: 300, intensity: 8 };
+      }
+      if (!c.discoveredCombos) c.discoveredCombos = {};
+      c.discoveredCombos[combo.name] = true;
+      break;
+    }
+  }
+}
 
 // ── Load editor overrides from localStorage ──
 function loadEditorData() {

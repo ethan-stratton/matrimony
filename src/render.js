@@ -874,6 +874,26 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     ctx.globalAlpha = 1;
   }
   
+  // Hit particles (damage impact effects)
+  if (c.hitParticles && c.hitParticles.length > 0) {
+    const fdt = frameDt || 0.016;
+    for (let i = c.hitParticles.length - 1; i >= 0; i--) {
+      const p = c.hitParticles[i];
+      p.life -= fdt;
+      if (p.life <= 0) { c.hitParticles.splice(i, 1); continue; }
+      p.x += p.vx * fdt * 60;
+      p.y += p.vy * fdt * 60;
+      p.vy += 2 * fdt * 60; // light gravity
+      const cx = p.enemy ? (enemyArenaX + enemyCombatSize / 2) : (playerArenaX + playerCombatSize / 2);
+      const cy = p.enemy ? (enemyArenaY + enemyCombatSize / 2) : (playerArenaY + playerCombatSize / 2);
+      const alpha = Math.min(1, p.life / 0.2);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(cx + p.x, cy + p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+  
   // Enemy action display — hidden on first exchange until player commits, always visible after
   const showEnemyAction = c.enemyAction && c.enemyActionRevealed;
   if (showEnemyAction) {
@@ -936,6 +956,18 @@ function drawCombatNormal(c, W, H, now, elapsed) {
   let enemyArenaX = Math.round(enemySlideFrom + (enemyTargetX - enemySlideFrom) * eased);
   const enemyArenaY = groundY - enemyCombatSize - 8;
   const playerArenaY = groundY - playerCombatSize;
+  
+  // Hit recoil offsets
+  if (c.enemyHitRecoil) {
+    const rt = (now - c.enemyHitRecoil.startTime) / c.enemyHitRecoil.duration;
+    if (rt >= 1) { c.enemyHitRecoil = null; }
+    else { const decay = (1 - rt) * (1 - rt); enemyArenaX += Math.round(c.enemyHitRecoil.distance * decay); }
+  }
+  if (c.playerHitRecoil) {
+    const rt = (now - c.playerHitRecoil.startTime) / c.playerHitRecoil.duration;
+    if (rt >= 1) { c.playerHitRecoil = null; }
+    else { const decay = (1 - rt) * (1 - rt); playerArenaX -= Math.round(c.playerHitRecoil.distance * decay); }
+  }
   
   // Player attack animation — rush toward enemy then return
   let playerAttacking = false;
@@ -1018,6 +1050,32 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       }
     }
     ctx.imageSmoothingEnabled = true;
+  }
+  
+  // Enemy damage flash (sharp white pulse)
+  if (c.enemyDamageFlash && spr && spr.loaded) {
+    const ft = (now - c.enemyDamageFlash.startTime) / c.enemyDamageFlash.duration;
+    if (ft >= 1) { c.enemyDamageFlash = null; }
+    else {
+      if (!drawCombat._dmgFlashCanvas) {
+        drawCombat._dmgFlashCanvas = document.createElement('canvas');
+        drawCombat._dmgFlashCtx = drawCombat._dmgFlashCanvas.getContext('2d');
+      }
+      const fc = drawCombat._dmgFlashCanvas;
+      const fctx = drawCombat._dmgFlashCtx;
+      fc.width = enemyCombatSize; fc.height = enemyCombatSize;
+      fctx.clearRect(0, 0, fc.width, fc.height);
+      fctx.imageSmoothingEnabled = false;
+      const dmgFrame = Math.floor(now / ANIM_SPEED) % SPRITE_FRAMES;
+      fctx.drawImage(spr.img, dmgFrame * SPRITE_FRAME_SIZE, 0, SPRITE_FRAME_SIZE, SPRITE_FRAME_SIZE, 0, 0, enemyCombatSize, enemyCombatSize);
+      fctx.globalCompositeOperation = 'source-atop';
+      fctx.fillStyle = 'white';
+      fctx.fillRect(0, 0, fc.width, fc.height);
+      fctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.6;
+      ctx.drawImage(fc, enemyArenaX, enemyArenaY);
+      ctx.globalAlpha = 1;
+    }
   }
   
   // Enemy attack flash — red tint during hit pause
@@ -1150,6 +1208,35 @@ function drawCombatNormal(c, W, H, now, elapsed) {
     ctx.imageSmoothingEnabled = true;
   }
 
+  // Player damage flash (sharp white pulse)
+  if (c.playerDamageFlash && getPlayerSheet().loaded) {
+    const ft = (now - c.playerDamageFlash.startTime) / c.playerDamageFlash.duration;
+    if (ft >= 1) { c.playerDamageFlash = null; }
+    else {
+      if (!drawCombat._playerDmgFlash) {
+        drawCombat._playerDmgFlash = document.createElement('canvas');
+        drawCombat._playerDmgFlashCtx = drawCombat._playerDmgFlash.getContext('2d');
+      }
+      const fc = drawCombat._playerDmgFlash;
+      const fctx = drawCombat._playerDmgFlashCtx;
+      fc.width = playerCombatSize; fc.height = playerCombatSize;
+      fctx.clearRect(0, 0, fc.width, fc.height);
+      fctx.imageSmoothingEnabled = false;
+      const anim2 = getPlayerSheet().anims['idle_right'];
+      const frame2 = Math.floor(now / 400) % anim2.frames;
+      fctx.save(); fctx.translate(playerCombatSize, 0); fctx.scale(-1, 1);
+      fctx.drawImage(getPlayerSheet().img, frame2 * getPlayerSheet().frameW, anim2.row * getPlayerSheet().frameH, getPlayerSheet().frameW, getPlayerSheet().frameH, 0, 0, playerCombatSize, playerCombatSize);
+      fctx.restore();
+      fctx.globalCompositeOperation = 'source-atop';
+      fctx.fillStyle = 'white';
+      fctx.fillRect(0, 0, fc.width, fc.height);
+      fctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.6;
+      ctx.drawImage(fc, playerArenaX, playerArenaY);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // Draw ghost companion in combat
   if (c.allyPresent && getPlayerSheet().loaded) {
     const allySize = playerCombatSize;
@@ -1240,6 +1327,31 @@ function drawCombatNormal(c, W, H, now, elapsed) {
       crispText('Esc = Run Away', W - 180, arenaY + 4, 32, '#8c828c');
     }
     ctx.globalAlpha = 1;
+  }
+  
+  // Combo triggered display
+  if (c.comboTriggered) {
+    const ct = c.comboTriggered;
+    const t = (now - ct.startTime) / ct.duration;
+    if (t >= 1) {
+      c.comboTriggered = null;
+    } else {
+      const alpha = t < 0.1 ? t / 0.1 : t > 0.7 ? (1 - t) / 0.3 : 1;
+      const scale = 1 + 0.3 * Math.max(0, 1 - t * 5);
+      const fontSize = Math.round(36 * scale);
+      ctx.globalAlpha = Math.max(0, alpha);
+      const COMBO_GRADIENT = [[0, '#c09020'], [0.3, '#ffe080'], [0.5, '#ffffff'], [0.7, '#ffe080'], [1, '#c09020']];
+      const comboText = '\u2605 ' + ct.name + ' \u2605';
+      const textW = comboText.length * (fontSize * 0.55);
+      const cx = Math.round(W / 2 - textW / 2);
+      const cy = Math.round(arenaY + arenaH * 0.35);
+      crispGradientText(comboText, cx, cy, fontSize, COMBO_GRADIENT, 1, CRISP_FONT_ALT);
+      if (ct.description && alpha > 0.3) {
+        const descW = ct.description.length * 7;
+        crispText(ct.description, Math.round(W / 2 - descW / 2), cy + fontSize + 8, 24, '#c0b080', 0, CRISP_FONT_ALT);
+      }
+      ctx.globalAlpha = 1;
+    }
   }
   
   // ── BOTTOM BAR ──
